@@ -19,17 +19,27 @@ git submodule update
 ### Add engine initialization
 
 ```C#
+private UIHookup UI;
+
 private void InitializeComponent()
 {
+  ...
+  this.Width = 1024;
+  this.Height = 800;
+  // setting a double buffer eliminates the flicker
+  this.DoubleBuffered = true;
+
   // basic green background
+  var width = 10000;
+  var height = 800;
   var background = new Background(width, height) { GroundColor = new RGBA { R = 100, G = 255, B = 100, A =   255 } };
   // put the player in the middle
   var players = new Player[]
     {
-      new Player() { Name = "YoBro", X = 0, Y = 0 };
+      new Player() { Name = "YoBro", X = 0, Y = 0 }
     };
   // any objects to interact with
-  var objects = null;
+  Element[] objects = null;
   var world = new World(
     new WorldConfiguration()
     {
@@ -40,6 +50,8 @@ private void InitializeComponent()
     objects,
     background
   );
+  // start the UI painting
+  UI = new UIHookup(this, world);
 }  // InitializeComponent
 
 protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -48,6 +60,10 @@ protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
   return base.ProcessCmdKey(ref msg, keyData);
 } // ProcessCmdKey
 ```
+
+#### World
+
+<tbd>
 
 #### Backgrounds
 Backgrounds can provide a default look to the screen, but they also can inflict damage to Players and affect how fast a player may move.  Backgrounds can also adjust over time.

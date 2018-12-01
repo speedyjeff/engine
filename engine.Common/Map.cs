@@ -82,14 +82,26 @@ namespace engine.Common
             }
         }
 
-        public bool Move(Player player, ref float xdelta, ref float ydelta)
+        public bool Move(Player player, ref float xdelta, ref float ydelta, float pace = 0)
+        {
+            if (CanMove(player, ref xdelta, ref ydelta, pace))
+            {
+                // move the player
+                player.Move(xdelta, ydelta);
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool CanMove(Player player, ref float xdelta, ref float ydelta, float pace = 0)
         {
             if (player.IsDead) return false;
             if (IsPaused) return false;
 
             lock (this)
             {
-                float pace = Background.Pace(player.X, player.Y);
+                if (pace == 0) pace = Background.Pace(player.X, player.Y);
                 if (pace < Constants.MinSpeedMultiplier) pace = Constants.MinSpeedMultiplier;
                 if (pace > Constants.MaxSpeedMultiplier) pace = Constants.MaxSpeedMultiplier;
                 float speed = Constants.Speed * pace;
@@ -106,9 +118,6 @@ namespace engine.Common
                 {
                     return false;
                 }
-
-                // move the player
-                player.Move(xdelta, ydelta);
 
                 return true;
             }

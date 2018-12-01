@@ -4,7 +4,7 @@ using System.Text;
 
 namespace engine.Common.Entities
 {
-    public enum ActionEnum { None, SwitchPrimary, Pickup, Drop, Reload, Attack, Move, COUNT };
+    public enum ActionEnum { None, SwitchPrimary, Pickup, Drop, Reload, Attack, Move, Jump, COUNT };
 
     public class Player : Element
     {
@@ -40,6 +40,8 @@ namespace engine.Common.Entities
         public int Kills { get; set; }
 
         public int Ranking { get; set; }
+
+        public float JumpPercentage { get; set; }
 
         public virtual string HurtSoundPath => "media/hurt.wav";
 

@@ -13,7 +13,6 @@ namespace engine.Common.Entities.AI
             ShowDiagnostics = Constants.Debug_AIMoveDiag;
         }
 
-        public volatile int RunningState;
         public bool ShowDiagnostics { get; protected set; }
         
         public virtual ActionEnum Action(List<Element> elements, float angleToCenter, bool inZone, ref float xdelta, ref float ydelta, ref float angle)

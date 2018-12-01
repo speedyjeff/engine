@@ -19,8 +19,10 @@ namespace engine.Common
         public Menu StartMenu;
         public Menu EndMenu;
         public Menu HUD;
-        public bool DisableZoom;
+        public bool EnableZoom;
         public bool DisplayStats;
+        public bool ShowCoordinates;
+        public bool ApplyYGravity;
     }
 
     public class World
@@ -49,7 +51,7 @@ namespace engine.Common
             Map.OnElementHit += HitByAttack;
             Map.OnElementDied += PlayerDied;
 
-            // process the players
+            // process the players and assign Human
             if (players != null)
                 foreach (var player in players) AddItem(player);
 
@@ -230,6 +232,16 @@ namespace engine.Common
                 Surface.EnableTranslation();
             }
 
+            if (Config.ShowCoordinates)
+            {
+                Surface.DisableTranslation();
+                {
+                    Surface.Text(RGBA.Black, 200, 10, string.Format("X {0}", Human.X));
+                    Surface.Text(RGBA.Black, 200, 30, string.Format("Y {0}", Human.Y));
+                }
+                Surface.EnableTranslation();
+            }
+
             // show a menu if present
             if (Map.IsPaused && Menu != null)
             {
@@ -327,6 +339,12 @@ namespace engine.Common
                     result = Attack(Human);
                     break;
 
+                case Constants.Jump:
+                case Constants.Jump2:
+                    // ActionEnum.Jump (special)
+                    result = Jump(Human);
+                    break;
+
                 case Constants.RightMouse:
                     // use the mouse to move in the direction of the angle
                     float r = (Human.Angle % 90) / 90f;
@@ -356,7 +374,7 @@ namespace engine.Common
         public void Mousewheel(float delta)
         {
             // disabled by the developer
-            if (Config.DisableZoom) return;
+            if (!Config.EnableZoom) return;
 
             // block usage if a menu is being displayed
             if (Map.IsPaused) return;
@@ -395,11 +413,13 @@ namespace engine.Common
                 }
 
                 // setup humans and AI
-                if (item is AI)
+                if (item is AI || Config.ApplyYGravity)
                 {
-                    details.AITimer = new Timer(AIMove, item.Id, 0, Constants.GlobalClock);
+                    details.UpdateTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
                 }
-                else if (Human == null)
+
+                // assign human
+                if (Human == null && !(item is AI))
                 {
                     Human = item as Player;
                 }
@@ -456,7 +476,8 @@ namespace engine.Common
         {
             public Player Player;
             public Timer Parachute;
-            public Timer AITimer;
+            public Timer UpdateTimer;
+            public int RunningState; // to avoid reentrancy in the timer
         }
 
         private IGraphics Surface;
@@ -563,8 +584,8 @@ namespace engine.Common
             }
         }
 
-        // AI
-        private void AIMove(object state)
+        // AI and other updates for players
+        private void UpdatePlayer(object state)
         {
             // block usage if a menu is being displayed
             if (Map.IsPaused) return;
@@ -584,7 +605,11 @@ namespace engine.Common
                 }
             }
 
+            // the timer is reentrant, so only allow one instance to run
+            if (System.Threading.Interlocked.CompareExchange(ref detail.RunningState, 1, 0) != 0) return;
+
             timer.Start();
+            // if AI, then query for movement
             if (detail.Player is AI)
             {
                 AI ai = detail.Player as AI;
@@ -592,16 +617,13 @@ namespace engine.Common
                 float ydelta = 0;
                 float angle = 0;
 
-                // the timer is reentrant, so only allow one instance to run
-                if (System.Threading.Interlocked.CompareExchange(ref ai.RunningState, 1, 0) != 0) return;
-
                 if (ai.IsDead)
                 {
                     // remove the AI player
                     RemoveItem(ai);
 
                     // stop the timer
-                    detail.AITimer.Dispose();
+                    detail.UpdateTimer.Dispose();
                     return;
                 }
 
@@ -649,6 +671,10 @@ namespace engine.Common
                         result |= swap;
                         ai.Feedback(action, null, result);
                         break;
+                    case ActionEnum.Jump:
+                        result |= Jump(ai);
+                        ai.Feedback(action, null, result);
+                        break;
                     case ActionEnum.Move:
                     case ActionEnum.None:
                         break;
@@ -664,11 +690,27 @@ namespace engine.Common
                 // ensure the player stays within the map
                 if (ai.X < 0 || ai.X > Map.Width || ai.Y < 0 || ai.Y > Map.Height)
                     System.Diagnostics.Debug.WriteLine("Out of bounds");
+            }
 
-                // set state back to not running
-                System.Threading.Volatile.Write(ref ai.RunningState, 0);
+            // apply gravity if necessary
+            if (Config.ApplyYGravity)
+            {
+                // apply upward force
+                if (detail.Player.JumpPercentage > 0)
+                {
+                    Move(detail.Player, 0, -1 * detail.Player.JumpPercentage, Constants.JumpPace);
+
+                    // degrade the JumpPercentage
+                    detail.Player.JumpPercentage -= Constants.JumpDegrade;
+                }
+
+                // apply downward force
+                Move(detail.Player, 0, Constants.GravityYAdjustment);
             }
             timer.Stop();
+
+            // set state back to not running
+            System.Threading.Volatile.Write(ref detail.RunningState, 0);
 
             if (timer.ElapsedMilliseconds > 100) System.Diagnostics.Debug.WriteLine("**AIMove Duration {0} ms", timer.ElapsedMilliseconds);
         }
@@ -793,10 +835,10 @@ namespace engine.Common
                 state == AttackStateEnum.FiredWithContact);
         }
 
-        private bool Move(Player player, float xdelta, float ydelta)
+        private bool Move(Player player, float xdelta, float ydelta, float pace = 0)
         {
             if (player.IsDead) return false;
-            if (Map.Move(player, ref xdelta, ref ydelta))
+            if (Map.Move(player, ref xdelta, ref ydelta, pace))
             {
                 // move the screen
                 WindowX += xdelta;
@@ -815,6 +857,22 @@ namespace engine.Common
         {
             if (player.IsDead) return;
             player.Angle = angle;
+        }
+
+        private bool Jump(Player player)
+        {
+            if (player.IsDead) return false;
+            if (!Config.ApplyYGravity) return false;
+
+            // check that the player is touching something below them
+            var xdelta = 0f;
+            var ydelta = Constants.GravityYAdjustment;
+            if (!Map.CanMove(player, ref xdelta, ref ydelta))
+            {
+                // to something
+                player.JumpPercentage = 1; // 100%
+            }
+            return false;
         }
 
         // callbacks

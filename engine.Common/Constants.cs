@@ -38,6 +38,9 @@ namespace engine.Common
         public const char Drop3 = 'Q';
         public const char Drop4 = 'q';
 
+        public const char Jump = 'j';
+        public const char Jump2 = 'J';
+
         // mouse
         public const char LeftMouse = (char)250;
         public const char RightMouse = (char)249;
@@ -51,7 +54,10 @@ namespace engine.Common
         public const int GlobalClock = 100; // ms - cannot be below 30ms
         public const int MaxTrainedAICount = 0;
         public const int MaxAmmo = 500; // it is infinite, but any more than this is considered full
-
+        public const float GravityYAdjustment = 1f;
+        public const float JumpDegrade = 0.05f;
+        public const float JumpPace = 10f;
+ 
         // world options
         public const float MaxZoomIn = 10f;
         public const float ZoomStep = 0.1f;

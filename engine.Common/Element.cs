@@ -28,8 +28,8 @@ namespace engine.Common.Entities
         }
 
         // bounds (hit box)
-        public float Height { get; protected set; }
-        public float Width { get; protected set; }
+        public float Height { get; set; }
+        public float Width { get; set; }
 
         // attributes
         public float Health { get; set; } = 0;

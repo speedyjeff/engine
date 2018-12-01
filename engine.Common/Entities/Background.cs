@@ -20,8 +20,8 @@ namespace engine.Common.Entities
             Height = height;
 
             // center
-            X = width / 2;
-            Y = height / 2;
+            X = 0;
+            Y = 0;
         }
 
         public RGBA GroundColor { get; set; }
