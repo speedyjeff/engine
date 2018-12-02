@@ -86,6 +86,7 @@ namespace engine.Common
         public event Func<Menu> OnPaused;
         public event Action OnResumed;
         public event Action<Player, Element> OnContact;
+        public event Action<Player, Element> OnAttack;
         public event Func<Player, char, bool> OnBeforeKeyPressed;
         public event Func<Player, char, bool> OnAfterKeyPressed;
 
@@ -553,9 +554,10 @@ namespace engine.Common
                 }
                 do
                 {
+                    // apply parachute
                     float xdelta = xstep;
                     float ydelta = 0;
-                    if (Map.Move(detail.Player, ref xdelta, ref ydelta))
+                    if (Move(detail.Player, xdelta, ydelta))
                     {
                         break;
                     }
@@ -684,7 +686,7 @@ namespace engine.Common
                 // have the AI move
                 float oxdelta = xdelta;
                 float oydelta = ydelta;
-                var moved = Map.Move(ai, ref xdelta, ref ydelta);
+                var moved = Move(ai, xdelta, ydelta);
                 ai.Feedback(ActionEnum.Move, null, moved);
 
                 // ensure the player stays within the map
@@ -695,24 +697,53 @@ namespace engine.Common
             // apply gravity if necessary
             if (Config.ApplyYGravity)
             {
+                int retries;
+                float dist;
+                float pace;
+
                 // apply upward force
                 if (detail.Player.JumpPercentage > 0)
                 {
-                    Move(detail.Player, 0, -1 * detail.Player.JumpPercentage, Constants.JumpPace);
+                    retries = 3;
+                    pace = Constants.JumpPace;
+                    dist = -1 * detail.Player.JumpPercentage;
+                    do
+                    {
+                        if (Move(detail.Player, 0, dist, pace))
+                            break;
+                        // we are too close, reduce how far we try
+                        dist /= 2;
+                        pace /= 2;
+                        // also reduce trying again
+                        detail.Player.JumpPercentage -= Constants.JumpDegrade;
+                    }
+                    while (retries-- > 0);
 
                     // degrade the JumpPercentage
                     detail.Player.JumpPercentage -= Constants.JumpDegrade;
                 }
-
-                // apply downward force
-                Move(detail.Player, 0, Constants.GravityYAdjustment);
+                else
+                {
+                    // apply downward force
+                    retries = 3;
+                    dist = 1;
+                    pace = Constants.GravityPace;
+                    do
+                    {
+                        if (Move(detail.Player, 0, dist, pace))
+                            break;
+                        dist /= 2;
+                        pace /= 2;
+                    }
+                    while (retries-- > 0);
+                }
             }
             timer.Stop();
 
             // set state back to not running
             System.Threading.Volatile.Write(ref detail.RunningState, 0);
 
-            if (timer.ElapsedMilliseconds > 100) System.Diagnostics.Debug.WriteLine("**AIMove Duration {0} ms", timer.ElapsedMilliseconds);
+            if (timer.ElapsedMilliseconds > 100) System.Diagnostics.Debug.WriteLine("**UpdatePlayer Duration {0} ms", timer.ElapsedMilliseconds);
         }
 
         // support
@@ -838,16 +869,27 @@ namespace engine.Common
         private bool Move(Player player, float xdelta, float ydelta, float pace = 0)
         {
             if (player.IsDead) return false;
-            if (Map.Move(player, ref xdelta, ref ydelta, pace))
+
+            Element touching;
+            if (Map.Move(player, ref xdelta, ref ydelta, out touching, pace))
             {
-                // move the screen
-                WindowX += xdelta;
-                WindowY += ydelta;
+                // the move completed
+                if (touching != null) throw new Exception("There should not be an object touching");
+
+                if (player.Id == Human.Id)
+                {
+                    // move the screen
+                    WindowX += xdelta;
+                    WindowY += ydelta;
+                }
 
                 return true;
             }
             else
             {
+                // notify that this object has been touched
+                if (touching != null && OnContact != null) OnContact(player, touching);
+
                 // TODO may want to move back a bit in the opposite direction
                 return false;
             }
@@ -866,11 +908,16 @@ namespace engine.Common
 
             // check that the player is touching something below them
             var xdelta = 0f;
-            var ydelta = Constants.GravityYAdjustment;
-            if (!Map.CanMove(player, ref xdelta, ref ydelta))
+            var ydelta = Constants.IsTouchingDistance;
+            Element touching;
+            if (Map.WhatWouldPlayerTouch(player, ref xdelta, ref ydelta, out touching))
             {
-                // to something
-                player.JumpPercentage = 1; // 100%
+                // successfully checked
+                if (touching != null && player.Y < touching.Y)
+                {
+                    // this player is standing on something
+                    player.JumpPercentage = 1; // 100%
+                }
             }
             return false;
         }
@@ -885,7 +932,7 @@ namespace engine.Common
             }
 
             // notify the outside world that we hit something
-            if (OnContact != null) OnContact(player, element);
+            if (OnAttack != null) OnAttack(player, element);
         }
 
         private void PlayerDied(Element element)

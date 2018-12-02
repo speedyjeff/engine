@@ -1,12 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-
 using engine.Common.Entities;
-
 namespace engine.Common
 {
     class Map
@@ -82,20 +77,28 @@ namespace engine.Common
             }
         }
 
-        public bool Move(Player player, ref float xdelta, ref float ydelta, float pace = 0)
+        public bool Move(Player player, ref float xdelta, ref float ydelta, out Element touching, float pace = 0)
         {
-            if (CanMove(player, ref xdelta, ref ydelta, pace))
+            if (WhatWouldPlayerTouch(player, ref xdelta, ref ydelta, out touching, pace))
             {
-                // move the player
-                player.Move(xdelta, ydelta);
-                return true;
+                // successfully checked, and there is no object touching
+                if (touching == null)
+                {
+                    // move the player
+                    player.Move(xdelta, ydelta);
+
+                    return true;
+                }
             }
 
             return false;
         }
 
-        public bool CanMove(Player player, ref float xdelta, ref float ydelta, float pace = 0)
+        public bool WhatWouldPlayerTouch(Player player, ref float xdelta, ref float ydelta, out Element touching, float pace = 0)
         {
+            // return no object
+            touching = null;
+
             if (player.IsDead) return false;
             if (IsPaused) return false;
 
@@ -113,12 +116,10 @@ namespace engine.Common
                 xdelta *= speed;
                 ydelta *= speed;
 
-                // check for a collision first
-                if (IntersectingRectangles(player, false /* consider acquirable */, xdelta, ydelta) != null)
-                {
-                    return false;
-                }
+                // return if the player would collide with an object
+                touching = IntersectingRectangles(player, false /* consider acquirable */, xdelta, ydelta);
 
+                // return that we actually checked
                 return true;
             }
         }
