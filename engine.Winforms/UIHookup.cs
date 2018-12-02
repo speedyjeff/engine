@@ -73,9 +73,6 @@ namespace engine.Winforms
             else if (keyData == Keys.Down) World.KeyPress(Common.Constants.DownArrow);
             else if (keyData == Keys.Space) World.KeyPress(Common.Constants.Space);
             else if (keyData == Keys.Escape) World.KeyPress(Common.Constants.Esc);
-
-            // command control
-            else if (keyData == Keys.Tab) throw new Exception("NYI - show menu"); // show a menu
         }
 
         #region private
