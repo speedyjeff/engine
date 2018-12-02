@@ -11,6 +11,8 @@ namespace engine.Common.Tests
         //  2) narrower
         //  3) from left
         //  4) from right
+        //  5) Complete overlap
+        //  6) no overlap
 
         [TestMethod]
         public void Top()
@@ -58,6 +60,24 @@ namespace engine.Common.Tests
                     Y1 = 1,
                     Y2 = 15,
                     Result = true
+                },
+                // overlap
+                new Quad()
+                {
+                    X1 = x3,
+                    X2 = x4,
+                    Y1 = y3-10,
+                    Y2 = y3+10,
+                    Result = true
+                },
+                // no overlap
+                new Quad()
+                {
+                    X1 = x3,
+                    X2 = x4,
+                    Y1 = y3-50,
+                    Y2 = y3-10,
+                    Result = false
                 }
             })
             {
@@ -116,6 +136,24 @@ namespace engine.Common.Tests
                     Y1 = 40,
                     Y2 = 55,
                     Result = true
+                },
+                // overlap
+                new Quad()
+                {
+                    X1 = x3,
+                    X2 = x4,
+                    Y1 = y4-10,
+                    Y2 = y4+10,
+                    Result = true
+                },
+                // no overlap
+                new Quad()
+                {
+                    X1 = x3,
+                    X2 = x4,
+                    Y1 = y4+10,
+                    Y2 = y4+20,
+                    Result = false
                 }
             })
             {
@@ -174,6 +212,24 @@ namespace engine.Common.Tests
                     Y1 = 45,
                     Y2 = 55,
                     Result = true
+                },
+                // overlap
+                new Quad()
+                {
+                    X1 = x3-10,
+                    X2 = x3+10,
+                    Y1 = y3,
+                    Y2 = y4,
+                    Result = true
+                },
+                // no overlap
+                new Quad()
+                {
+                    X1 = x3-20,
+                    X2 = x3-10,
+                    Y1 = y3,
+                    Y2 = y4,
+                    Result = false
                 }
             })
             {
@@ -233,6 +289,24 @@ namespace engine.Common.Tests
                     Y1 = 45,
                     Y2 = 55,
                     Result = true
+                },
+                // overlap
+                new Quad()
+                {
+                    X1 = x4-10,
+                    X2 = x4+10,
+                    Y1 = y3,
+                    Y2 = y4,
+                    Result = true
+                },
+                // no overlap
+                new Quad()
+                {
+                    X1 = x4+10,
+                    X2 = x4+20,
+                    Y1 = y3,
+                    Y2 = y4,
+                    Result = false
                 }
             })
             {
