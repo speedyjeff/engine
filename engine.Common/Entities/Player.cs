@@ -55,7 +55,7 @@ namespace engine.Common.Entities
                 Collision.CalculateLineByAngle(X, Y, Angle, Width / 2, out x1, out y1, out x2, out y2);
 
                 // draw body
-                g.Ellipse(new RGBA() { R = 255, A = 255 }, X - Width / 2, Y - Height / 2, Width, Height, true);
+                g.Ellipse(Color, X - Width / 2, Y - Height / 2, Width, Height, true);
 
                 // draw a fist
                 g.Ellipse(Color, x2, y2, Width / 3, Width / 3);
