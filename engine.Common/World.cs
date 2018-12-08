@@ -476,6 +476,15 @@ namespace engine.Common
             Sounds.Play(path);
         }
 
+        public void ShowMenu(Menu menu)
+        {
+            if (menu != null)
+            {
+                Menu = menu;
+                ShowMenu();
+            }
+        }
+
         #region private
         class PlayerDetails
         {
