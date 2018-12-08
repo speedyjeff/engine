@@ -25,15 +25,15 @@ namespace engine.Common
 
             if (x3 > x1 && x3 < x2)
             {
-                if (y3 >= y1 && y3 <= y2) return true;
+                if (y3 >= y1 && y3 < y2) return true;
                 if (y3 <= y1 && y4 >= y2) return true;
-                if (y4 >= y1 && y4 <= y2) return true;
+                if (y4 >= y1 && y4 < y2) return true;
             }
             else if (x4 > x1 && x4 < x2)
             {
-                if (y4 >= y1 && y4 <= y2) return true;
+                if (y4 >= y1 && y4 < y2) return true;
                 if (y3 <= y1 && y4 >= y2) return true;
-                if (y3 >= y1 && y3 <= y2) return true;
+                if (y3 >= y1 && y3 < y2) return true;
             }
             else if ((y3 > y1 && y3 < y2) || (y4 > y1 && y4 < y2))
             {

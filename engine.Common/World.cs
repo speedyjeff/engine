@@ -22,7 +22,7 @@ namespace engine.Common
         public bool EnableZoom;
         public bool DisplayStats;
         public bool ShowCoordinates;
-        public bool ApplyYGravity;
+        public bool ApplyForces;
     }
 
     public class World
@@ -275,6 +275,7 @@ namespace engine.Common
 
             // handle the user input
             bool result = false;
+            Type item = null;
             float xdelta = 0;
             float ydelta = 0;
 
@@ -310,40 +311,41 @@ namespace engine.Common
                     break;
 
                 case Constants.Switch:
-                    // ActionEnum.SwitchWeapon;
-                    result = SwitchTool(Human);
+                    result = SwitchPrimary(Human, out item);
+                    Human.Feedback(ActionEnum.SwitchPrimary, item, result);
                     break;
 
                 case Constants.Pickup:
                 case Constants.Pickup2:
-                    // ActionEnum.Pickup;
-                    result = Pickup(Human);
+                    result = Pickup(Human, out item);
+                    Human.Feedback(ActionEnum.Pickup, item, result);
                     break;
 
                 case Constants.Drop3:
                 case Constants.Drop2:
                 case Constants.Drop4:
                 case Constants.Drop:
-                    // ActionEnum.Drop;
-                    result = Drop(Human);
+                    result = Drop(Human, out item);
+                    Human.Feedback(ActionEnum.Drop, item, result);
                     break;
 
                 case Constants.Reload:
                 case Constants.MiddleMouse:
-                    // ActionEnum.Reload;
-                    result = Reload(Human);
+                    result = Reload(Human, out AttackStateEnum reloaded);
+                    Human.Feedback(ActionEnum.Reload, reloaded, result);
                     break;
 
                 case Constants.Space:
                 case Constants.LeftMouse:
-                    // ActionEnum.Attack;
-                    result = Attack(Human);
+                    result = Attack(Human, out AttackStateEnum attack);
+                    Human.Feedback(ActionEnum.Attack, attack, result);
                     break;
 
                 case Constants.Jump:
                 case Constants.Jump2:
                     // ActionEnum.Jump (special)
                     result = Jump(Human);
+                    Human.Feedback(ActionEnum.Jump, null, result);
                     break;
 
                 case Constants.RightMouse:
@@ -369,6 +371,7 @@ namespace engine.Common
             {
                 // ActionEnum.Move;
                 result = Move(Human, xdelta, ydelta);
+                Human.Feedback(ActionEnum.Move, null, result);
             }
         }
 
@@ -414,7 +417,7 @@ namespace engine.Common
                 }
 
                 // setup humans and AI
-                if (item is AI || Config.ApplyYGravity)
+                if (item is AI || Config.ApplyForces)
                 {
                     details.UpdateTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
                 }
@@ -440,17 +443,18 @@ namespace engine.Common
             if (item is Player)
             {
                 var player = (item as Player);
+                Type type = null;
 
                 // only allow a player to be removed if it is dead
                 if (!player.IsDead) throw new Exception("A player must be dead to be removed");
 
                 // drop ALL the players goodies
-                Map.Drop(player);
+                Drop(player, out type);
                 for (int i = 0; i < player.HandCapacity; i++)
                 {
-                    if (player.SwitchPrimary())
+                    if (SwitchPrimary(player, out type))
                     {
-                        Map.Drop(player);
+                        Drop(player, out type);
                     }
                 }
 
@@ -648,33 +652,27 @@ namespace engine.Common
                 switch (action)
                 {
                     case ActionEnum.Drop:
-                        item = Map.Drop(ai);
-                        result |= (item != null);
+                        result = Drop(ai, out item);
                         ai.Feedback(action, item, result);
                         break;
                     case ActionEnum.Pickup:
-                        item = Map.Pickup(ai);
-                        result |= (item != null);
+                        result = Pickup(ai, out item);
                         ai.Feedback(action, item, result);
                         break;
                     case ActionEnum.Reload:
-                        var reloaded = ai.Reload();
-                        result |= (reloaded == AttackStateEnum.Reloaded);
+                        result = Reload(ai, out AttackStateEnum reloaded);
                         ai.Feedback(action, reloaded, result);
                         break;
                     case ActionEnum.Attack:
-                        var attack = Map.Attack(ai);
-                        result |= attack == AttackStateEnum.FiredAndKilled || attack == AttackStateEnum.FiredWithContact ||
-                            attack == AttackStateEnum.MeleeAndKilled || attack == AttackStateEnum.MeleeWithContact;
+                        result = Attack(ai, out AttackStateEnum attack);
                         ai.Feedback(action, attack, result);
                         break;
                     case ActionEnum.SwitchPrimary:
-                        var swap = ai.SwitchPrimary();
-                        result |= swap;
-                        ai.Feedback(action, null, result);
+                        result = SwitchPrimary(ai, out item);
+                        ai.Feedback(action, item, result);
                         break;
                     case ActionEnum.Jump:
-                        result |= Jump(ai);
+                        result = Jump(ai);
                         ai.Feedback(action, null, result);
                         break;
                     case ActionEnum.Move:
@@ -694,44 +692,87 @@ namespace engine.Common
                     System.Diagnostics.Debug.WriteLine("Out of bounds");
             }
 
-            // apply gravity if necessary
-            if (Config.ApplyYGravity)
+            // apply forces, if necessary
+            if (Config.ApplyForces)
             {
+                bool inAir = false;
                 int retries;
                 float dist;
                 float pace;
 
                 // apply upward force
-                if (detail.Player.JumpPercentage > 0)
+                if (detail.Player.YForcePercentage > 0)
                 {
                     retries = 3;
-                    pace = Constants.JumpPace;
-                    dist = -1 * detail.Player.JumpPercentage;
+                    pace = Constants.YForcePace;
+                    dist = -1 * detail.Player.YForcePercentage;
                     do
                     {
+                        // degrade the y delta
+                        detail.Player.YForcePercentage -= Constants.YForceDegrade;
+                        if (detail.Player.YForcePercentage < 0) detail.Player.YForcePercentage = 0;
+
+                        // apply
                         if (Move(detail.Player, 0, dist, pace))
+                        {
+                            inAir = true;
                             break;
+                        }
+
                         // we are too close, reduce how far we try
                         dist /= 2;
                         pace /= 2;
-                        // also reduce trying again
-                        detail.Player.JumpPercentage -= Constants.JumpDegrade;
                     }
                     while (retries-- > 0);
-
-                    // degrade the JumpPercentage
-                    detail.Player.JumpPercentage -= Constants.JumpDegrade;
                 }
+
+                // apply downward force
                 else
                 {
-                    // apply downward force
                     retries = 3;
                     dist = 1;
-                    pace = Constants.GravityPace;
+                    pace = Constants.YForcePace;
                     do
                     {
+                        // apply
                         if (Move(detail.Player, 0, dist, pace))
+                        {
+                            inAir = true;
                             break;
+                        }
+
+                        // we are too close, reduce how far we try
+                        dist /= 2;
+                        pace /= 2;
+                    }
+                    while (retries-- > 0);
+                }
+
+                // apply a horizontal force, if necessary
+                if (inAir && detail.Player.XForcePercentage != 0)
+                {
+                    retries = 3;
+                    pace = Constants.XForcePace;
+                    dist = (detail.Player.XForcePercentage < 0) ? -1 : 1;
+                    do
+                    {
+                        // degrade the x delta
+                        if (detail.Player.XForcePercentage > 0)
+                        {
+                            detail.Player.XForcePercentage -= Constants.XForceDegrade;
+                            if (detail.Player.XForcePercentage < 0)
+                                detail.Player.XForcePercentage = 0;
+                        }
+                        else if (detail.Player.XForcePercentage < 0)
+                        {
+                            detail.Player.XForcePercentage += Constants.XForceDegrade;
+                            if (detail.Player.XForcePercentage > 0)
+                                detail.Player.XForcePercentage = 0;
+                        }
+
+                        if (Move(detail.Player, dist, 0, pace))
+                            break;
+                        // we are too close, reduce how far we try
                         dist /= 2;
                         pace /= 2;
                     }
@@ -782,88 +823,111 @@ namespace engine.Common
         }
 
         // human movements
-        private bool SwitchTool(Player player)
+        private bool SwitchPrimary(Player player, out Type type)
         {
+            // no indication of what was switched
+            type = null;
+
             if (player.IsDead) return false;
             return player.SwitchPrimary();
         }
 
-        private bool Pickup(Player player)
+        private bool Pickup(Player player, out Type type)
         {
+            // indicate what was picked up
+            type = null;
+
             if (player.IsDead) return false;
-            if (Map.Pickup(player) != null)
+            type = Map.Pickup(player);
+            if (type != null && player.Id == Human.Id)
             {
                 // play sound
                 Sounds.Play(PickupSoundPath);
-                return true;
             }
-            return false;
+            return (type != null);
         }
 
-        private bool Drop(Player player)
-        { 
-            if (player.IsDead) return false;
-            return Map.Drop(player) != null;
-        }
-
-        private bool Reload(Player player)
+        private bool Drop(Player player, out Type type)
         {
-            if (player.IsDead) return false;
-            var state = player.Reload();
-            switch (state)
-            {
-                case AttackStateEnum.Reloaded:
-                    if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).ReloadSoundPath());
-                    else throw new Exception("Invalid action for a non-gun");
-                    break;
-                case AttackStateEnum.None:
-                case AttackStateEnum.NoRounds:
-                    Sounds.Play(NothingSoundPath);
-                    break;
-                case AttackStateEnum.FullyLoaded:
-                    // no sound
-                    break;
-                default: throw new Exception("Unknown GunState : " + state);
-            }
+            // indicidate what was dropped
+            type = null;
 
-            return (state == AttackStateEnum.Reloaded); 
+            if (player.IsDead) return false;
+            type = Map.Drop(player);
+            return (type != null);
         }
 
-        private bool Attack(Player player)
+        private bool Reload(Player player, out AttackStateEnum reloaded)
         {
-            if (player.IsDead) return false;
-            var state = Map.Attack(player);
+            // return the state
+            reloaded = AttackStateEnum.None;
 
-            // play sounds
-            switch (state)
+            if (player.IsDead) return false;
+            reloaded = player.Reload();
+
+            if (player.Id == Human.Id)
             {
-                case AttackStateEnum.Melee:
-                case AttackStateEnum.MeleeWithContact:
-                case AttackStateEnum.MeleeAndKilled:
-                    Sounds.Play(player.Fists.UsedSoundPath());
-                    break;
-                case AttackStateEnum.FiredWithContact:
-                case AttackStateEnum.FiredAndKilled:
-                case AttackStateEnum.Fired:
-                    if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).FiredSoundPath());
-                    else throw new Exception("Invalid action for a non-gun");
-                    break;
-                case AttackStateEnum.NoRounds:
-                case AttackStateEnum.NeedsReload:
-                    if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).EmptySoundPath());
-                    else throw new Exception("Invalid action for a non-gun");
-                    break;
-                case AttackStateEnum.LoadingRound:
-                case AttackStateEnum.None:
-                    Sounds.Play(NothingSoundPath);
-                    break;
-                default: throw new Exception("Unknown GunState : " + state);
+                switch (reloaded)
+                {
+                    case AttackStateEnum.Reloaded:
+                        if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).ReloadSoundPath());
+                        else throw new Exception("Invalid action for a non-gun");
+                        break;
+                    case AttackStateEnum.None:
+                    case AttackStateEnum.NoRounds:
+                        Sounds.Play(NothingSoundPath);
+                        break;
+                    case AttackStateEnum.FullyLoaded:
+                        // no sound
+                        break;
+                    default: throw new Exception("Unknown GunState : " + reloaded);
+                }
             }
 
-            return (state == AttackStateEnum.MeleeAndKilled ||
-                state == AttackStateEnum.MeleeWithContact ||
-                state == AttackStateEnum.FiredAndKilled ||
-                state == AttackStateEnum.FiredWithContact);
+            return (reloaded == AttackStateEnum.Reloaded); 
+        }
+
+        private bool Attack(Player player, out AttackStateEnum attack)
+        {
+            // return the attack state
+            attack = AttackStateEnum.None;
+
+            if (player.IsDead) return false;
+            attack = Map.Attack(player);
+
+            if (player.Id == Human.Id)
+            {
+                // play sounds
+                switch (attack)
+                {
+                    case AttackStateEnum.Melee:
+                    case AttackStateEnum.MeleeWithContact:
+                    case AttackStateEnum.MeleeAndKilled:
+                        Sounds.Play(player.Fists.UsedSoundPath());
+                        break;
+                    case AttackStateEnum.FiredWithContact:
+                    case AttackStateEnum.FiredAndKilled:
+                    case AttackStateEnum.Fired:
+                        if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).FiredSoundPath());
+                        else throw new Exception("Invalid action for a non-gun");
+                        break;
+                    case AttackStateEnum.NoRounds:
+                    case AttackStateEnum.NeedsReload:
+                        if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).EmptySoundPath());
+                        else throw new Exception("Invalid action for a non-gun");
+                        break;
+                    case AttackStateEnum.LoadingRound:
+                    case AttackStateEnum.None:
+                        Sounds.Play(NothingSoundPath);
+                        break;
+                    default: throw new Exception("Unknown GunState : " + attack);
+                }
+            }
+
+            return (attack == AttackStateEnum.MeleeAndKilled ||
+                attack == AttackStateEnum.MeleeWithContact ||
+                attack == AttackStateEnum.FiredAndKilled ||
+                attack == AttackStateEnum.FiredWithContact);
         }
 
         private bool Move(Player player, float xdelta, float ydelta, float pace = 0)
@@ -904,7 +968,7 @@ namespace engine.Common
         private bool Jump(Player player)
         {
             if (player.IsDead) return false;
-            if (!Config.ApplyYGravity) return false;
+            if (!Config.ApplyForces) return false;
 
             // check that the player is touching something below them
             var xdelta = 0f;
@@ -916,7 +980,7 @@ namespace engine.Common
                 if (touching != null && player.Y < touching.Y)
                 {
                     // this player is standing on something
-                    player.JumpPercentage = 1; // 100%
+                    player.YForcePercentage = 1; // 100%
                 }
             }
             return false;

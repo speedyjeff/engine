@@ -55,10 +55,13 @@ namespace engine.Common
         public const int MaxTrainedAICount = 0;
         public const int MaxAmmo = 500; // it is infinite, but any more than this is considered full
         public const float IsTouchingDistance = 0.1f;
-        public const float GravityPace = 2f;
-        public const float JumpDegrade = 0.1f;
-        public const float JumpPace = 3f;
- 
+
+        public const float YForceDegrade = 0.1f;
+        public const float YForcePace = 3f;
+
+        public const float XForceDegrade = YForceDegrade / 2f;
+        public const float XForcePace = 1f;
+
         // world options
         public const float MaxZoomIn = 10f;
         public const float ZoomStep = 0.1f;

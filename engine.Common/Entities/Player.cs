@@ -41,7 +41,8 @@ namespace engine.Common.Entities
 
         public int Ranking { get; set; }
 
-        public float JumpPercentage { get; set; }
+        public float YForcePercentage { get; set; }
+        public float XForcePercentage { get; set; }
 
         public virtual string HurtSoundPath => "media/hurt.wav";
 
