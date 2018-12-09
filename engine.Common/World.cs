@@ -83,11 +83,13 @@ namespace engine.Common
             Paint();
         }
 
+        public delegate bool BeforeKeyPressedDelegate(Player player, ref char key);
+
         public event Func<Menu> OnPaused;
         public event Action OnResumed;
         public event Action<Player, Element> OnContact;
         public event Action<Player, Element> OnAttack;
-        public event Func<Player, char, bool> OnBeforeKeyPressed;
+        public event BeforeKeyPressedDelegate OnBeforeKeyPressed;
         public event Func<Player, char, bool> OnAfterKeyPressed;
 
         public int Width { get { return Map.Width;  } }
@@ -283,7 +285,7 @@ namespace engine.Common
             // do in this case
             if (OnBeforeKeyPressed != null)
             {
-                if (OnBeforeKeyPressed(Human, key)) return;
+                if (OnBeforeKeyPressed(Human, ref key)) return;
             }
 
             switch (key)

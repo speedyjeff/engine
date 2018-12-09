@@ -77,8 +77,25 @@ namespace engine.Winforms
 
         public void Repeat()
         {
-            if (string.IsNullOrWhiteSpace(PlayingMusicPath)) return;
-            PlayMusic(PlayingMusicPath, true /*repeat*/);
+            if (!PlayingMusic) return;
+
+            var alias = "music";
+
+            CheckError(
+                mciSendString(
+                    string.Format("seek {0} to 0", alias),
+                    null,
+                    0,
+                    IntPtr.Zero),
+                "seek");
+
+            CheckError(
+                mciSendString(
+                    string.Format("play {0} notify", alias),
+                    null,
+                    0,
+                    HwnHandle),
+                "play");
         }
 
         #region private
