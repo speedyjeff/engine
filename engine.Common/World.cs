@@ -476,6 +476,12 @@ namespace engine.Common
             Sounds.Play(path);
         }
 
+        public void Music(string path, bool repeat)
+        {
+            // play music
+            Sounds.PlayMusic(path, repeat);
+        }
+
         public void ShowMenu(Menu menu)
         {
             if (menu != null)
@@ -483,6 +489,14 @@ namespace engine.Common
                 Menu = menu;
                 ShowMenu();
             }
+        }
+
+        public void Teleport(Player player, float x, float y)
+        {
+            if (player == null || player.IsDead) throw new Exception("Cannot teleport an invalid player");
+
+            player.X = WindowX = x;
+            player.Y = WindowY = y;
         }
 
         #region private

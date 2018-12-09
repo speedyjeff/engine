@@ -33,7 +33,7 @@ namespace engine.Winforms
 
                 // double buffer
                 Surface = new WritableGraphics(BufferedGraphicsManager.Current, Home.CreateGraphics(), Home.Height, Home.Width);
-                Sound = new Sounds();
+                Sound = new Sounds(home.Handle);
 
                 // initialize the graphics
                 World.InitializeGraphics(
@@ -75,7 +75,17 @@ namespace engine.Winforms
             else if (keyData == Keys.Escape) World.KeyPress(Common.Constants.Esc);
         }
 
+        public void ProcessWndProc(ref Message m)
+        {
+            if (m.Msg == MM_MCINOTIFY)
+            {
+                // playback has completed
+                Sound.Repeat();
+            }
+        }
+
         #region private
+        private const int MM_MCINOTIFY = 953;
         private WritableGraphics Surface;
         private Sounds Sound;
 

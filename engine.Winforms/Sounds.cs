@@ -11,6 +11,11 @@ namespace engine.Winforms
 {
     public class Sounds : ISounds
     {
+        public Sounds(IntPtr hwnHandle)
+        {
+            HwnHandle = hwnHandle;
+        }
+
         public void Play(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) return;
@@ -25,8 +30,20 @@ namespace engine.Winforms
             player.Play();
         }
 
+        public void PlayMusic(string path, bool repeat)
+        {
+
+        }
+
+        public void Repeat()
+        {
+
+        }
+
         #region private
         private static Dictionary<string, SoundPlayer> All = new Dictionary<string, SoundPlayer>();
+        private IntPtr HwnHandle;
+        private bool PlayingMusic = false;
         #endregion
     }
 }
