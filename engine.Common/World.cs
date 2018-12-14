@@ -440,15 +440,34 @@ namespace engine.Common
             Map.AddItem(item);
         }
 
+        public void RemoveAllItems(Type type)
+        {
+            lock (Details)
+            {
+                // iterate through players and remove all of this type
+                var toRemove = new List<Player>();
+
+                foreach (var detail in Details.Values)
+                {
+                    if (detail.Player != null && detail.Player.GetType() == type)
+                    {
+                        toRemove.Add(detail.Player);
+                    }
+                }
+
+                foreach (var player in toRemove)
+                {
+                    RemoveItem(player);
+                }
+            }
+        }
+
         public void RemoveItem(Element item)
         {
             if (item is Player)
             {
                 var player = (item as Player);
                 Type type = null;
-
-                // only allow a player to be removed if it is dead
-                if (!player.IsDead) throw new Exception("A player must be dead to be removed");
 
                 // drop ALL the players goodies
                 Drop(player, out type);
@@ -468,6 +487,9 @@ namespace engine.Common
                 {
                     Details.Remove(player.Id);
                 }
+
+                // remove from map
+                Map.RemoveItem(player);
             }
             else throw new Exception("Invalid item to remove");
         }
@@ -711,14 +733,10 @@ namespace engine.Common
                 float oydelta = ydelta;
                 var moved = Move(ai, xdelta, ydelta);
                 ai.Feedback(ActionEnum.Move, null, moved);
-
-                // ensure the player stays within the map
-                if (ai.X < 0 || ai.X > Map.Width || ai.Y < 0 || ai.Y > Map.Height)
-                    System.Diagnostics.Debug.WriteLine("Out of bounds");
             }
 
             // apply forces, if necessary
-            if (Config.ApplyForces)
+            if (Config.ApplyForces && detail.Player.CanMove)
             {
                 bool inAir = false;
                 int retries;
@@ -1005,7 +1023,7 @@ namespace engine.Common
                 if (touching != null && player.Y < touching.Y)
                 {
                     // this player is standing on something
-                    player.YForcePercentage = 1; // 100%
+                    player.YForcePercentage = player.MaxYForcePercentage; // 0-100%
                 }
             }
             return false;

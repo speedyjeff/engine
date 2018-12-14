@@ -302,6 +302,30 @@ namespace engine.Common
             }
         }
 
+        public bool RemoveItem(Element item)
+        {
+            if (IsPaused) return false;
+
+            lock (this)
+            {
+                if (item != null)
+                {
+                    if (item.CanAcquire)
+                    {
+                        Items.Remove(item.Id);
+                    }
+                    else
+                    {
+                        Obstacles.Remove(item.Id);
+                    }
+
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
         public bool IsTouching(Element elem1, Element elem2)
         {
             if (elem1.Z != elem2.Z) return false;
