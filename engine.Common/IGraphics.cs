@@ -23,9 +23,11 @@ namespace engine.Common
         void Clear(RGBA color);
         void Ellipse(RGBA color, float x, float y, float width, float height, bool fill = true);
         void Rectangle(RGBA color, float x, float y, float width, float height, bool fill = true);
+        void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill = true, bool border = false); 
         void Text(RGBA color, float x, float y, string text, float fontsize = 16);
         void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness);
         void Image(string path, float x, float y, float width = 0, float height = 0);
+        void Image(IImage img, float x, float y, float width = 0, float height = 0);
 
         void RotateTransform(float angle);
 
@@ -39,5 +41,7 @@ namespace engine.Common
         // translate the coordinates to screen
         // take into acount windowing and scalling
         void SetTranslateCoordinates(TranslateCoordinatesDelegate callback);
+
+        IImage CreateImage(int width, int height);
     }
 }

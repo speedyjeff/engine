@@ -17,17 +17,23 @@ namespace engine.Winforms
             DoTranslation = true;
             ImageCache = new Dictionary<string, Image>();
             Context = context;
+            Graphics = g;
+            Width = width;
+            Height = height;
 
             // get graphics ready
-            RawResize(g, height, width);
+            if (Context != null)
+            {
+                RawResize(g, height, width);
+            }
         }
 
         // access to the Graphics implementation
-        public Graphics RawGraphics => Surface.Graphics;
+        public Graphics RawGraphics => Graphics;
         public void RawRender(Graphics g) { Surface.Render(g); }
         public void RawResize(Graphics g, int height, int width)
         {
-            if (Context == null) throw new Exception("Must initialize the DoublebufferContext before calling");
+            if (Context == null) return;
 
             // initialize the double buffer
             Width = width;
@@ -39,12 +45,13 @@ namespace engine.Winforms
             }
             Surface = Context.Allocate(g,
                 new Rectangle(0, 0, width, height));
+            Graphics = Surface.Graphics;
         }
 
         // high level access to drawing
         public void Clear(RGBA color)
         {
-            Surface.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), 0, 0, Width, Height);
+            Graphics.FillRectangle(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), 0, 0, Width, Height);
         }
 
         public void Ellipse(RGBA color, float x, float y, float width, float height, bool fill)
@@ -63,12 +70,12 @@ namespace engine.Winforms
             // use screen coordinates
             if (fill)
             {
-                Surface.Graphics.FillEllipse(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy, swidth, sheight);
-                Surface.Graphics.DrawEllipse(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
+                Graphics.FillEllipse(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy, swidth, sheight);
+                Graphics.DrawEllipse(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
             }
             else
             {
-                Surface.Graphics.DrawEllipse(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx, sy, swidth, sheight);
+                Graphics.DrawEllipse(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx, sy, swidth, sheight);
             }
         }
 
@@ -88,12 +95,53 @@ namespace engine.Winforms
             // use screen coordinates
             if (fill)
             {
-                Surface.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy, swidth, sheight);
-                Surface.Graphics.DrawRectangle(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
+                Graphics.FillRectangle(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy, swidth, sheight);
+                Graphics.DrawRectangle(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
             }
             else
             {
-                Surface.Graphics.DrawRectangle(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx, sy, swidth, sheight);
+                Graphics.DrawRectangle(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx, sy, swidth, sheight);
+            }
+        }
+
+        public void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill, bool border)
+        {
+            float thickness = 5f;
+            float sthickness = 0f;
+            float sx1 = x1;
+            float sy1 = y1;
+            float sx2 = x2;
+            float sy2 = y2;
+            float sx3 = x3;
+            float sy3 = y3;
+            float width = 0;
+            float height = 0;
+            float other = 0;
+            float swidth = 0;
+            float sheight = 0;
+            float sother = 0;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, width, height, thickness, out sx1, out sy1, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, width, height, other, out sx2, out sy2, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x3, y3, width, height, other, out sx3, out sy3, out swidth, out sheight, out sother)) return;
+
+            // safe guard accidental usage
+            x1 = y1 = x2 = y2 = x3 = y3 = thickness = 0;
+
+            // use screen coordinates
+            var edges = new PointF[]
+            {
+                new PointF(sx1, sy1),
+                new PointF(sx2, sy2),
+                new PointF(sx3, sy3)
+            };
+            if (fill)
+            {
+                Graphics.FillPolygon(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), edges);
+                if (border) Graphics.DrawPolygon(new Pen(Color.Black, sthickness), edges);
+            }
+            else
+            {
+                Graphics.DrawPolygon(new Pen(Color.Black, sthickness), edges);
             }
         }
 
@@ -110,7 +158,7 @@ namespace engine.Winforms
             x = y = fontsize = 0;
 
             // use screen coordinates
-            Surface.Graphics.DrawString(text, new Font("Arial", sfontsize), new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy);
+            Graphics.DrawString(text, new Font("Arial", sfontsize), new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy);
         }
 
         public void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness)
@@ -135,7 +183,7 @@ namespace engine.Winforms
             // safe guard accidental usage
             x2 = y2 = 0;
 
-            Surface.Graphics.DrawLine(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx1, sy1, sx2, sy2);
+            Graphics.DrawLine(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx1, sy1, sx2, sy2);
         }
 
         public void Image(string path, float x, float y, float width = 0, float height = 0)
@@ -160,14 +208,34 @@ namespace engine.Winforms
             x = y = 0;
 
             // use screen coordinates
-            Surface.Graphics.DrawImage(img, sx, sy, swidth, sheight);
+            Graphics.DrawImage(img, sx, sy, swidth, sheight);
+        }
+
+        public void Image(IImage img, float x, float y, float width = 0, float height = 0)
+        {
+            var bitmap = img as BitmapImage;
+            if (bitmap == null
+                || bitmap.UnderlyingImage == null) throw new Exception("Image(IImage) must be used with a BitmapImage");
+
+            float sx = x;
+            float sy = y;
+            float swidth = width == 0 ? bitmap.Width : width;
+            float sheight = height == 0 ? bitmap.Height : height;
+            float sother = 0;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, swidth, sheight, 0, out sx, out sy, out swidth, out sheight, out sother)) return;
+
+            // safe guard accidental usage
+            x = y = 0;
+
+            // use screen coordinates
+            Graphics.DrawImage(bitmap.UnderlyingImage, sx, sy, swidth, sheight);
         }
 
         public void RotateTransform(float angle)
         {
-            Surface.Graphics.TranslateTransform(1 * Width / 2, 1 * Height / 2);
-            Surface.Graphics.RotateTransform(angle);
-            Surface.Graphics.TranslateTransform(-1 * Width / 2, -1 * Height / 2);
+            Graphics.TranslateTransform(1 * Width / 2, 1 * Height / 2);
+            Graphics.RotateTransform(angle);
+            Graphics.TranslateTransform(-1 * Width / 2, -1 * Height / 2);
         }
 
         public void EnableTranslation()
@@ -191,7 +259,13 @@ namespace engine.Winforms
             Translate = callback;
         }
 
+        public IImage CreateImage(int width, int height)
+        {
+            return new BitmapImage(width, height);
+        }
+
         #region private
+        private Graphics Graphics;
         private BufferedGraphics Surface;
         private BufferedGraphicsContext Context;
         private TranslateCoordinatesDelegate Translate;

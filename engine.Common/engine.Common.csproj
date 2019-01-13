@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Board.cs" />
     <Compile Include="Collison.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="Entities\AI\AI.cs" />
@@ -58,7 +59,9 @@
     <Compile Include="Entities\Player.cs" />
     <Compile Include="Entities\Tool.cs" />
     <Compile Include="IGraphics.cs" />
+    <Compile Include="IImage.cs" />
     <Compile Include="ISounds.cs" />
+    <Compile Include="IUserInteraction.cs" />
     <Compile Include="Map.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="World.cs" />

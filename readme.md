@@ -2,7 +2,7 @@
 
 I was building games with my son and I needed a simple model to help quickly build simple games.  After the first several games this library took shape.  This is now a sub module for the games.
 
-This engine was written for top-down 2d games with a Winforms shell.
+This engine was written for top-down 2d games and/or Board game within a Winforms shell.
 
 ## Getting Started
 
@@ -18,6 +18,7 @@ git submodule update
 
 ### Add engine initialization
 
+#### 2d Platformer (top down)
 ```C#
 private UIHookup UI;
 
@@ -61,9 +62,113 @@ protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
 } // ProcessCmdKey
 ```
 
+#### Board Game
+```C#
+private UIHookup UI;
+
+private void InitializeComponent()
+{
+  ...
+  this.Width = 1024;
+  this.Height = 800;
+  // setting a double buffer eliminates the flicker
+  this.DoubleBuffered = true;
+
+  // creat the new board
+  var board = new Board(new BoardConfiguration()
+  {
+    Width = 600,
+    Height = 400,
+    Rows = 4,
+    Columns = 6,
+    EdgeAngle = 30,
+    Background = new RGBA() { R = 255, G = 255, B = 0, A = 255 }
+  });
+  board.OnCellClicked += Board_OnCellClicked;
+
+  // link to this control
+  UI = new UIHookup(this, board);
+}  // InitializeComponent
+
+protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+{
+  UI.ProcessCmdKey(keyData);
+  return base.ProcessCmdKey(ref msg, keyData);
+} // ProcessCmdKey
+```
+
 #### World
 
 <tbd>
+
+```C#
+public struct WorldConfiguration
+{
+  public int Width;
+  public int Height;
+  public bool CenterIndicator;
+  public Menu StartMenu;
+  public Menu EndMenu;
+  public Menu HUD;
+  public bool EnableZoom;
+  public bool DisplayStats;
+  public bool ShowCoordinates;
+  public bool ApplyForces;
+}
+
+public delegate bool BeforeKeyPressedDelegate(Player player, ref char key);
+
+public event Func<Menu> OnPaused;
+public event Action OnResumed;
+public event Action<Player, Element> OnContact;
+public event Action<Player, Element> OnAttack;
+public event BeforeKeyPressedDelegate OnBeforeKeyPressed;
+public event Func<Player, char, bool> OnAfterKeyPressed;
+
+public int Width { get; }
+public int Height {  get; }
+
+public Player Human { get; }
+public int Alive { get; }
+
+public void AddItem(Element item);
+public void RemoveAllItems(Type type);
+public void RemoveItem(Element item);
+public void Play(string path);
+public void Music(string path, bool repeat);
+public void ShowMenu(Menu menu);
+public void Teleport(Player player, float x, float y);
+```
+
+#### Board
+
+<tbd>
+
+```C#
+public struct BoardConfiguration
+{
+  public int Width;
+  public int Height;
+  public RGBA Background;
+  public string BackgroundImage;
+  public int Rows;
+  public int Columns;
+  public int EdgeAngle; // 0 = rectangle, 1..89 = hexagon
+}
+
+public delegate void CellClickedDelegate(int row, int col, float x, float y);
+public delegate void UpdateImageDelegate(IImage img);
+
+public int Width { get; }
+public int Height { get; }
+
+public int Rows { get; }
+public int Columns { get; }
+
+public event CellClickedDelegate OnCellClicked;
+public void UpdateCell(int row, int col, UpdateImageDelegate update);
+public void UpdateOverlay(UpdateImageDelegate update);
+```
 
 #### Backgrounds
 Backgrounds can provide a default look to the screen, but they also can inflict damage to Players and affect how fast a player may move.  Backgrounds can also adjust over time.

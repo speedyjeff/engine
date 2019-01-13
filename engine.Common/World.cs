@@ -25,7 +25,7 @@ namespace engine.Common
         public bool ApplyForces;
     }
 
-    public class World
+    public class World : IUserInteraction
     {
         // Configuration
         //   Center marker
@@ -252,6 +252,11 @@ namespace engine.Common
             }
         }
 
+        public void Resize()
+        {
+
+        }
+
         public void KeyPress(char key)
         {
             // inputs that are accepted while a menu is displaying
@@ -404,6 +409,16 @@ namespace engine.Common
 
             // use the angle to turn the human player
             Turn(Human, angle);
+        }
+
+        public void Mousedown(MouseButton btn, float x, float y)
+        {
+            // ignore
+        }
+
+        public void Mouseup(MouseButton btn, float x, float y)
+        {
+            // ignore
         }
 
         public void AddItem(Element item)
