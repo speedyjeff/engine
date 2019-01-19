@@ -1,6 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System.IO;
 
 namespace engine.Common
 {
@@ -28,6 +27,7 @@ namespace engine.Common
         void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness);
         void Image(string path, float x, float y, float width = 0, float height = 0);
         void Image(IImage img, float x, float y, float width = 0, float height = 0);
+        void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0);
 
         void RotateTransform(float angle);
 

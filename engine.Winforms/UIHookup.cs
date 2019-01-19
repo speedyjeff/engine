@@ -57,10 +57,11 @@ namespace engine.Winforms
             }
         }
 
+        public WritableGraphics Surface { get; private set; }
+        public Sounds Sound { get; private set; }
+
         #region private
         private const int MM_MCINOTIFY = 953;
-        private WritableGraphics Surface;
-        private Sounds Sound;
 
         private Control Control;
 
@@ -76,10 +77,6 @@ namespace engine.Winforms
             {
                 Control.SuspendLayout();
 
-                // default handlers
-                Control.Resize += OnResize;
-                Control.Paint += OnPaint;
-
                 // double buffer
                 Surface = new WritableGraphics(BufferedGraphicsManager.Current, Control.CreateGraphics(), Control.Height, Control.Width);
                 Sound = new Sounds(Control.Handle);
@@ -89,6 +86,10 @@ namespace engine.Winforms
                     Surface,
                     Sound
                     );
+
+                // default handlers
+                Control.Resize += OnResize;
+                Control.Paint += OnPaint;
 
                 // timers
                 OnPaintTimer = new Timer();
@@ -190,7 +191,6 @@ namespace engine.Winforms
         private void OnKeyPressed(object sender, KeyPressEventArgs e)
         {
             Logic.KeyPress(e.KeyChar);
-            e.Handled = true;
         }
         #endregion
     }

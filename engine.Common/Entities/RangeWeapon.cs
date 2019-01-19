@@ -12,8 +12,8 @@ namespace engine.Common.Entities
         public int ClipCapacity { get; protected set; }
         public int Clip { get; private set; }
 
-        public virtual string EmptySoundPath() => "media/empty.wav";
-        public virtual string ReloadSoundPath() => "media/reload.wav";
+        public virtual string EmptySoundPath() => "empty";
+        public virtual string ReloadSoundPath() => "reload";
         public virtual string FiredSoundPath() => "";
 
         public RangeWeapon() : base()

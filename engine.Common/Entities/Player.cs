@@ -47,21 +47,37 @@ namespace engine.Common.Entities
 
         public float MaxYForcePercentage { get; protected set; }
 
-        public virtual string HurtSoundPath => "media/hurt.wav";
+        public virtual string HurtSoundPath => "hurt";
 
         public override void Draw(IGraphics g)
         {
             if (ShowDefaultDrawing)
             {
-                // calculate location for fists/object in hand
-                float x1, y1, x2, y2;
-                Collision.CalculateLineByAngle(X, Y, Angle, Width / 2, out x1, out y1, out x2, out y2);
+                if (Z > Constants.Ground)
+                {
+                    g.DisableTranslation(true /* nonScaledTranslation */);
+                    {
+                        // we are in a parachute
+                        g.Ellipse(Color, X - (Width / 2), Y - (Height / 2), Width, Height);
+                        g.Rectangle(new RGBA() { R = 146, G = 27, B = 167, A = 255 }, X - Width, Y, Width * 2, Height / 2, true);
+                        g.Line(RGBA.Black, X - Width, Y, X, Y - (Height / 4), 5f);
+                        g.Line(RGBA.Black, X, Y - (Height / 4), X + Width, Y, 5f);
+                    }
+                    g.EnableTranslation();
+                }
+                else
+                {
+                    // on ground
+                    // calculate location for fists/object in hand
+                    float x1, y1, x2, y2;
+                    Collision.CalculateLineByAngle(X, Y, Angle, Width / 2, out x1, out y1, out x2, out y2);
 
-                // draw body
-                g.Ellipse(Color, X - Width / 2, Y - Height / 2, Width, Height, true);
+                    // draw body
+                    g.Ellipse(Color, X - Width / 2, Y - Height / 2, Width, Height, true);
 
-                // draw a fist
-                g.Ellipse(Color, x2, y2, Width / 3, Width / 3);
+                    // draw a fist
+                    g.Ellipse(Color, x2, y2, Width / 3, Width / 3);
+                }
             }
             base.Draw(g);
         }

@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 
 using engine.Common;
 
@@ -231,6 +229,31 @@ namespace engine.Winforms
             Graphics.DrawImage(bitmap.UnderlyingImage, sx, sy, swidth, sheight);
         }
 
+        public void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0)
+        {
+            System.Drawing.Image img = null;
+            if (!ImageCache.TryGetValue(name, out img))
+            {
+                img = System.Drawing.Image.FromStream(stream);
+                var bitmap = new Bitmap(img);
+                bitmap.MakeTransparent(bitmap.GetPixel(0, 0));
+                ImageCache.Add(name, bitmap);
+            }
+
+            float sx = x;
+            float sy = y;
+            float swidth = width == 0 ? img.Width : width;
+            float sheight = height == 0 ? img.Height : height;
+            float sother = 0;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, swidth, sheight, 0, out sx, out sy, out swidth, out sheight, out sother)) return;
+
+            // safe guard accidental usage
+            x = y = 0;
+
+            // use screen coordinates
+            Graphics.DrawImage(img, sx, sy, swidth, sheight);
+        }
+
         public void RotateTransform(float angle)
         {
             Graphics.TranslateTransform(1 * Width / 2, 1 * Height / 2);
@@ -261,6 +284,7 @@ namespace engine.Winforms
 
         public IImage CreateImage(int width, int height)
         {
+            // todo Should this image inherit the TranslateCoordinates from its parent
             return new BitmapImage(width, height);
         }
 

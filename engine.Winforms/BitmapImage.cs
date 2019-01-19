@@ -30,6 +30,17 @@ namespace engine.Winforms
         public void MakeTransparent(RGBA color)
         {
             UnderlyingImage.MakeTransparent(Color.FromArgb(color.A, color.R, color.G, color.B));
+
+            // recreate the graphics after making transparent
+            // marking an image transparent has a material impact to the bitmap such that we need 
+            // a new graphics instance
+            var g = System.Drawing.Graphics.FromImage(UnderlyingImage);
+            Graphics = new WritableGraphics(null, g, Height, Width);
+        }
+
+        public void Save(string path)
+        {
+            UnderlyingImage.Save(path);
         }
 
         #region internal

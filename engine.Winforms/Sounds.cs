@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Media;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -14,6 +14,7 @@ namespace engine.Winforms
     {
         public Sounds(IntPtr hwnHandle)
         {
+            // handled needed to play music
             HwnHandle = hwnHandle;
         }
 
@@ -27,6 +28,19 @@ namespace engine.Winforms
                 player = new SoundPlayer();
                 player.SoundLocation = path;
                 All.Add(path, player);
+            }
+            player.Play();
+        }
+
+        public void Play(string name, Stream stream)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            SoundPlayer player = null;
+            if (!All.TryGetValue(name, out player))
+            {
+                player = new SoundPlayer(stream);
+                All.Add(name, player);
             }
             player.Play();
         }

@@ -17,7 +17,7 @@ namespace engine.Common
         public int EdgeAngle; // 0 = rectangle, 1..89 = hexagon
     }
 
-    public delegate void CellClickedDelegate(int row, int col, float x, float y);
+    public delegate void CellDelegate(int row, int col, float x, float y);
     public delegate void UpdateImageDelegate(IImage img);
 
     public class Board : IUserInteraction
@@ -82,10 +82,14 @@ namespace engine.Common
         public int Width { get { return Config.Width; } }
         public int Height { get { return Config.Height; } }
 
+        public int CellWidth { get; private set; }
+        public int CellHeight { get; private set; }
+
         public int Rows { get { return Config.Rows; } }
         public int Columns { get { return Config.Columns; } }
 
-        public event CellClickedDelegate OnCellClicked;
+        public event CellDelegate OnCellClicked;
+        public event CellDelegate OnCellOver;
 
         public void InitializeGraphics(IGraphics surface, ISounds sounds)
         {
@@ -94,6 +98,16 @@ namespace engine.Common
 
             // set the background color
             Clear();
+        }
+
+        // this function will save an image of the cell
+        // to enable a template for images
+        public void SaveCellTemplate(string path)
+        {
+            var img = Surface.CreateImage(CellWidth, CellHeight);
+            img.Graphics.Clear(RGBA.Black);
+            MarkEdgesTransparent(img);
+            img.Save(path);
         }
 
         // 
@@ -105,6 +119,16 @@ namespace engine.Common
 
         public void Mousemove(float x, float y, float angle)
         {
+            // provide details of what and were was clicked
+            if (OnCellOver != null)
+            {
+                // translate the x,y to row,col 
+                Translate(x, y, out int row, out int col);
+                // then get local x,y
+                Translate(x, y, row, col, out float lx, out float ly);
+
+                OnCellOver(row, col, lx, ly);
+            }
         }
 
         public void Mousewheel(float delta)
@@ -212,19 +236,7 @@ namespace engine.Common
                 // make necessary translations
                 if (Config.EdgeAngle > 0)
                 {
-                    // make edges transparent
-                    var clear = new RGBA() { R = 0x12, G = 0x34, B = 0x56, A = 255 };
-
-                    // upper left
-                    Cells[row][col].Image.Graphics.Triangle(clear, 0, 0, EdgeWidth, 0, 0, EdgeHeight);
-                    // upper right
-                    Cells[row][col].Image.Graphics.Triangle(clear, EdgeWidth, 0, CellWidth, 0, CellWidth, EdgeHeight);
-                    // lower left
-                    Cells[row][col].Image.Graphics.Triangle(clear, 0, CellHeight-EdgeHeight, 0, CellHeight, EdgeWidth, CellHeight);
-                    // lower right
-                    Cells[row][col].Image.Graphics.Triangle(clear, EdgeWidth, CellHeight, CellWidth, CellHeight, CellWidth, CellHeight-EdgeHeight);
-                    // make the edges transparent
-                    Cells[row][col].Image.MakeTransparent(clear);
+                    MarkEdgesTransparent(Cells[row][col].Image);
                 }
 
                 // mark as dirty
@@ -253,8 +265,6 @@ namespace engine.Common
         private IGraphics Surface;
         private ISounds Sounds;
         private BoardConfiguration Config;
-        private int CellWidth;
-        private int CellHeight;
         private CellDetails Overlay;
 
         // used for non-rectangluar shapes
@@ -276,6 +286,23 @@ namespace engine.Common
             {
                 Surface.Image(Config.BackgroundImage, 0, 0, Surface.Width, Surface.Height);
             }
+        }
+
+        private void MarkEdgesTransparent(IImage img)
+        {
+            // make edges transparent
+            var clear = new RGBA() { R = 0x12, G = 0x34, B = 0x56, A = 255 };
+
+            // upper left
+            img.Graphics.Triangle(clear, 0, 0, EdgeWidth, 0, 0, EdgeHeight);
+            // upper right
+            img.Graphics.Triangle(clear, EdgeWidth, 0, CellWidth, 0, CellWidth, EdgeHeight);
+            // lower left
+            img.Graphics.Triangle(clear, 0, CellHeight - EdgeHeight, 0, CellHeight, EdgeWidth, CellHeight);
+            // lower right
+            img.Graphics.Triangle(clear, EdgeWidth, CellHeight, CellWidth, CellHeight, CellWidth, CellHeight - EdgeHeight);
+            // make the edges transparent
+            img.MakeTransparent(clear);
         }
 
         // row,col to screen x,y

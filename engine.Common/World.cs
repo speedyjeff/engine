@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -445,6 +446,9 @@ namespace engine.Common
                     Human = item as Player;
                 }
 
+                // check that the player is not above the sky
+                if (item.Z > Constants.Sky) item.Z = Constants.Sky;
+
                 // initialize parachute (if necessary)
                 if (item.Z > Constants.Ground)
                 {
@@ -512,7 +516,17 @@ namespace engine.Common
         public void Play(string path)
         {
             // play sound
-            Sounds.Play(path);
+            Stream stream = null;
+            if (Media.Sounds.TryGetValue(path, out stream))
+            {
+                // use the embedded resource
+                Sounds.Play(path, stream);
+            }
+            else
+            {
+                // load from disk and play
+                Sounds.Play(path);
+            }
         }
 
         public void Music(string path, bool repeat)
@@ -558,8 +572,8 @@ namespace engine.Common
         private Menu Menu;
         private WorldConfiguration Config;
 
-        private const string NothingSoundPath = "media/nothing.wav";
-        private const string PickupSoundPath = "media/pickup.wav";
+        private const string NothingSoundPath = "nothing";
+        private const string PickupSoundPath = "pickup";
 
         // menu items
         private void ShowMenu()
@@ -900,7 +914,7 @@ namespace engine.Common
             if (type != null && player.Id == Human.Id)
             {
                 // play sound
-                Sounds.Play(PickupSoundPath);
+                Play(PickupSoundPath);
             }
             return (type != null);
         }
@@ -928,12 +942,12 @@ namespace engine.Common
                 switch (reloaded)
                 {
                     case AttackStateEnum.Reloaded:
-                        if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).ReloadSoundPath());
+                        if (player.Primary is RangeWeapon) Play((player.Primary as RangeWeapon).ReloadSoundPath());
                         else throw new Exception("Invalid action for a non-gun");
                         break;
                     case AttackStateEnum.None:
                     case AttackStateEnum.NoRounds:
-                        Sounds.Play(NothingSoundPath);
+                        Play(NothingSoundPath);
                         break;
                     case AttackStateEnum.FullyLoaded:
                         // no sound
@@ -961,22 +975,22 @@ namespace engine.Common
                     case AttackStateEnum.Melee:
                     case AttackStateEnum.MeleeWithContact:
                     case AttackStateEnum.MeleeAndKilled:
-                        Sounds.Play(player.Fists.UsedSoundPath());
+                        Play(player.Fists.UsedSoundPath());
                         break;
                     case AttackStateEnum.FiredWithContact:
                     case AttackStateEnum.FiredAndKilled:
                     case AttackStateEnum.Fired:
-                        if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).FiredSoundPath());
+                        if (player.Primary is RangeWeapon) Play((player.Primary as RangeWeapon).FiredSoundPath());
                         else throw new Exception("Invalid action for a non-gun");
                         break;
                     case AttackStateEnum.NoRounds:
                     case AttackStateEnum.NeedsReload:
-                        if (player.Primary is RangeWeapon) Sounds.Play((player.Primary as RangeWeapon).EmptySoundPath());
+                        if (player.Primary is RangeWeapon) Play((player.Primary as RangeWeapon).EmptySoundPath());
                         else throw new Exception("Invalid action for a non-gun");
                         break;
                     case AttackStateEnum.LoadingRound:
                     case AttackStateEnum.None:
-                        Sounds.Play(NothingSoundPath);
+                        Play(NothingSoundPath);
                         break;
                     default: throw new Exception("Unknown GunState : " + attack);
                 }
@@ -1050,7 +1064,7 @@ namespace engine.Common
             // play sound if the human is hit
             if (element is Player && element.Id == Human.Id)
             {
-                Sounds.Play(Human.HurtSoundPath);
+                Play(Human.HurtSoundPath);
             }
 
             // notify the outside world that we hit something

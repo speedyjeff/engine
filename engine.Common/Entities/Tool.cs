@@ -23,6 +23,6 @@ namespace engine.Common.Entities
         public int Damage { get; set; }
         public int Delay { get; set; } // ms
 
-        public virtual string UsedSoundPath() => "media/meele.wav";
+        public virtual string UsedSoundPath() => "meele";
     }
 }

@@ -14,6 +14,11 @@ git submodule init
 git submodule update
 ```
 
+### Samples
+![samples](https://github.com/speedyjeff/engine/blob/master/samples/winforms/samplecontrol.png)
+
+Check out [sample controls](https://github.com/speedyjeff/engine/blob/master/samples/readme.md) for examples on how to get started.
+
 ### Create a Winforms project
 
 ### Add engine initialization
