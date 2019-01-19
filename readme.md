@@ -17,7 +17,7 @@ git submodule update
 ### Samples
 ![samples](https://github.com/speedyjeff/engine/tree/master/Samples/Winforms/samplecontrols.png)
 
-Check out [sample controls](https://github.com/speedyjeff/engine/blob/master/samples/readme.md) for examples on how to get started.
+Check out [sample controls](https://github.com/speedyjeff/engine/blob/master/Samples/readme.md) for examples on how to get started.
 
 ### Create a Winforms project
 
