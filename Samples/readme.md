@@ -1,6 +1,6 @@
 # Sample Controls
 
-![samples](https://github.com/speedyjeff/engine/blob/master/samples/winforms/samplecontrol.png)
+![samples](https://github.com/speedyjeff/engine/tree/master/Samples/Winforms/samplecontrols.png)
 
 ## Checkers
 The checkers user control can easily be imported into your project and used as the UI for a checkers game.
