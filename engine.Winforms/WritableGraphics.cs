@@ -52,7 +52,7 @@ namespace engine.Winforms
             Graphics.FillRectangle(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), 0, 0, Width, Height);
         }
 
-        public void Ellipse(RGBA color, float x, float y, float width, float height, bool fill)
+        public void Ellipse(RGBA color, float x, float y, float width, float height, bool fill, bool border)
         {
             float thickness = 5f;
             float sx = x;
@@ -69,7 +69,7 @@ namespace engine.Winforms
             if (fill)
             {
                 Graphics.FillEllipse(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy, swidth, sheight);
-                Graphics.DrawEllipse(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
+                if (border) Graphics.DrawEllipse(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
             }
             else
             {
@@ -77,7 +77,7 @@ namespace engine.Winforms
             }
         }
 
-        public void Rectangle(RGBA color, float x, float y, float width, float height, bool fill)
+        public void Rectangle(RGBA color, float x, float y, float width, float height, bool fill, bool border)
         {
             float thickness = 5f;
             float sx = x;
@@ -94,7 +94,7 @@ namespace engine.Winforms
             if (fill)
             {
                 Graphics.FillRectangle(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy, swidth, sheight);
-                Graphics.DrawRectangle(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
+                if (border) Graphics.DrawRectangle(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
             }
             else
             {

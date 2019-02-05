@@ -88,6 +88,9 @@ namespace engine.Common
         public int Rows { get { return Config.Rows; } }
         public int Columns { get { return Config.Columns; } }
 
+        public RGBA BackgroundColor { get { return Config.Background; } }
+        public string BackgroundImage { get { return Config.BackgroundImage; } }
+
         public event CellDelegate OnCellClicked;
         public event CellDelegate OnCellOver;
 
@@ -171,11 +174,11 @@ namespace engine.Common
                     {
                         for (int col = 0; col < Cells[row].Length; col++)
                         {
-                            if (Cells[row][col].IsDirty)
+                            if (Cells[row][col].Image == null) continue;
+
+                            if (Cells[row][col].IsDirty || Overlay.IsDirty)
                             {
                                 Cells[row][col].IsDirty = false;
-
-                                if (Cells[row][col].Image == null) throw new Exception("Invalid empty buffer");
 
                                 // translate to x,y
                                 Translate(row, col, out float x, out float y);
