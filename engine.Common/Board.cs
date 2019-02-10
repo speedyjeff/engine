@@ -189,6 +189,9 @@ namespace engine.Common
                     } // for
                 } // lock(Cells)
 
+                // mark the overlay as no longer dirty
+                Overlay.IsDirty = false;
+
                 // update the overlay (everytime)
                 if (Overlay.Image != null)
                 {
