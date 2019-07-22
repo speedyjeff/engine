@@ -12,6 +12,7 @@ namespace engine.Common
             if (background == null) throw new Exception("Must create a background");
 
             // init
+            ElementLock = new ReaderWriterLockSlim();
             Obstacles = new Dictionary<int, Element>();
             Items = new Dictionary<int, Element>();
             Width = width;
@@ -48,7 +49,8 @@ namespace engine.Common
             // do not take Z into account, as the view should be unbostructed (top down)
 
             // return objects that are within the window
-            lock (this)
+            ElementLock.EnterReadLock();
+            try
             {
                 var x1 = x - width / 2;
                 var y1 = y - height / 2;
@@ -74,6 +76,10 @@ namespace engine.Common
                         }
                     }
                 }
+            }
+            finally
+            {
+                ElementLock.ExitReadLock();
             }
         }
 
@@ -102,7 +108,8 @@ namespace engine.Common
             if (player.IsDead) return false;
             if (IsPaused) return false;
 
-            lock (this)
+            ElementLock.EnterReadLock();
+            try
             {
                 if (pace == 0) pace = Background.Pace(player.X, player.Y);
                 if (pace < Constants.MinSpeedMultiplier) pace = Constants.MinSpeedMultiplier;
@@ -122,6 +129,10 @@ namespace engine.Common
                 // return that we actually checked
                 return true;
             }
+            finally
+            {
+                ElementLock.ExitReadLock();
+            }
         }
 
         public Type Pickup(Player player)
@@ -130,24 +141,37 @@ namespace engine.Common
             if (player.IsDead) return null;
             if (IsPaused) return null;
 
-            lock (this)
+            ElementLock.EnterUpgradeableReadLock();
+            try
             {
                 // see if we are over an item
                 Element item = IntersectingRectangles(player, true /* consider acquirable */);
 
                 if (item != null)
                 {
-                    // pickup the item
-                    if (player.Take(item))
+                    ElementLock.EnterWriteLock();
+                    try
                     {
-                        // remove the item from the playing field
-                        Items.Remove(item.Id);
+                        // pickup the item
+                        if (player.Take(item))
+                        {
+                            // remove the item from the playing field
+                            Items.Remove(item.Id);
 
-                        return item.GetType();
+                            return item.GetType();
+                        }
+                    }
+                    finally
+                    {
+                        ElementLock.ExitWriteLock();
                     }
                 }
 
                 return null;
+            }
+            finally
+            {
+                ElementLock.ExitUpgradeableReadLock();
             }
         }
 
@@ -162,7 +186,8 @@ namespace engine.Common
             var state = AttackStateEnum.None;
             var trajectories = new List<ShotTrajectory>();
 
-            lock (this)
+            ElementLock.EnterReadLock();
+            try
             {
                 state = player.Attack();
 
@@ -201,7 +226,11 @@ namespace engine.Common
                     trajectories.Clear();
                 }
 
-            } // lock(this)
+            }
+            finally
+            {
+                ElementLock.ExitReadLock();
+            }
 
             // send notifications
             bool targetDied = false; // used to change the fired state
@@ -261,7 +290,8 @@ namespace engine.Common
             if (IsPaused) return null;
             // this action is allowed for a dead player
 
-            lock (this)
+            ElementLock.EnterWriteLock();
+            try
             {
                 var item = player.DropPrimary();
 
@@ -276,13 +306,18 @@ namespace engine.Common
 
                 return null;
             }
+            finally
+            {
+                ElementLock.ExitWriteLock();
+            }
         }
 
         public bool AddItem(Element item)
         {
             if (IsPaused) return false;
 
-            lock (this)
+            ElementLock.EnterWriteLock();
+            try
             {
                 if (item != null)
                 {
@@ -300,13 +335,18 @@ namespace engine.Common
 
                 return false;
             }
+            finally
+            {
+                ElementLock.ExitWriteLock();
+            }
         }
 
         public bool RemoveItem(Element item)
         {
             if (IsPaused) return false;
 
-            lock (this)
+            ElementLock.EnterWriteLock();
+            try
             {
                 if (item != null)
                 {
@@ -323,6 +363,10 @@ namespace engine.Common
                 }
 
                 return false;
+            }
+            finally
+            {
+                ElementLock.ExitWriteLock();
             }
         }
 
@@ -349,16 +393,19 @@ namespace engine.Common
         // items that can be acquired
         private Dictionary<int, Element> Items;
         private Timer BackgroundTimer;
+        private ReaderWriterLockSlim ElementLock;
 
         private void BackgroundUpdate(object state)
         {
             if (IsPaused) return;
             var deceased = new List<Element>();
-            lock (this)
-            {
-                // update the map
-                Background.Update();
 
+            // update the map
+            Background.Update();
+
+            ElementLock.EnterReadLock();
+            try
+            { 
                 // apply any necessary damage to the players
                 foreach(var elem in Obstacles.Values)
                 {
@@ -377,7 +424,11 @@ namespace engine.Common
                         }
                     }
                 }
-            } // lock(this)
+            }
+            finally
+            {
+                ElementLock.ExitReadLock();
+            }
 
             // notify the deceased
             foreach (var elem in deceased)
@@ -397,6 +448,9 @@ namespace engine.Common
 
         private Element IntersectingRectangles(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0)
         {
+            // must take lock to enter this method
+            if (!ElementLock.IsReadLockHeld && !ElementLock.IsUpgradeableReadLockHeld) throw new Exception("Must hold the reader lock to enter this method");
+
             float x1 = (player.X + xdelta) - (player.Width / 2);
             float y1 = (player.Y + ydelta) - (player.Height / 2);
             float x2 = (player.X + xdelta) + (player.Width / 2);
@@ -444,6 +498,9 @@ namespace engine.Common
 
         private Element LineIntersectingRectangle(Player player, float x1, float y1, float x2, float y2)
         {
+            // must take lock to enter this method
+            if (!ElementLock.IsReadLockHeld && !ElementLock.IsUpgradeableReadLockHeld) throw new Exception("Must hold the reader lock before accessing this method");
+
             // must ensure to find the closest object that intersects
             Element item = null;
             float prvDistance = 0;

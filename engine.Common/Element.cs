@@ -44,7 +44,7 @@ namespace engine.Common.Entities
 
         public bool ShowDefaultDrawing { get; set; }
 
-        public bool IsDead => (TakesDamage ? Health <= 0 : false);
+        public bool IsDead { get; protected set; } = false;
 
         public virtual string ImagePath => "";
 
@@ -61,11 +61,22 @@ namespace engine.Common.Entities
             if (Constants.Debug_ShowHitBoxes) g.Rectangle(RGBA.Black, X-(Width/2), Y-(Height/2), Width, Height, false);
             if (CanAcquire)
             {
-                g.Text(RGBA.Black, X - Width / 2, Y - Height / 2 - 20, string.Format("[{0}] {1}", Constants.Pickup2, Name));
+                if (!string.Equals(Name, PreviousName))
+                {
+                    DisplayName = string.Format("[{0}] {1}", Constants.Pickup2, Name);
+                    PreviousName = Name;
+                }
+                g.Text(RGBA.Black, X - Width / 2, Y - Height / 2 - 20, DisplayName);
             }
             if (TakesDamage && ShowDamage && Z == Constants.Ground)
             {
-                g.Text(RGBA.Black, X - Width / 2, Y - Height / 2 - 20, string.Format("{0:0}/{1:0}", Health, Shield));
+                if (Health != PreviousHealth || Shield != PreviousShield)
+                {
+                    PreviousShield = Shield;
+                    PreviousHealth = Health;
+                    DisplayHealth = string.Format("{0:0}/{1:0}", Health, Shield);
+                }
+                g.Text(RGBA.Black, X - Width / 2, Y - Height / 2 - 20, DisplayHealth);
             }
         }
 
@@ -93,10 +104,18 @@ namespace engine.Common.Entities
                 return;
             }
             Health = 0;
+            IsDead = true;
             return;
         }
 
         #region private
+        private string DisplayName;
+        private string PreviousName;
+
+        private string DisplayHealth;
+        private float PreviousHealth;
+        private float PreviousShield;
+
         private float _angle;
         private static int NextId = 0;
         private static int GetNextId()

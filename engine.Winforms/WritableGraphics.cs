@@ -12,12 +12,15 @@ namespace engine.Winforms
         public WritableGraphics(BufferedGraphicsContext context, Graphics g, int height, int width)
         {
             // init
-            DoTranslation = true;
-            ImageCache = new Dictionary<string, Image>();
             Context = context;
             Graphics = g;
             Width = width;
             Height = height;
+            DoTranslation = true;
+            ImageCache = new Dictionary<string, Image>();
+            SolidBrushCache = new Dictionary<int, SolidBrush>();
+            PenCache = new Dictionary<long, Pen>();
+            ArialFontCache = new Dictionary<float, Font>();
 
             // get graphics ready
             if (Context != null)
@@ -49,10 +52,10 @@ namespace engine.Winforms
         // high level access to drawing
         public void Clear(RGBA color)
         {
-            Graphics.FillRectangle(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), 0, 0, Width, Height);
+            Graphics.FillRectangle(GetCachedSolidBrush(color), 0, 0, Width, Height);
         }
 
-        public void Ellipse(RGBA color, float x, float y, float width, float height, bool fill, bool border)
+        public void Ellipse(RGBA color, float x, float y, float width, float height, bool fill)
         {
             float thickness = 5f;
             float sx = x;
@@ -68,16 +71,16 @@ namespace engine.Winforms
             // use screen coordinates
             if (fill)
             {
-                Graphics.FillEllipse(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy, swidth, sheight);
-                if (border) Graphics.DrawEllipse(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
+                Graphics.FillEllipse(GetCachedSolidBrush(color), sx, sy, swidth, sheight);
+                Graphics.DrawEllipse(GetCachedPen(RGBA.Black, sthickness), sx, sy, swidth, sheight);
             }
             else
             {
-                Graphics.DrawEllipse(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx, sy, swidth, sheight);
+                Graphics.DrawEllipse(GetCachedPen(color, sthickness), sx, sy, swidth, sheight);
             }
         }
 
-        public void Rectangle(RGBA color, float x, float y, float width, float height, bool fill, bool border)
+        public void Rectangle(RGBA color, float x, float y, float width, float height, bool fill)
         {
             float thickness = 5f;
             float sx = x;
@@ -93,12 +96,12 @@ namespace engine.Winforms
             // use screen coordinates
             if (fill)
             {
-                Graphics.FillRectangle(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy, swidth, sheight);
-                if (border) Graphics.DrawRectangle(new Pen(Color.Black, sthickness), sx, sy, swidth, sheight);
+                Graphics.FillRectangle(GetCachedSolidBrush(color), sx, sy, swidth, sheight);
+                Graphics.DrawRectangle(GetCachedPen(RGBA.Black, sthickness), sx, sy, swidth, sheight);
             }
             else
             {
-                Graphics.DrawRectangle(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx, sy, swidth, sheight);
+                Graphics.DrawRectangle(GetCachedPen(color, sthickness), sx, sy, swidth, sheight);
             }
         }
 
@@ -134,12 +137,12 @@ namespace engine.Winforms
             };
             if (fill)
             {
-                Graphics.FillPolygon(new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), edges);
-                if (border) Graphics.DrawPolygon(new Pen(Color.Black, sthickness), edges);
+                Graphics.FillPolygon(GetCachedSolidBrush(color), edges);
+                if (border) Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), edges);
             }
             else
             {
-                Graphics.DrawPolygon(new Pen(Color.Black, sthickness), edges);
+                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), edges);
             }
         }
 
@@ -156,7 +159,7 @@ namespace engine.Winforms
             x = y = fontsize = 0;
 
             // use screen coordinates
-            Graphics.DrawString(text, new Font("Arial", sfontsize), new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B)), sx, sy);
+            Graphics.DrawString(text, GetCachedArialFont(sfontsize), GetCachedSolidBrush(color), sx, sy);
         }
 
         public void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness)
@@ -181,19 +184,12 @@ namespace engine.Winforms
             // safe guard accidental usage
             x2 = y2 = 0;
 
-            Graphics.DrawLine(new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), sthickness), sx1, sy1, sx2, sy2);
+            Graphics.DrawLine(GetCachedPen(color, sthickness), sx1, sy1, sx2, sy2);
         }
 
         public void Image(string path, float x, float y, float width = 0, float height = 0)
         {
-            System.Drawing.Image img = null;
-            if (!ImageCache.TryGetValue(path, out img))
-            {
-                img = System.Drawing.Image.FromFile(path);
-                var bitmap = new Bitmap(img);
-                bitmap.MakeTransparent(bitmap.GetPixel(0,0));
-                ImageCache.Add(path, bitmap);
-            }
+            Image img = GetCachedImage(path);
 
             float sx = x;
             float sy = y;
@@ -293,10 +289,63 @@ namespace engine.Winforms
         private BufferedGraphics Surface;
         private BufferedGraphicsContext Context;
         private TranslateCoordinatesDelegate Translate;
-        private Dictionary<string, Image> ImageCache;
         private bool DoTranslation;
         private bool DoScaling;
-        // TODO! color cache
+
+        private Dictionary<string, Image> ImageCache;
+        private Dictionary<int, SolidBrush> SolidBrushCache;
+        private Dictionary<long, Pen> PenCache;
+        private Dictionary<float, Font> ArialFontCache;
+
+        private Image GetCachedImage(string path)
+        {
+            System.Drawing.Image img = null;
+            if (!ImageCache.TryGetValue(path, out img))
+            {
+                img = System.Drawing.Image.FromFile(path);
+                var bitmap = new Bitmap(img);
+                bitmap.MakeTransparent(bitmap.GetPixel(0, 0));
+                ImageCache.Add(path, bitmap);
+            }
+            return img;
+        }
+
+        private SolidBrush GetCachedSolidBrush(RGBA color)
+        {
+            var key = color.GetHashCode();
+            SolidBrush brush = null;
+            if (!SolidBrushCache.TryGetValue(key, out brush))
+            {
+                brush = new SolidBrush(Color.FromArgb(color.A, color.R, color.G, color.B));
+                SolidBrushCache.Add(key, brush);
+            }
+            return brush;
+        }
+
+        private Pen GetCachedPen(RGBA color, float thickness)
+        {
+            var key = (long)color.GetHashCode() | ((long)thickness << 32);
+            Pen pen = null;
+            if (!PenCache.TryGetValue(key, out pen))
+            {
+                pen = new Pen(Color.FromArgb(color.A, color.R, color.G, color.B), thickness);
+                PenCache.Add(key, pen);
+            }
+            return pen;
+        }
+
+        private Font GetCachedArialFont(float size)
+        {
+            var key = (float)Math.Round(size, 2);
+            Font font = null;
+            if (!ArialFontCache.TryGetValue(key, out font))
+            {
+                font = new Font("Arial", key);
+                ArialFontCache.Add(key, font);
+            }
+            return font;
+        }
+
         #endregion
     }
 }
