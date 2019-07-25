@@ -43,6 +43,7 @@ namespace engine.Common
             ZoomFactor = 1;
             Config = config;
             Details = new Dictionary<int, PlayerDetails>();
+            Alive = players.Length;
 
             // setup map
             Map = new Map(Config.Width, Config.Height, objects, background);
@@ -97,16 +98,7 @@ namespace engine.Common
         public int Height {  get { return Map.Height;  } }
 
         public Player Human { get; private set; }
-        public int Alive
-        {
-            get
-            {
-                lock (Details)
-                {
-                    return Details.Where(p => p.Value.Player != null && !p.Value.Player.IsDead).Count();
-                }
-            }
-        }
+        public int Alive { get; private set; }
 
         public void Paint()
         {
@@ -151,10 +143,15 @@ namespace engine.Common
             {
                 // draw all elements
                 var hidden = new HashSet<int>();
+                var visiblePlayers = new List<Player>();
                 foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Surface.Width * (1 / ZoomFactor), Surface.Height * (1 / ZoomFactor)))
                 {
-                    if (elem is Player) continue;
                     if (elem.IsDead) continue;
+                    if (elem is Player)
+                    {
+                        visiblePlayers.Add(elem as Player);
+                        continue;
+                    }
                     if (elem.IsTransparent)
                     {
                         // if the player is intersecting with this item, then do not display it
@@ -182,13 +179,10 @@ namespace engine.Common
                 }
 
                 // draw the players
-                int alive = 0;
-                foreach (var detail in Details.Values)
+                foreach (var player in visiblePlayers)
                 {
-                    if (detail.Player.IsDead) continue;
-                    alive++;
-                    if (hidden.Contains(detail.Player.Id)) continue;
-                    detail.Player.Draw(Surface);
+                    if (hidden.Contains(player.Id)) continue;
+                    player.Draw(Surface);
                 }
             } // lock(Details)
 
@@ -424,9 +418,14 @@ namespace engine.Common
 
         public void AddItem(Element item)
         {
+            Map.AddItem(item);
+
             if (item is Player)
             {
                 var details = new PlayerDetails() { Player = (item as Player) };
+
+                // add another alive player
+                Alive++;
 
                 lock (Details)
                 {
@@ -455,8 +454,6 @@ namespace engine.Common
                     details.Parachute = new Timer(PlayerParachute, item.Id, 0, Constants.GlobalClock);
                 }
             }
-
-            Map.AddItem(item);
         }
 
         public void RemoveAllItems(Type type)
@@ -483,6 +480,9 @@ namespace engine.Common
 
         public void RemoveItem(Element item)
         {
+            // remove from map
+            Map.RemoveItem(item);
+
             if (item is Player)
             {
                 var player = (item as Player);
@@ -506,9 +506,6 @@ namespace engine.Common
                 {
                     Details.Remove(player.Id);
                 }
-
-                // remove from map
-                Map.RemoveItem(player);
             }
             else throw new Exception("Invalid item to remove");
         }
@@ -548,8 +545,21 @@ namespace engine.Common
         {
             if (player == null || player.IsDead) throw new Exception("Cannot teleport an invalid player");
 
-            player.X = WindowX = x;
-            player.Y = WindowY = y;
+            // remove the player
+            RemoveItem(player);
+
+            // move
+            player.X = x;
+            player.Y = y;
+
+            if (player.Id == Human.Id)
+            {
+                WindowX = x;
+                WindowY = y;
+            }
+
+            // add them back
+            AddItem(player);
         }
 
         #region private
@@ -643,8 +653,7 @@ namespace engine.Common
                     }
 
                     // move over
-                    detail.Player.X += xmove;
-                    if (detail.Player.Id == Human.Id) WindowX += xmove;
+                    Teleport(detail.Player, detail.Player.X + xmove, detail.Player.Y);
                 }
                 while (count-- > 0);
 
@@ -1078,6 +1087,18 @@ namespace engine.Common
             {
                 // remove this player
                 RemoveItem(element);
+
+                // track how many players are alive
+                lock (Details)
+                {
+                    var alive = 0;
+                    foreach (var elem in Details.Values)
+                    {
+                        if (elem.Player.IsDead) continue;
+                        alive++;
+                    }
+                    Alive = alive;
+                }
 
                 // pause
                 if (Config.EndMenu != null)

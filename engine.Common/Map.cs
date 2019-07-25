@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
+
 using engine.Common.Entities;
+
 namespace engine.Common
 {
     class Map
@@ -12,22 +15,17 @@ namespace engine.Common
             if (background == null) throw new Exception("Must create a background");
 
             // init
-            ElementLock = new ReaderWriterLockSlim();
-            Obstacles = new Dictionary<int, Element>();
-            Items = new Dictionary<int, Element>();
             Width = width;
             Height = height;
             Background = background;
 
+            // seperate the items from the obstacles (used to reduce what is considered, and for ordering)
+            var obstacles = (objects != null) ? objects.Where(o => !o.CanAcquire) : new List<Element>();
+            var items = (objects != null) ? objects.Where(o => o.CanAcquire) : new List<Element>();
+
             // add all things to the map
-            if (objects != null)
-            {
-                foreach (var o in objects)
-                {
-                    if (o.CanAcquire) Items.Add(o.Id, o);
-                    else Obstacles.Add(o.Id, o);
-                }
-            }
+            Obstacles = new RegionCollection(obstacles, Width, Height);
+            Items = new RegionCollection(items, Width, Height);
 
             // setup the background update timer
             BackgroundTimer = new Timer(BackgroundUpdate, null, 0, Constants.GlobalClock);
@@ -49,37 +47,29 @@ namespace engine.Common
             // do not take Z into account, as the view should be unbostructed (top down)
 
             // return objects that are within the window
-            ElementLock.EnterReadLock();
-            try
+            var x1 = x - width / 2;
+            var y1 = y - height / 2;
+            var x2 = x + width / 2;
+            var y2 = y + height / 2;
+
+            // iterate through all objects (obstacles + items)
+            foreach (var region in new RegionCollection[] {Items, Obstacles })
             {
-                var x1 = x - width / 2;
-                var y1 = y - height / 2;
-                var x2 = x + width / 2;
-                var y2 = y + height / 2;
-
-                // iterate through all objects (obstacles + items)
-                foreach (var elems in new Dictionary<int, Element>[] { Items, Obstacles })
+                foreach (var elem in region.Values(x1, y1, x2, y2))
                 {
-                    foreach (var elem in elems.Values)
+                    if (elem.IsDead) continue;
+
+                    var x3 = elem.X - elem.Width / 2;
+                    var y3 = elem.Y - elem.Height / 2;
+                    var x4 = elem.X + elem.Width / 2;
+                    var y4 = elem.Y + elem.Height / 2;
+
+                    if (Collision.IntersectingRectangles(x1, y1, x2, y2,
+                        x3, y3, x4, y4))
                     {
-                        if (elem.IsDead) continue;
-
-                        var x3 = elem.X - elem.Width / 2;
-                        var y3 = elem.Y - elem.Height / 2;
-                        var x4 = elem.X + elem.Width / 2;
-                        var y4 = elem.Y + elem.Height / 2;
-
-                        if (Collision.IntersectingRectangles(x1, y1, x2, y2,
-                            x3, y3, x4, y4))
-                        {
-                            yield return elem;
-                        }
+                        yield return elem;
                     }
                 }
-            }
-            finally
-            {
-                ElementLock.ExitReadLock();
             }
         }
 
@@ -90,8 +80,18 @@ namespace engine.Common
                 // successfully checked, and there is no object touching
                 if (touching == null)
                 {
+                    // get region before move
+                    var beforeRegion = Obstacles.GetRegion(player);
+
                     // move the player
                     player.Move(xdelta, ydelta);
+
+                    // get region after move
+                    var afterRegion = Obstacles.GetRegion(player);
+                    if (!beforeRegion.Equals(afterRegion))
+                    {
+                        Obstacles.Move(player.Id, beforeRegion, afterRegion);
+                    }
 
                     return true;
                 }
@@ -108,31 +108,23 @@ namespace engine.Common
             if (player.IsDead) return false;
             if (IsPaused) return false;
 
-            ElementLock.EnterReadLock();
-            try
-            {
-                if (pace == 0) pace = Background.Pace(player.X, player.Y);
-                if (pace < Constants.MinSpeedMultiplier) pace = Constants.MinSpeedMultiplier;
-                if (pace > Constants.MaxSpeedMultiplier) pace = Constants.MaxSpeedMultiplier;
-                float speed = Constants.Speed * pace;
+            if (pace == 0) pace = Background.Pace(player.X, player.Y);
+            if (pace < Constants.MinSpeedMultiplier) pace = Constants.MinSpeedMultiplier;
+            if (pace > Constants.MaxSpeedMultiplier) pace = Constants.MaxSpeedMultiplier;
+            float speed = Constants.Speed * pace;
 
-                // check if the delta is legal
-                if (Math.Abs(xdelta) + Math.Abs(ydelta) > 1.00001) return false;
+            // check if the delta is legal
+            if (Math.Abs(xdelta) + Math.Abs(ydelta) > 1.00001) return false;
 
-                // adjust for speed
-                xdelta *= speed;
-                ydelta *= speed;
+            // adjust for speed
+            xdelta *= speed;
+            ydelta *= speed;
 
-                // return if the player would collide with an object
-                touching = IntersectingRectangles(player, false /* consider acquirable */, xdelta, ydelta);
+            // return if the player would collide with an object
+            touching = IntersectingRectangles(player, false /* consider acquirable */, xdelta, ydelta);
 
-                // return that we actually checked
-                return true;
-            }
-            finally
-            {
-                ElementLock.ExitReadLock();
-            }
+            // return that we actually checked
+            return true;
         }
 
         public Type Pickup(Player player)
@@ -141,38 +133,23 @@ namespace engine.Common
             if (player.IsDead) return null;
             if (IsPaused) return null;
 
-            ElementLock.EnterUpgradeableReadLock();
-            try
+            // see if we are over an item
+            Element item = IntersectingRectangles(player, true /* consider acquirable */);
+
+            if (item != null)
             {
-                // see if we are over an item
-                Element item = IntersectingRectangles(player, true /* consider acquirable */);
-
-                if (item != null)
+                // remove as an atomic operation
+                if (Items.Remove(item.Id, item))
                 {
-                    ElementLock.EnterWriteLock();
-                    try
+                    // pickup the item
+                    if (player.Take(item))
                     {
-                        // pickup the item
-                        if (player.Take(item))
-                        {
-                            // remove the item from the playing field
-                            Items.Remove(item.Id);
-
-                            return item.GetType();
-                        }
-                    }
-                    finally
-                    {
-                        ElementLock.ExitWriteLock();
+                        return item.GetType();
                     }
                 }
+            }
 
-                return null;
-            }
-            finally
-            {
-                ElementLock.ExitUpgradeableReadLock();
-            }
+            return null;
         }
 
         // player is the one attacking
@@ -186,50 +163,40 @@ namespace engine.Common
             var state = AttackStateEnum.None;
             var trajectories = new List<ShotTrajectory>();
 
-            ElementLock.EnterReadLock();
-            try
+            state = player.Attack();
+
+            // apply state change
+            if (state == AttackStateEnum.Fired)
             {
-                state = player.Attack();
+                if (!(player.Primary is RangeWeapon)) throw new Exception("Must have a Gun to fire");
+                var gun = player.Primary as RangeWeapon;
+                Element elem = null;
 
-                // apply state change
-                if (state == AttackStateEnum.Fired)
+                // apply the bullet via the trajectory
+                elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle, trajectories);
+                if (elem != null) hit.Add(elem);
+                if (gun.Spread != 0)
                 {
-
-                    if (!(player.Primary is RangeWeapon)) throw new Exception("Must have a Gun to fire");
-                    var gun = player.Primary as RangeWeapon;
-                    Element elem = null;
-
-                    // apply the bullet via the trajectory
-                    elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle, trajectories);
+                    elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle - (gun.Spread / 2), trajectories);
                     if (elem != null) hit.Add(elem);
-                    if (gun.Spread != 0)
-                    {
-                        elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle - (gun.Spread / 2), trajectories);
-                        if (elem != null) hit.Add(elem);
-                        elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle + (gun.Spread / 2), trajectories);
-                        if (elem != null) hit.Add(elem);
-                    }
-                }
-                else if (state == AttackStateEnum.Melee)
-                {
-                    // project out a short range and check if there was contact
-                    Element elem = null;
-
-                    // use either fists, or if the Primary provides damage
-                    Tool weapon = (player.Primary != null && player.Primary is Tool) ? player.Primary as Tool : player.Fists;
-
-                    // apply the bullet via the trajectory
-                    elem = TrackAttackTrajectory(player, weapon, player.X, player.Y, player.Angle, trajectories);
+                    elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle + (gun.Spread / 2), trajectories);
                     if (elem != null) hit.Add(elem);
-
-                    // disregard any trajectories
-                    trajectories.Clear();
                 }
-
             }
-            finally
+            else if (state == AttackStateEnum.Melee)
             {
-                ElementLock.ExitReadLock();
+                // project out a short range and check if there was contact
+                Element elem = null;
+
+                // use either fists, or if the Primary provides damage
+                Tool weapon = (player.Primary != null && player.Primary is Tool) ? player.Primary as Tool : player.Fists;
+
+                // apply the bullet via the trajectory
+                elem = TrackAttackTrajectory(player, weapon, player.X, player.Y, player.Angle, trajectories);
+                if (elem != null) hit.Add(elem);
+
+                // disregard any trajectories
+                trajectories.Clear();
             }
 
             // send notifications
@@ -290,84 +257,60 @@ namespace engine.Common
             if (IsPaused) return null;
             // this action is allowed for a dead player
 
-            ElementLock.EnterWriteLock();
-            try
+            var item = player.DropPrimary();
+
+            if (item != null)
             {
-                var item = player.DropPrimary();
+                item.X = player.X;
+                item.Y = player.Y;
+                Items.Add(item.Id, item);
 
-                if (item != null)
-                {
-                    item.X = player.X;
-                    item.Y = player.Y;
-                    Items.Add(item.Id, item);
-
-                    return item.GetType();
-                }
-
-                return null;
+                return item.GetType();
             }
-            finally
-            {
-                ElementLock.ExitWriteLock();
-            }
+
+            return null;
         }
 
         public bool AddItem(Element item)
         {
             if (IsPaused) return false;
 
-            ElementLock.EnterWriteLock();
-            try
+            if (item != null)
             {
-                if (item != null)
+                if (item.CanAcquire)
                 {
-                    if (item.CanAcquire)
-                    {
-                        Items.Add(item.Id, item);
-                    }
-                    else
-                    {
-                        Obstacles.Add(item.Id, item);
-                    }
-
-                    return true;
+                    Items.Add(item.Id, item);
+                }
+                else
+                {
+                    Obstacles.Add(item.Id, item);
                 }
 
-                return false;
+                return true;
             }
-            finally
-            {
-                ElementLock.ExitWriteLock();
-            }
+
+            return false;
         }
 
         public bool RemoveItem(Element item)
         {
             if (IsPaused) return false;
 
-            ElementLock.EnterWriteLock();
-            try
+            if (item != null)
             {
-                if (item != null)
+                if (item.CanAcquire)
                 {
-                    if (item.CanAcquire)
-                    {
-                        Items.Remove(item.Id);
-                    }
-                    else
-                    {
-                        Obstacles.Remove(item.Id);
-                    }
-
-                    return true;
+                    Items.Remove(item.Id, item);
+                }
+                else
+                {
+                    Obstacles.Remove(item.Id, item);
                 }
 
-                return false;
+                return true;
             }
-            finally
-            {
-                ElementLock.ExitWriteLock();
-            }
+
+            return false;
         }
 
         public bool IsTouching(Element elem1, Element elem2)
@@ -389,11 +332,10 @@ namespace engine.Common
 
         #region private
         // objects that have hit boxes
-        private Dictionary<int, Element> Obstacles;
+        private RegionCollection Obstacles;
         // items that can be acquired
-        private Dictionary<int, Element> Items;
+        private RegionCollection Items;
         private Timer BackgroundTimer;
-        private ReaderWriterLockSlim ElementLock;
 
         private void BackgroundUpdate(object state)
         {
@@ -403,31 +345,23 @@ namespace engine.Common
             // update the map
             Background.Update();
 
-            ElementLock.EnterReadLock();
-            try
-            { 
-                // apply any necessary damage to the players
-                foreach(var elem in Obstacles.Values)
+            // apply any necessary damage to the players
+            foreach(var elem in Obstacles.AllValues())
+            {
+                if (elem.IsDead) continue;
+                if (elem is Player)
                 {
-                    if (elem.IsDead) continue;
-                    if (elem is Player)
+                    var damage = Background.Damage(elem.X, elem.Y);
+                    if (damage > 0)
                     {
-                        var damage = Background.Damage(elem.X, elem.Y);
-                        if (damage > 0)
-                        {
-                            elem.ReduceHealth(damage);
+                        elem.ReduceHealth(damage);
 
-                            if (elem.IsDead)
-                            {
-                                deceased.Add(elem);
-                            }
+                        if (elem.IsDead)
+                        {
+                            deceased.Add(elem);
                         }
                     }
                 }
-            }
-            finally
-            {
-                ElementLock.ExitReadLock();
             }
 
             // notify the deceased
@@ -448,20 +382,17 @@ namespace engine.Common
 
         private Element IntersectingRectangles(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0)
         {
-            // must take lock to enter this method
-            if (!ElementLock.IsReadLockHeld && !ElementLock.IsUpgradeableReadLockHeld) throw new Exception("Must hold the reader lock to enter this method");
-
             float x1 = (player.X + xdelta) - (player.Width / 2);
             float y1 = (player.Y + ydelta) - (player.Height / 2);
             float x2 = (player.X + xdelta) + (player.Width / 2);
             float y2 = (player.Y + ydelta) + (player.Height / 2);
 
             // either choose to iterate through solid objects (obstacles) or items
-            Dictionary<int, Element> objects = Obstacles;
+            RegionCollection objects = Obstacles;
             if (considerAquireable) objects = Items;
 
             // check collisions
-            foreach (var elem in objects.Values)
+            foreach (var elem in objects.Values(x1, y1, x2, y2))
             {
                 if (elem.Id == player.Id) continue;
                 if (elem.IsDead) continue;
@@ -498,15 +429,12 @@ namespace engine.Common
 
         private Element LineIntersectingRectangle(Player player, float x1, float y1, float x2, float y2)
         {
-            // must take lock to enter this method
-            if (!ElementLock.IsReadLockHeld && !ElementLock.IsUpgradeableReadLockHeld) throw new Exception("Must hold the reader lock before accessing this method");
-
             // must ensure to find the closest object that intersects
             Element item = null;
             float prvDistance = 0;
 
             // check collisions
-            foreach (var elem in Obstacles.Values)
+            foreach (var elem in Obstacles.Values(x1, y1, x2, y2))
             {
                 if (elem.Id == player.Id) continue;
                 if (elem.IsDead) continue;

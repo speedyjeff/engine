@@ -44,6 +44,7 @@
     <Compile Include="Board.cs" />
     <Compile Include="Collison.cs" />
     <Compile Include="Constants.cs" />
+    <Compile Include="RegionCollection.cs" />
     <Compile Include="Entities\AI\AI.cs" />
     <Compile Include="Entities\Ammo.cs" />
     <Compile Include="Entities\Background.cs" />

@@ -26,7 +26,7 @@ namespace engine.Common.Entities
             Width = 50;
 
             // special melee
-            Fists = new Tool() { Distance = (int)Width, Damage = 1 };
+            Fists = new Tool() { Distance = (int)Width, Damage = 5 };
         }
 
         // in hands
@@ -34,7 +34,7 @@ namespace engine.Common.Entities
         public Element Primary { get; private set; }
         public Element[] Secondary { get; set; }
 
-        public Tool Fists { get; private set; }
+        public Tool Fists { get; protected set; }
 
         public RGBA Color { get; protected set; }
 
