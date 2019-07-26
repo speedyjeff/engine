@@ -26,9 +26,6 @@ namespace engine.Common
             // add all things to the map
             Obstacles = new RegionCollection(obstacles, Width, Height);
             Items = new RegionCollection(items, Width, Height);
-
-            // setup the background update timer
-            BackgroundTimer = new Timer(BackgroundUpdate, null, 0, Constants.GlobalClock);
         }
 
         public int Width { get; private set; }
@@ -273,8 +270,6 @@ namespace engine.Common
 
         public bool AddItem(Element item)
         {
-            if (IsPaused) return false;
-
             if (item != null)
             {
                 if (item.CanAcquire)
@@ -294,8 +289,6 @@ namespace engine.Common
 
         public bool RemoveItem(Element item)
         {
-            if (IsPaused) return false;
-
             if (item != null)
             {
                 if (item.CanAcquire)
@@ -335,50 +328,6 @@ namespace engine.Common
         private RegionCollection Obstacles;
         // items that can be acquired
         private RegionCollection Items;
-        private Timer BackgroundTimer;
-
-        private void BackgroundUpdate(object state)
-        {
-            if (IsPaused) return;
-            var deceased = new List<Element>();
-
-            // update the map
-            Background.Update();
-
-            // apply any necessary damage to the players
-            foreach(var elem in Obstacles.AllValues())
-            {
-                if (elem.IsDead) continue;
-                if (elem is Player)
-                {
-                    var damage = Background.Damage(elem.X, elem.Y);
-                    if (damage > 0)
-                    {
-                        elem.ReduceHealth(damage);
-
-                        if (elem.IsDead)
-                        {
-                            deceased.Add(elem);
-                        }
-                    }
-                }
-            }
-
-            // notify the deceased
-            foreach (var elem in deceased)
-            {
-                // this player has died as a result of taking damage from the zone
-                if (OnElementDied != null) OnElementDied(elem);
-
-                if (OnEphemerialEvent != null)
-                {
-                    OnEphemerialEvent(new OnScreenText()
-                    {
-                        Text = string.Format("Player {0} died in the zone", elem.Name)
-                    });
-                }
-            }
-        }
 
         private Element IntersectingRectangles(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0)
         {

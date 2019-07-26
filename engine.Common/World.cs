@@ -70,6 +70,9 @@ namespace engine.Common
                 Menu = Config.StartMenu;
                 Map.IsPaused = true;
             }
+
+            // setup the background update timer
+            BackgroundTimer = new Timer(BackgroundUpdate, null, 0, Constants.GlobalClock);
         }
 
         public void InitializeGraphics(IGraphics surface, ISounds sounds)
@@ -109,7 +112,6 @@ namespace engine.Common
             Map.Background.Draw(Surface);
 
             // add center indicator
-            // TODO!
             if (Human.Z == Constants.Ground && Config.CenterIndicator)
             {
                 var centerAngle = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Map.Width / 2, Map.Height / 2);
@@ -139,26 +141,26 @@ namespace engine.Common
                 Surface.EnableTranslation();
             }
 
-            lock (Details)
+            // draw all elements
+            var hidden = new HashSet<int>();
+            var visiblePlayers = new List<Player>();
+            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Surface.Width * (1 / ZoomFactor), Surface.Height * (1 / ZoomFactor)))
             {
-                // draw all elements
-                var hidden = new HashSet<int>();
-                var visiblePlayers = new List<Player>();
-                foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Surface.Width * (1 / ZoomFactor), Surface.Height * (1 / ZoomFactor)))
+                if (elem.IsDead) continue;
+                else if (elem is Player)
                 {
-                    if (elem.IsDead) continue;
-                    if (elem is Player)
-                    {
-                        visiblePlayers.Add(elem as Player);
-                        continue;
-                    }
-                    if (elem.IsTransparent)
-                    {
-                        // if the player is intersecting with this item, then do not display it
-                        if (Map.IsTouching(Human, elem)) continue;
+                    visiblePlayers.Add(elem as Player);
+                    continue;
+                }
+                else if (elem.IsTransparent)
+                {
+                    // if the player is intersecting with this item, then do not display it
+                    if (Map.IsTouching(Human, elem)) continue;
 
+                    lock (Details)
+                    {
                         // check if one of the bots is hidden by this object
-                        foreach(var detail in Details.Values)
+                        foreach (var detail in Details.Values)
                         {
                             // don't care about dead players
                             if (detail.Player.IsDead) continue;
@@ -174,17 +176,19 @@ namespace engine.Common
                                 }
                             }
                         }
-                    }
-                    elem.Draw(Surface);
+                    } // lock(Details)
                 }
 
-                // draw the players
-                foreach (var player in visiblePlayers)
-                {
-                    if (hidden.Contains(player.Id)) continue;
-                    player.Draw(Surface);
-                }
-            } // lock(Details)
+                // draw
+                elem.Draw(Surface);
+            }
+
+            // draw the players
+            foreach (var player in visiblePlayers)
+            {
+                if (hidden.Contains(player.Id)) continue;
+                player.Draw(Surface);
+            }
 
             // add any ephemerial elements
             lock (Ephemerial)
@@ -458,11 +462,11 @@ namespace engine.Common
 
         public void RemoveAllItems(Type type)
         {
+            // iterate through players and remove all of this type
+            var toRemove = new List<Player>();
+
             lock (Details)
             {
-                // iterate through players and remove all of this type
-                var toRemove = new List<Player>();
-
                 foreach (var detail in Details.Values)
                 {
                     if (detail.Player != null && detail.Player.GetType() == type)
@@ -470,23 +474,26 @@ namespace engine.Common
                         toRemove.Add(detail.Player);
                     }
                 }
+            }
 
-                foreach (var player in toRemove)
-                {
-                    RemoveItem(player);
-                }
+            foreach (var player in toRemove)
+            {
+                RemoveItem(player);
             }
         }
 
         public void RemoveItem(Element item)
         {
-            // remove from map
-            Map.RemoveItem(item);
-
             if (item is Player)
             {
                 var player = (item as Player);
                 Type type = null;
+
+                // remove an active player
+                Alive--;
+
+                // remove from map
+                Map.RemoveItem(item);
 
                 // drop ALL the players goodies
                 Drop(player, out type);
@@ -581,6 +588,7 @@ namespace engine.Common
         private Dictionary<int, PlayerDetails> Details;
         private Menu Menu;
         private WorldConfiguration Config;
+        private Timer BackgroundTimer;
 
         private const string NothingSoundPath = "nothing";
         private const string PickupSoundPath = "pickup";
@@ -866,6 +874,45 @@ namespace engine.Common
             System.Threading.Volatile.Write(ref detail.RunningState, 0);
 
             if (timer.ElapsedMilliseconds > 100) System.Diagnostics.Debug.WriteLine("**UpdatePlayer Duration {0} ms", timer.ElapsedMilliseconds);
+        }
+
+        private void BackgroundUpdate(object state)
+        {
+            if (Map.IsPaused) return;
+            var deceased = new List<Element>();
+
+            // update the map
+            Map.Background.Update();
+
+            // apply any necessary damage to the players
+            lock (Details)
+            {
+                foreach (var detail in Details.Values)
+                {
+                    if (detail.Player == null || detail.Player.IsDead) continue;
+                    var damage = Map.Background.Damage(detail.Player.X, detail.Player.Y);
+                    if (damage > 0)
+                    {
+                        detail.Player.ReduceHealth(damage);
+
+                        if (detail.Player.IsDead)
+                        {
+                            deceased.Add(detail.Player);
+                        }
+                    }
+                }
+            }
+
+            // notify the deceased
+            foreach (var elem in deceased)
+            {
+                // this player has died as a result of taking damage from the zone
+                PlayerDied(elem);
+                AddEphemerialElement(new OnScreenText()
+                    {
+                        Text = string.Format("Player {0} died in the zone", elem.Name)
+                    });
+            }
         }
 
         // support
