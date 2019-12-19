@@ -31,9 +31,16 @@ namespace engine.Common
     {
         public RegionCollection(IEnumerable<Element> elements, int width, int height)
         {
-            // gather all the element sizes
+            // gather all the element sizes and the lower bounds for x and y
             var sizes = new List<float>();
-            foreach (var o in elements) sizes.Add(o.Width > o.Height ? o.Width : o.Height);
+            var minx = Single.MaxValue;
+            var miny = Single.MaxValue;
+            foreach (var o in elements)
+            {
+                sizes.Add(o.Width > o.Height ? o.Width : o.Height);
+                if (o.X < minx) minx = o.X;
+                if (o.Y < miny) miny = o.Y;
+            }
 
             // get the regionSize
             if (sizes.Count == 0)
@@ -65,14 +72,6 @@ namespace engine.Common
                 }
             }
 
-            // iterate through to get lower bound of x and y (as means of rebasing the regions)
-            var minx = Single.MaxValue;
-            var miny = Single.MaxValue;
-            foreach (var elem in elements)
-            {
-                if (elem.X < minx) minx = elem.X;
-                if (elem.Y < miny) miny = elem.Y;
-            }
             // convert these into offsets to adjust the regions to a 0,0 based matrix
             if (minx < 0) XOffset = (int)Math.Floor(minx);
             else XOffset = (int)Math.Ceiling(minx);
@@ -180,8 +179,8 @@ namespace engine.Common
             try
             {
                 // get the starting row,col and ending row,col
-                GetRegion(x1, y1, out int r1, out int c1, validate: false);
-                GetRegion(x2, y2, out int r2, out int c2, validate: false);
+                GetRegion(x1, y1, out int r1, out int c1);
+                GetRegion(x2, y2, out int r2, out int c2);
 
                 // assuming we start to 0,0 in the upper left and corner and increase right and down
                 // ensure r1,c1 if the upper left and corner
@@ -262,7 +261,7 @@ namespace engine.Common
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void GetRegion(float x, float y, out int row, out int column, bool validate = true)
+        private void GetRegion(float x, float y, out int row, out int column)
         {
             row = (int)Math.Floor((y + YOffset) / RegionSize);
             column = (int)Math.Floor((x + XOffset) / RegionSize);
