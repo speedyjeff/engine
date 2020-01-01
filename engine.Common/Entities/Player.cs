@@ -95,10 +95,10 @@ namespace engine.Common.Entities
             }
             else if (item is Shield)
             {
-                if (Shield < Constants.MaxSheld)
+                if (Shield < Constants.MaxShield)
                 {
                     Shield += item.Shield;
-                    if (Shield > Constants.MaxSheld) Shield = Constants.MaxSheld;
+                    if (Shield > Constants.MaxShield) Shield = Constants.MaxShield;
                     return true;
                 }
             }

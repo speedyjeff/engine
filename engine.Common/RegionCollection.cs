@@ -88,9 +88,10 @@ namespace engine.Common
         {
             if (elem == null) throw new Exception("Invalid element to add");
 
-            RegionLock.EnterWriteLock();
             try
             {
+                RegionLock.EnterWriteLock();
+
                 // get region to insert into
                 GetRegion(elem.X, elem.Y, out int row, out int column);
 
@@ -114,9 +115,10 @@ namespace engine.Common
         {
             if (elem == null) throw new Exception("Invalid element to remove");
 
-            RegionLock.EnterWriteLock();
             try
             {
+                RegionLock.EnterWriteLock();
+
                 // get region to remove from
                 GetRegion(elem.X, elem.Y, out int row, out int column);
 
@@ -137,9 +139,10 @@ namespace engine.Common
 
         public void Move(int key, Region src, Region dst)
         {
-            RegionLock.EnterWriteLock();
             try
             {
+                RegionLock.EnterWriteLock();
+
                 // get element (either in oversized or a Region)
                 Element elem;
                 if (Oversized.TryGetValue(key, out elem))
@@ -175,9 +178,10 @@ namespace engine.Common
 
         public IEnumerable<Element> Values(float x1, float y1, float x2, float y2)
         {
-            RegionLock.EnterReadLock();
             try
             {
+                RegionLock.EnterReadLock();
+
                 // get the starting row,col and ending row,col
                 GetRegion(x1, y1, out int r1, out int c1);
                 GetRegion(x2, y2, out int r2, out int c2);
@@ -225,9 +229,10 @@ namespace engine.Common
         {
             if (elem == null) throw new Exception("Invalid element to get region");
 
-            RegionLock.EnterReadLock();
             try
             {
+                RegionLock.EnterReadLock();
+
                 if (IsOversized(elem))
                 {
                     return new Region(-1, -1);

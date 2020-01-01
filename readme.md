@@ -121,14 +121,27 @@ public struct WorldConfiguration
   public bool ApplyForces;
 }
 
+public struct ActionDetails
+{
+    public List<Element> Elements;
+    public float AngleToCenter;
+    public bool InZone;
+    public float XDelta;
+    public float YDelta;
+    public float Angle;
+}
+
 public delegate bool BeforeKeyPressedDelegate(Player player, ref char key);
 
 public event Func<Menu> OnPaused;
 public event Action OnResumed;
 public event Action<Player, Element> OnContact;
 public event Action<Player, Element> OnAttack;
+public event Action<Player> OnDeath;
 public event BeforeKeyPressedDelegate OnBeforeKeyPressed;
 public event Func<Player, char, bool> OnAfterKeyPressed;
+public event Func<Player, ActionDetails> OnBeforeAction;
+public event Func<Player, ActionEnum, bool> OnAfterAction;
 
 public int Width { get; }
 public int Height {  get; }
@@ -144,6 +157,22 @@ public void Music(string path, bool repeat);
 public void ShowMenu(Menu menu);
 public void Teleport(Player player, float x, float y);
 ```
+
+There are a default set of key bindings which can be overridden by subscribing to OnBeforeKeyPressed.
+
+Key(s) | Action
+-------|-------
+`s` `S` `arrow:down` | y-axis + 1
+`a` `A` `arrow:left` | x-axis - 1
+`d` `D` `arrow:right` | x-axis + 1
+`w` `W` `arrow:up` | y-axis + 1
+`1` | switch primary
+`q` `Q` `0` `2` | drop primary
+`r` `R` `mouse:middle click` | reload
+`space` `mouse:left' | attack
+`j` `J` | jump
+`mouse:right` | move in angle created by the mouse
+`esc` | Show/dismiss menu
 
 #### Board
 

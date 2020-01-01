@@ -37,13 +37,15 @@ namespace engine.Common
             // sanity check the parameters
             if (config.Width <= 0 || config.Width <= 0) throw new Exception("Must specify a Width and Height for the world");
             if (background == null) throw new Exception("Must specify a background");
+            if (players == null) throw new Exception("Must specify a list of players");
 
             // init
             Ephemerial = new List<EphemerialElement>();
             ZoomFactor = 1;
             Config = config;
             Details = new Dictionary<int, PlayerDetails>();
-            Alive = players.Length;
+            Alive = 0;
+            UniquePlayers = new HashSet<int>();
 
             // setup map
             Map = new Map(Config.Width, Config.Height, objects, background);
@@ -53,11 +55,21 @@ namespace engine.Common
             Map.OnElementHit += HitByAttack;
             Map.OnElementDied += PlayerDied;
 
-            // process the players and assign Human
-            if (players != null)
-                foreach (var player in players) AddItem(player);
+            // setup the human first
+            foreach (var player in players)
+            {
+                // assign human
+                if (Human == null && !(player is AI))
+                {
+                    Human = player;
+                    break;
+                }
+            }
 
             if (Human == null) throw new Exception("Must add at least 1 player (as human)");
+
+            // add all the players
+            foreach (var player in players) AddItem(player);
 
             // setup window (based on placement on the map)
             WindowX = Human.X;
@@ -94,14 +106,18 @@ namespace engine.Common
         public event Action OnResumed;
         public event Action<Player, Element> OnContact;
         public event Action<Player, Element> OnAttack;
+        public event Action<Element> OnDeath;
         public event BeforeKeyPressedDelegate OnBeforeKeyPressed;
         public event Func<Player, char, bool> OnAfterKeyPressed;
+        public event Action<Player, ActionDetails> OnBeforeAction;
+        public event Action<Player, ActionEnum, bool> OnAfterAction;
 
         public int Width { get { return Map.Width;  } }
         public int Height {  get { return Map.Height;  } }
 
         public Player Human { get; private set; }
         public int Alive { get; private set; }
+        public int Players { get { return UniquePlayers.Count; } }
 
         public void Paint()
         {
@@ -228,7 +244,7 @@ namespace engine.Common
             {
                 Surface.DisableTranslation();
                 {
-                    Surface.Text(RGBA.Black, Surface.Width - 200, 10, string.Format("Alive {0}", Alive));
+                    Surface.Text(RGBA.Black, Surface.Width - 200, 10, string.Format("Alive {0} of {1}", Alive, Players));
                     Surface.Text(RGBA.Black, Surface.Width - 200, 30, string.Format("Kills {0}", Human.Kills));
                 }
                 Surface.EnableTranslation();
@@ -292,6 +308,7 @@ namespace engine.Common
                 if (OnBeforeKeyPressed(Human, ref key)) return;
             }
 
+            // movement determination
             switch (key)
             {
                 // move
@@ -315,45 +332,6 @@ namespace engine.Common
                 case Constants.UpArrow:
                     ydelta = -1;
                     break;
-
-                case Constants.Switch:
-                    result = SwitchPrimary(Human, out item);
-                    Human.Feedback(ActionEnum.SwitchPrimary, item, result);
-                    break;
-
-                case Constants.Pickup:
-                case Constants.Pickup2:
-                    result = Pickup(Human, out item);
-                    Human.Feedback(ActionEnum.Pickup, item, result);
-                    break;
-
-                case Constants.Drop3:
-                case Constants.Drop2:
-                case Constants.Drop4:
-                case Constants.Drop:
-                    result = Drop(Human, out item);
-                    Human.Feedback(ActionEnum.Drop, item, result);
-                    break;
-
-                case Constants.Reload:
-                case Constants.MiddleMouse:
-                    result = Reload(Human, out AttackStateEnum reloaded);
-                    Human.Feedback(ActionEnum.Reload, reloaded, result);
-                    break;
-
-                case Constants.Space:
-                case Constants.LeftMouse:
-                    result = Attack(Human, out AttackStateEnum attack);
-                    Human.Feedback(ActionEnum.Attack, attack, result);
-                    break;
-
-                case Constants.Jump:
-                case Constants.Jump2:
-                    // ActionEnum.Jump (special)
-                    result = Jump(Human);
-                    Human.Feedback(ActionEnum.Jump, null, result);
-                    break;
-
                 case Constants.RightMouse:
                     // use the mouse to move in the direction of the angle
                     float r = (Human.Angle % 90) / 90f;
@@ -364,6 +342,99 @@ namespace engine.Common
                     else if (Human.Angle > 270) { ydelta *= -1; xdelta *= -1; }
                     break;
             }
+
+            if (OnBeforeAction != null)
+            {
+                // NOTE: Do not apply the ZoomFactor (to keep the view fair)
+                List<Element> elements = Map.WithinWindow(Human.X, Human.Y, Constants.ProximityViewWidth, Constants.ProximityViewHeight).ToList();
+                var angleToCenter = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Config.Width / 2, Config.Height / 2);
+                var inZone = Map.Background.Damage(Human.X, Human.Y) > 0;
+
+                // provide details for telemetry
+                OnBeforeAction(Human, new ActionDetails()
+                {
+                    Elements = elements,
+                    AngleToCenter = angleToCenter,
+                    InZone = inZone,
+                    XDelta = xdelta,
+                    YDelta = ydelta,
+                    Angle = Human.Angle
+                });
+            }
+
+            // determine action
+            var action = ActionEnum.Move;
+            switch (key)
+            {
+                case Constants.Switch:
+                    action = ActionEnum.SwitchPrimary;
+                    break;
+
+                case Constants.Pickup:
+                case Constants.Pickup2:
+                    action = ActionEnum.Pickup;
+                    break;
+
+                case Constants.Drop3:
+                case Constants.Drop2:
+                case Constants.Drop4:
+                case Constants.Drop:
+                    action = ActionEnum.Drop;
+                    break;
+
+                case Constants.Reload:
+                case Constants.MiddleMouse:
+                    action = ActionEnum.Reload;
+                    break;
+
+                case Constants.Space:
+                case Constants.LeftMouse:
+                    action = ActionEnum.Attack;
+                    break;
+
+                case Constants.Jump:
+                case Constants.Jump2:
+                    action = ActionEnum.Jump;
+                    break;
+            }
+
+            // take action
+            switch (action)
+            {
+                case ActionEnum.SwitchPrimary:
+                    result = SwitchPrimary(Human, out item);
+                    Human.Feedback(action, item, result);
+                    break;
+
+                case ActionEnum.Pickup:
+                    result = Pickup(Human, out item);
+                    Human.Feedback(action, item, result);
+                    break;
+
+                case ActionEnum.Drop:
+                    result = Drop(Human, out item);
+                    Human.Feedback(action, item, result);
+                    break;
+
+                case ActionEnum.Reload:
+                    result = Reload(Human, out AttackStateEnum reloaded);
+                    Human.Feedback(action, reloaded, result);
+                    break;
+
+                case ActionEnum.Attack:
+                    result = Attack(Human, out AttackStateEnum attack);
+                    Human.Feedback(action, attack, result);
+                    break;
+
+                case ActionEnum.Jump:
+                    // ActionEnum.Jump (special)
+                    result = Jump(Human);
+                    Human.Feedback(action, null, result);
+                    break;
+            }
+
+            // send after telemetry
+            if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(Human, action, result);
 
             // pass the key off to the caller to see if they know what to 
             // do in this case
@@ -378,6 +449,7 @@ namespace engine.Common
                 // ActionEnum.Move;
                 result = Move(Human, xdelta, ydelta);
                 Human.Feedback(ActionEnum.Move, null, result);
+                if (OnAfterAction != null) OnAfterAction(Human, ActionEnum.Move, result);
             }
         }
 
@@ -435,18 +507,13 @@ namespace engine.Common
                 {
                     // add to the set
                     Details.Add(item.Id, details);
+                    UniquePlayers.Add(item.Id);
                 }
 
                 // setup humans and AI
                 if (item is AI || Config.ApplyForces)
                 {
-                    details.UpdateTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
-                }
-
-                // assign human
-                if (Human == null && !(item is AI))
-                {
-                    Human = item as Player;
+                    details.UpdatePlayerTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
                 }
 
                 // check that the player is not above the sky
@@ -455,7 +522,7 @@ namespace engine.Common
                 // initialize parachute (if necessary)
                 if (item.Z > Constants.Ground)
                 {
-                    details.Parachute = new Timer(PlayerParachute, item.Id, 0, Constants.GlobalClock);
+                    details.ParachuteTimer = new Timer(PlayerParachute, item.Id, 0, Constants.GlobalClock);
                 }
             }
         }
@@ -573,9 +640,10 @@ namespace engine.Common
         class PlayerDetails
         {
             public Player Player;
-            public Timer Parachute;
-            public Timer UpdateTimer;
-            public int RunningState; // to avoid reentrancy in the timer
+            public Timer ParachuteTimer;
+            public Timer UpdatePlayerTimer;
+            public int UpdatePlayerLock; // to avoid reentrancy in the timer
+            public int PlayerParachuteLock; // to avoid reentrancy in the timer
         }
 
         private IGraphics Surface;
@@ -589,6 +657,7 @@ namespace engine.Common
         private Menu Menu;
         private WorldConfiguration Config;
         private Timer BackgroundTimer;
+        private HashSet<int> UniquePlayers;
 
         private const string NothingSoundPath = "nothing";
         private const string PickupSoundPath = "pickup";
@@ -596,12 +665,12 @@ namespace engine.Common
         // menu items
         private void ShowMenu()
         {
-            Map.IsPaused = true;
-
             if (OnPaused != null)
             {
                 Menu = OnPaused();
             }
+
+            if (Menu != null) Map.IsPaused = true;
         }
 
         private void HideMenu()
@@ -634,11 +703,14 @@ namespace engine.Common
                 }
             }
 
+            // the timer is reentrant, so only allow one instance to run
+            if (System.Threading.Interlocked.CompareExchange(ref detail.PlayerParachuteLock, 1, 0) != 0) return;
+
             if (detail.Player.Z <= Constants.Ground)
             {
                 // ensure the player is on the ground
                 detail.Player.Z = Constants.Ground;
-                detail.Parachute.Dispose();
+                detail.ParachuteTimer.Dispose();
 
                 // check if the player is touching an object, if so then move
                 int count = 100;
@@ -681,6 +753,9 @@ namespace engine.Common
                 // zoom in
                 ZoomFactor += (Constants.ZoomStep / 10);
             }
+
+            // set state back to not running
+            System.Threading.Volatile.Write(ref detail.PlayerParachuteLock, 0);
         }
 
         // AI and other updates for players
@@ -705,7 +780,7 @@ namespace engine.Common
             }
 
             // the timer is reentrant, so only allow one instance to run
-            if (System.Threading.Interlocked.CompareExchange(ref detail.RunningState, 1, 0) != 0) return;
+            if (System.Threading.Interlocked.CompareExchange(ref detail.UpdatePlayerLock, 1, 0) != 0) return;
 
             timer.Start();
             // if AI, then query for movement
@@ -722,12 +797,11 @@ namespace engine.Common
                     RemoveItem(ai);
 
                     // stop the timer
-                    detail.UpdateTimer.Dispose();
+                    detail.UpdatePlayerTimer.Dispose();
                     return;
                 }
 
-                // NOTE: Do not apply the ZoomFactor (as it distorts the AI when debugging) - TODO may want to allow this while parachuting
-                // TODO will likely want to translate into a copy of the list with reduced details
+                // NOTE: Do not apply the ZoomFactor (as it distorts the AI when debugging)
                 List<Element> elements = Map.WithinWindow(ai.X, ai.Y, Constants.ProximityViewWidth, Constants.ProximityViewHeight).ToList();
                 var angleToCenter = Collision.CalculateAngleFromPoint(ai.X, ai.Y, Config.Width / 2, Config.Height / 2);
                 var inZone = Map.Background.Damage(ai.X, ai.Y) > 0;
@@ -735,6 +809,20 @@ namespace engine.Common
                 // get action from AI
 
                 var action = ai.Action(elements, angleToCenter, inZone, ref xdelta, ref ydelta, ref angle);
+
+                // provide details for telemetry
+                if (OnBeforeAction != null)
+                {
+                    OnBeforeAction(ai, new ActionDetails()
+                    {
+                        Elements = elements,
+                        AngleToCenter = angleToCenter,
+                        InZone = inZone,
+                        XDelta = xdelta,
+                        YDelta = ydelta,
+                        Angle = angle
+                    });
+                }
 
                 // turn
                 ai.Angle = angle;
@@ -774,11 +862,15 @@ namespace engine.Common
                     default: throw new Exception("Unknown ai action : " + action);
                 }
 
+                // send after telemetry
+                if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(ai, action, result);
+
                 // have the AI move
                 float oxdelta = xdelta;
                 float oydelta = ydelta;
                 var moved = Move(ai, xdelta, ydelta);
                 ai.Feedback(ActionEnum.Move, null, moved);
+                if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
             }
 
             // apply forces, if necessary
@@ -871,7 +963,7 @@ namespace engine.Common
             timer.Stop();
 
             // set state back to not running
-            System.Threading.Volatile.Write(ref detail.RunningState, 0);
+            System.Threading.Volatile.Write(ref detail.UpdatePlayerLock, 0);
 
             if (timer.ElapsedMilliseconds > 100) System.Diagnostics.Debug.WriteLine("**UpdatePlayer Duration {0} ms", timer.ElapsedMilliseconds);
         }
@@ -978,9 +1070,6 @@ namespace engine.Common
         private bool Drop(Player player, out Type type)
         {
             // indicidate what was dropped
-            type = null;
-
-            if (player.IsDead) return false;
             type = Map.Drop(player);
             return (type != null);
         }
@@ -1147,11 +1236,10 @@ namespace engine.Common
                     Alive = alive;
                 }
 
-                // pause
-                if (Config.EndMenu != null)
+                // callback
+                if (OnDeath != null)
                 {
-                    Menu = Config.EndMenu;
-                    ShowMenu();
+                    OnDeath(element);
                 }
             }
         }

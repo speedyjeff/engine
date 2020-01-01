@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ActionDetails.cs" />
     <Compile Include="Board.cs" />
     <Compile Include="Collison.cs" />
     <Compile Include="Constants.cs" />

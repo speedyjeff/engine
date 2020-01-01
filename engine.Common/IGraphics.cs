@@ -50,6 +50,7 @@ namespace engine.Common
         // take into acount windowing and scalling
         void SetTranslateCoordinates(TranslateCoordinatesDelegate callback);
 
+        // helper
         IImage CreateImage(int width, int height);
     }
 }
