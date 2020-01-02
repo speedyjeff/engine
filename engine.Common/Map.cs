@@ -310,7 +310,8 @@ namespace engine.Common
 
         public bool IsTouching(Element elem1, Element elem2)
         {
-            if (elem1.Z != elem2.Z) return false;
+            // check that they intersect on the depth plane
+            if (((elem1.Depth / 2) + (elem2.Depth / 2)) < Math.Abs(elem1.Z - elem2.Z)) return false;
 
             float x1 = (elem1.X) - (elem1.Width / 2);
             float y1 = (elem1.Y) - (elem1.Height / 2);
@@ -345,7 +346,7 @@ namespace engine.Common
             if (considerAquireable) objects = Items;
 
             // check collisions
-            foreach (var elem in objects.Values(x1, y1, z1, x2, y2,  z2))
+            foreach (var elem in objects.Values(x1, y1, z1, x2, y2, z2))
             {
                 if (elem.Id == player.Id) continue;
                 if (elem.IsDead) continue;
@@ -357,9 +358,8 @@ namespace engine.Common
                 {
                     if (!elem.CanAcquire) continue;
                 }
-
-                // only consider items that are within the same plane
-                if (elem.Z >= player.Z)
+                // check that they intersect on the depth plane
+                if (((elem.Depth / 2) + (player.Depth / 2)) >= Math.Abs(elem.Z - player.Z))
                 {
                     float x3 = elem.X - (elem.Width / 2);
                     float y3 = elem.Y - (elem.Height / 2);
