@@ -30,6 +30,7 @@ namespace engine.Common.Entities
         // bounds (hit box)
         public float Height { get; set; }
         public float Width { get; set; }
+        public float Depth { get; set; }
 
         // attributes
         public float Health { get; set; } = 0;

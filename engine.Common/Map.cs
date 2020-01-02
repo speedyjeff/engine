@@ -24,8 +24,8 @@ namespace engine.Common
             var items = (objects != null) ? objects.Where(o => o.CanAcquire) : new List<Element>();
 
             // add all things to the map
-            Obstacles = new RegionCollection(obstacles, Width, Height);
-            Items = new RegionCollection(items, Width, Height);
+            Obstacles = new RegionCollection(obstacles, Width, Height, depth: (int)Constants.Sky);
+            Items = new RegionCollection(items, Width, Height, depth: (int)Constants.Sky);
         }
 
         public int Width { get; private set; }
@@ -48,11 +48,13 @@ namespace engine.Common
             var y1 = y - height / 2;
             var x2 = x + width / 2;
             var y2 = y + height / 2;
+            var z1 = Constants.Ground;
+            var z2 = Constants.Sky;
 
             // iterate through all objects (obstacles + items)
             foreach (var region in new RegionCollection[] {Items, Obstacles })
             {
-                foreach (var elem in region.Values(x1, y1, x2, y2))
+                foreach (var elem in region.Values(x1, y1, x2, y2, z1, z2))
                 {
                     if (elem.IsDead) continue;
 
@@ -335,13 +337,15 @@ namespace engine.Common
             float y1 = (player.Y + ydelta) - (player.Height / 2);
             float x2 = (player.X + xdelta) + (player.Width / 2);
             float y2 = (player.Y + ydelta) + (player.Height / 2);
+            float z1 = Constants.Ground;
+            float z2 = Constants.Sky;
 
             // either choose to iterate through solid objects (obstacles) or items
             RegionCollection objects = Obstacles;
             if (considerAquireable) objects = Items;
 
             // check collisions
-            foreach (var elem in objects.Values(x1, y1, x2, y2))
+            foreach (var elem in objects.Values(x1, y1, x2, y2, z1, z2))
             {
                 if (elem.Id == player.Id) continue;
                 if (elem.IsDead) continue;
@@ -381,9 +385,11 @@ namespace engine.Common
             // must ensure to find the closest object that intersects
             Element item = null;
             float prvDistance = 0;
+            float z1 = Constants.Ground;
+            float z2 = Constants.Sky;
 
             // check collisions
-            foreach (var elem in Obstacles.Values(x1, y1, x2, y2))
+            foreach (var elem in Obstacles.Values(x1, y1, x2, y2, z1, z2))
             {
                 if (elem.Id == player.Id) continue;
                 if (elem.IsDead) continue;
