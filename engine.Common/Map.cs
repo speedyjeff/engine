@@ -39,7 +39,7 @@ namespace engine.Common
         public event Action<Player, Element> OnElementHit;
         public event Action<Element> OnElementDied;
 
-        public IEnumerable<Element> WithinWindow(float x, float y, float width, float height)
+        public IEnumerable<Element> WithinWindow(float x, float y, float z, float width, float height, float depth)
         {
             // do not take Z into account, as the view should be unbostructed (top down)
 
@@ -48,13 +48,13 @@ namespace engine.Common
             var y1 = y - height / 2;
             var x2 = x + width / 2;
             var y2 = y + height / 2;
-            var z1 = Constants.Ground;
-            var z2 = Constants.Sky;
+            var z1 = z - depth / 2;
+            var z2 = z + depth / 2;
 
             // iterate through all objects (obstacles + items)
             foreach (var region in new RegionCollection[] {Items, Obstacles })
             {
-                foreach (var elem in region.Values(x1, y1, x2, y2, z1, z2))
+                foreach (var elem in region.Values(x1, y1, z1, x2, y2, z2))
                 {
                     if (elem.IsDead) continue;
 
@@ -331,21 +331,21 @@ namespace engine.Common
         // items that can be acquired
         private RegionCollection Items;
 
-        private Element IntersectingRectangles(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0)
+        private Element IntersectingRectangles(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
         {
             float x1 = (player.X + xdelta) - (player.Width / 2);
             float y1 = (player.Y + ydelta) - (player.Height / 2);
+            float z1 = (player.Z + zdelta) - (player.Depth / 2);
             float x2 = (player.X + xdelta) + (player.Width / 2);
             float y2 = (player.Y + ydelta) + (player.Height / 2);
-            float z1 = Constants.Ground;
-            float z2 = Constants.Sky;
+            float z2 = (player.Z + zdelta) + (player.Depth / 2);
 
             // either choose to iterate through solid objects (obstacles) or items
             RegionCollection objects = Obstacles;
             if (considerAquireable) objects = Items;
 
             // check collisions
-            foreach (var elem in objects.Values(x1, y1, x2, y2, z1, z2))
+            foreach (var elem in objects.Values(x1, y1, z1, x2, y2,  z2))
             {
                 if (elem.Id == player.Id) continue;
                 if (elem.IsDead) continue;
@@ -389,7 +389,7 @@ namespace engine.Common
             float z2 = Constants.Sky;
 
             // check collisions
-            foreach (var elem in Obstacles.Values(x1, y1, x2, y2, z1, z2))
+            foreach (var elem in Obstacles.Values(x1, y1, z1, x2, y2, z2))
             {
                 if (elem.Id == player.Id) continue;
                 if (elem.IsDead) continue;

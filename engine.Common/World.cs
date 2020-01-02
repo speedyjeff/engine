@@ -160,7 +160,7 @@ namespace engine.Common
             // draw all elements
             var hidden = new HashSet<int>();
             var visiblePlayers = new List<Player>();
-            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Surface.Width * (1 / ZoomFactor), Surface.Height * (1 / ZoomFactor)))
+            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z, Surface.Width * (1 / ZoomFactor), Surface.Height * (1 / ZoomFactor), depth: Constants.Sky))
             {
                 if (elem.IsDead) continue;
                 else if (elem is Player)
@@ -346,7 +346,7 @@ namespace engine.Common
             if (OnBeforeAction != null)
             {
                 // NOTE: Do not apply the ZoomFactor (to keep the view fair)
-                List<Element> elements = Map.WithinWindow(Human.X, Human.Y, Constants.ProximityViewWidth, Constants.ProximityViewHeight).ToList();
+                List<Element> elements = Map.WithinWindow(Human.X, Human.Y, Human.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.Sky).ToList();
                 var angleToCenter = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Config.Width / 2, Config.Height / 2);
                 var inZone = Map.Background.Damage(Human.X, Human.Y) > 0;
 
@@ -802,7 +802,7 @@ namespace engine.Common
                 }
 
                 // NOTE: Do not apply the ZoomFactor (as it distorts the AI when debugging)
-                List<Element> elements = Map.WithinWindow(ai.X, ai.Y, Constants.ProximityViewWidth, Constants.ProximityViewHeight).ToList();
+                List<Element> elements = Map.WithinWindow(ai.X, ai.Y, ai.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.Sky).ToList();
                 var angleToCenter = Collision.CalculateAngleFromPoint(ai.X, ai.Y, Config.Width / 2, Config.Height / 2);
                 var inZone = Map.Background.Damage(ai.X, ai.Y) > 0;
 

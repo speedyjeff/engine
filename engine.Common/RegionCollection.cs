@@ -31,6 +31,11 @@ namespace engine.Common
             else return false;
         }
 
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
+
         #region private
         internal int Row;
         internal int Col;
@@ -221,16 +226,15 @@ namespace engine.Common
                 var maxc = Math.Max(c1, c2);
 
                 // expand the region
-                r1 -= 1; c1 -= 1;
-                r2 += 1; c2 += 1;
-                l1 -= 1; l2 += 1;
+                minr -= 1; minc -= 1; minl -= 1;
+                maxr += 1; maxc += 1; maxl += 1;
 
                 // hold the lock for the duration of this call
-                for (int l = (l1 >= 0) ? l1 : 0; l <= l2 && l < Regions.Length; l++)
+                for (int l = (minl >= 0) ? minl : 0; l <= maxl && l < Regions.Length; l++)
                 {
-                    for (int r = (r1 >= 0 ? r1 : 0); r <= r2 && r < Regions[l].Length; r++)
+                    for (int r = (minr >= 0 ? minr : 0); r <= maxr && r < Regions[l].Length; r++)
                     {
-                        for (int c = (c1 >= 0 ? c1 : 0); c <= c2 && c < Regions[l][r].Length; c++)
+                        for (int c = (minc >= 0 ? minc : 0); c <= maxc && c < Regions[l][r].Length; c++)
                         {
                             if (Regions[l][r][c].Count == 0) continue;
                             foreach (var elem in Regions[l][r][c].Values) yield return elem;
@@ -293,6 +297,12 @@ namespace engine.Common
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void GetRegion(float x, float y, float z, out int row, out int column, out int layer)
         {
+            // round to avoid near boundary misses
+            x = (float)Math.Round(x);
+            y = (float)Math.Round(y);
+            z = (float)Math.Round(z);
+
+            // get region
             row = (int)Math.Floor((y + YOffset) / RegionSize);
             column = (int)Math.Floor((x + XOffset) / RegionSize);
             layer = (int)Math.Floor((z + ZOffset) / RegionSize);
