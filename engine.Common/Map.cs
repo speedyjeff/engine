@@ -18,6 +18,8 @@ namespace engine.Common
             Width = width;
             Height = height;
             Background = background;
+            Locks = new Dictionary<int, object>();
+            LocksLock = new ReaderWriterLockSlim();
 
             // seperate the items from the obstacles (used to reduce what is considered, and for ordering)
             var obstacles = (objects != null) ? objects.Where(o => !o.CanAcquire) : new List<Element>();
@@ -74,29 +76,33 @@ namespace engine.Common
 
         public bool Move(Player player, ref float xdelta, ref float ydelta, out Element touching, float pace = 0)
         {
-            if (WhatWouldPlayerTouch(player, ref xdelta, ref ydelta, out touching, pace))
+            var guard = GetLock(player);
+            lock (guard)
             {
-                // successfully checked, and there is no object touching
-                if (touching == null)
+                if (WhatWouldPlayerTouch(player, ref xdelta, ref ydelta, out touching, pace))
                 {
-                    // get region before move
-                    var beforeRegion = Obstacles.GetRegion(player);
-
-                    // move the player
-                    player.Move(xdelta, ydelta);
-
-                    // get region after move
-                    var afterRegion = Obstacles.GetRegion(player);
-                    if (!beforeRegion.Equals(afterRegion))
+                    // successfully checked, and there is no object touching
+                    if (touching == null)
                     {
-                        Obstacles.Move(player.Id, beforeRegion, afterRegion);
+                        // get region before move
+                        var beforeRegion = Obstacles.GetRegion(player);
+
+                        // move the player
+                        player.Move(xdelta, ydelta);
+
+                        // get region after move
+                        var afterRegion = Obstacles.GetRegion(player);
+                        if (!beforeRegion.Equals(afterRegion))
+                        {
+                            Obstacles.Move(player.Id, beforeRegion, afterRegion);
+                        }
+
+                        return true;
                     }
-
-                    return true;
                 }
-            }
 
-            return false;
+                return false;
+            }
         }
 
         public bool WhatWouldPlayerTouch(Player player, ref float xdelta, ref float ydelta, out Element touching, float pace = 0)
@@ -132,23 +138,27 @@ namespace engine.Common
             if (player.IsDead) return null;
             if (IsPaused) return null;
 
-            // see if we are over an item
-            Element item = IntersectingRectangles(player, true /* consider acquirable */);
-
-            if (item != null)
+            var guard = GetLock(player);
+            lock (guard)
             {
-                // remove as an atomic operation
-                if (Items.Remove(item.Id, item))
+                // see if we are over an item
+                Element item = IntersectingRectangles(player, true /* consider acquirable */);
+
+                if (item != null)
                 {
-                    // pickup the item
-                    if (player.Take(item))
+                    // remove as an atomic operation
+                    if (Items.Remove(item.Id, item))
                     {
-                        return item.GetType();
+                        // pickup the item
+                        if (player.Take(item))
+                        {
+                            return item.GetType();
+                        }
                     }
                 }
-            }
 
-            return null;
+                return null;
+            }
         }
 
         // player is the one attacking
@@ -158,96 +168,100 @@ namespace engine.Common
             if (player.IsDead) return AttackStateEnum.None;
             if (IsPaused) return AttackStateEnum.None;
 
-            var hit = new HashSet<Element>();
-            var state = AttackStateEnum.None;
-            var trajectories = new List<ShotTrajectory>();
-
-            state = player.Attack();
-
-            // apply state change
-            if (state == AttackStateEnum.Fired)
+            var guard = GetLock(player);
+            lock (guard)
             {
-                if (!(player.Primary is RangeWeapon)) throw new Exception("Must have a Gun to fire");
-                var gun = player.Primary as RangeWeapon;
-                Element elem = null;
+                var hit = new HashSet<Element>();
+                var state = AttackStateEnum.None;
+                var trajectories = new List<ShotTrajectory>();
 
-                // apply the bullet via the trajectory
-                elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle, trajectories);
-                if (elem != null) hit.Add(elem);
-                if (gun.Spread != 0)
+                state = player.Attack();
+
+                // apply state change
+                if (state == AttackStateEnum.Fired)
                 {
-                    elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle - (gun.Spread / 2), trajectories);
+                    if (!(player.Primary is RangeWeapon)) throw new Exception("Must have a Gun to fire");
+                    var gun = player.Primary as RangeWeapon;
+                    Element elem = null;
+
+                    // apply the bullet via the trajectory
+                    elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle, trajectories);
                     if (elem != null) hit.Add(elem);
-                    elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle + (gun.Spread / 2), trajectories);
-                    if (elem != null) hit.Add(elem);
-                }
-            }
-            else if (state == AttackStateEnum.Melee)
-            {
-                // project out a short range and check if there was contact
-                Element elem = null;
-
-                // use either fists, or if the Primary provides damage
-                Tool weapon = (player.Primary != null && player.Primary is Tool) ? player.Primary as Tool : player.Fists;
-
-                // apply the bullet via the trajectory
-                elem = TrackAttackTrajectory(player, weapon, player.X, player.Y, player.Angle, trajectories);
-                if (elem != null) hit.Add(elem);
-
-                // disregard any trajectories
-                trajectories.Clear();
-            }
-
-            // send notifications
-            bool targetDied = false; // used to change the fired state
-            bool targetHit = false;
-            foreach (var elem in hit)
-            {
-                targetHit = true;
-
-                if (OnElementHit != null) OnElementHit(player, elem);
-
-                if (elem.IsDead)
-                {
-                    // increment kills
-                    if (elem is Player) player.Kills++;
-
-                    if (OnElementDied != null) OnElementDied(elem);
-
-                    if (OnEphemerialEvent != null)
+                    if (gun.Spread != 0)
                     {
-                        OnEphemerialEvent(new OnScreenText()
-                        {
-                            Text = string.Format("Player {0} killed {1}", player.Name, elem.Name)
-                        });
+                        elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle - (gun.Spread / 2), trajectories);
+                        if (elem != null) hit.Add(elem);
+                        elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle + (gun.Spread / 2), trajectories);
+                        if (elem != null) hit.Add(elem);
                     }
                 }
-            }
-
-            // add bullet trajectories
-            foreach(var t in trajectories)
-            {
-                if (OnEphemerialEvent != null)
+                else if (state == AttackStateEnum.Melee)
                 {
-                    OnEphemerialEvent(t);
+                    // project out a short range and check if there was contact
+                    Element elem = null;
+
+                    // use either fists, or if the Primary provides damage
+                    Tool weapon = (player.Primary != null && player.Primary is Tool) ? player.Primary as Tool : player.Fists;
+
+                    // apply the bullet via the trajectory
+                    elem = TrackAttackTrajectory(player, weapon, player.X, player.Y, player.Angle, trajectories);
+                    if (elem != null) hit.Add(elem);
+
+                    // disregard any trajectories
+                    trajectories.Clear();
                 }
-            }
 
-            // adjust state accordingly
-            if (state == AttackStateEnum.Melee)
-            {
-                // used fists
-                if (targetDied) state = AttackStateEnum.MeleeAndKilled;
-                else if (targetHit) state = AttackStateEnum.MeleeWithContact;
-            }
-            else
-            {
-                // used a gun
-                if (targetDied) state = AttackStateEnum.FiredAndKilled;
-                else if (targetHit) state = AttackStateEnum.FiredWithContact;
-            }
+                // send notifications
+                bool targetDied = false; // used to change the fired state
+                bool targetHit = false;
+                foreach (var elem in hit)
+                {
+                    targetHit = true;
 
-            return state;
+                    if (OnElementHit != null) OnElementHit(player, elem);
+
+                    if (elem.IsDead)
+                    {
+                        // increment kills
+                        if (elem is Player) player.Kills++;
+
+                        if (OnElementDied != null) OnElementDied(elem);
+
+                        if (OnEphemerialEvent != null)
+                        {
+                            OnEphemerialEvent(new OnScreenText()
+                            {
+                                Text = string.Format("Player {0} killed {1}", player.Name, elem.Name)
+                            });
+                        }
+                    }
+                }
+
+                // add bullet trajectories
+                foreach (var t in trajectories)
+                {
+                    if (OnEphemerialEvent != null)
+                    {
+                        OnEphemerialEvent(t);
+                    }
+                }
+
+                // adjust state accordingly
+                if (state == AttackStateEnum.Melee)
+                {
+                    // used fists
+                    if (targetDied) state = AttackStateEnum.MeleeAndKilled;
+                    else if (targetHit) state = AttackStateEnum.MeleeWithContact;
+                }
+                else
+                {
+                    // used a gun
+                    if (targetDied) state = AttackStateEnum.FiredAndKilled;
+                    else if (targetHit) state = AttackStateEnum.FiredWithContact;
+                }
+
+                return state;
+            }
         }
 
         public Type Drop(Player player)
@@ -256,18 +270,22 @@ namespace engine.Common
             if (IsPaused) return null;
             // this action is allowed for a dead player
 
-            var item = player.DropPrimary();
-
-            if (item != null)
+            var guard = GetLock(player);
+            lock (guard)
             {
-                item.X = player.X;
-                item.Y = player.Y;
-                Items.Add(item.Id, item);
+                var item = player.DropPrimary();
 
-                return item.GetType();
+                if (item != null)
+                {
+                    item.X = player.X;
+                    item.Y = player.Y;
+                    Items.Add(item.Id, item);
+
+                    return item.GetType();
+                }
+
+                return null;
             }
-
-            return null;
         }
 
         public bool AddItem(Element item)
@@ -331,6 +349,8 @@ namespace engine.Common
         private RegionCollection Obstacles;
         // items that can be acquired
         private RegionCollection Items;
+        private ReaderWriterLockSlim LocksLock;
+        private Dictionary<int, object> Locks;
 
         private Element IntersectingRectangles(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
         {
@@ -449,6 +469,37 @@ namespace engine.Common
                 });
  
             return elem;
+        }
+
+        private object GetLock(Element elem)
+        {
+            if (elem == null) throw new Exception("Must provide an non-null element");
+
+            object obj = null;
+            try
+            {
+                LocksLock.EnterUpgradeableReadLock();
+
+                if (!Locks.TryGetValue(elem.Id, out obj))
+                {
+                    try
+                    {
+                        LocksLock.EnterWriteLock();
+                        obj = new object();
+                        Locks.Add(elem.Id, obj);
+                    }
+                    finally
+                    {
+                        LocksLock.ExitWriteLock();
+                    }
+                }
+            }
+            finally
+            {
+                LocksLock.ExitUpgradeableReadLock();
+            }
+
+            return obj;
         }
         #endregion
     }
