@@ -67,6 +67,7 @@ namespace engine.Common
         public const float XForcePace = 1f;
 
         // world options
+        public const float DefaultPace = 0f; // causes it to be collected from background
         public const float MaxZoomIn = 10f;
         public const float ZoomStep = 0.1f;
         public const float Ground = 0f;

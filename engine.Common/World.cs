@@ -456,7 +456,7 @@ namespace engine.Common
             if (xdelta != 0 || ydelta != 0)
             {
                 // ActionEnum.Move;
-                result = Move(Human, xdelta, ydelta, zdelta);
+                result = Move(Human, xdelta, ydelta, zdelta, Constants.DefaultPace);
                 Human.Feedback(ActionEnum.Move, null, result);
                 if (OnAfterAction != null) OnAfterAction(Human, ActionEnum.Move, result);
             }
@@ -737,7 +737,7 @@ namespace engine.Common
                     float xdelta = xstep;
                     float ydelta = 0;
                     float zdelta = 0;
-                    if (Move(detail.Player, xdelta, ydelta, zdelta))
+                    if (Move(detail.Player, xdelta, ydelta, zdelta, Constants.DefaultPace))
                     {
                         break;
                     }
@@ -878,7 +878,7 @@ namespace engine.Common
                 if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(ai, action, result);
 
                 // have the AI move
-                var moved = Move(ai, xdelta, ydelta, zdelta);
+                var moved = Move(ai, xdelta, ydelta, zdelta, Constants.DefaultPace);
                 ai.Feedback(ActionEnum.Move, null, moved);
                 if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
             }
@@ -904,7 +904,7 @@ namespace engine.Common
                         if (detail.Player.YForcePercentage < 0) detail.Player.YForcePercentage = 0;
 
                         // apply
-                        if (Move(detail.Player, 0, dist, pace))
+                        if (Move(detail.Player, xdelta: 0, ydelta: dist, zdelta: 0, pace))
                         {
                             inAir = true;
                             break;
@@ -926,7 +926,7 @@ namespace engine.Common
                     do
                     {
                         // apply
-                        if (Move(detail.Player, 0, dist, pace))
+                        if (Move(detail.Player, xdelta: 0, ydelta: dist, zdelta: 0, pace))
                         {
                             inAir = true;
                             break;
@@ -961,7 +961,7 @@ namespace engine.Common
                                 detail.Player.XForcePercentage = 0;
                         }
 
-                        if (Move(detail.Player, dist, 0, pace))
+                        if (Move(detail.Player, xdelta: dist, ydelta: 0, zdelta: 0, pace))
                             break;
                         // we are too close, reduce how far we try
                         dist /= 2;
@@ -1157,7 +1157,7 @@ namespace engine.Common
                 attack == AttackStateEnum.FiredWithContact);
         }
 
-        private bool Move(Player player, float xdelta, float ydelta, float zdelta, float pace = 0)
+        private bool Move(Player player, float xdelta, float ydelta, float zdelta, float pace)
         {
             if (player.IsDead) return false;
 

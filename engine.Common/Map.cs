@@ -117,7 +117,7 @@ namespace engine.Common
             if (player.IsDead) return false;
             if (IsPaused) return false;
 
-            if (pace == 0) pace = Background.Pace(player.X, player.Y);
+            if (pace == Constants.DefaultPace) pace = Background.Pace(player.X, player.Y);
             if (pace < Constants.MinSpeedMultiplier) pace = Constants.MinSpeedMultiplier;
             if (pace > Constants.MaxSpeedMultiplier) pace = Constants.MaxSpeedMultiplier;
             float speed = Constants.Speed * pace;
