@@ -24,6 +24,10 @@ namespace engine.Common
         public const char Left2 = 'a';
         public const char Right = 'D';
         public const char Right2 = 'd';
+        public const char Forward = 'z';
+        public const char Forward2 = 'Z';
+        public const char Back = 'c';
+        public const char Back2 = 'C';
 
         public const char Pickup = 'F';
         public const char Pickup2 = 'f';

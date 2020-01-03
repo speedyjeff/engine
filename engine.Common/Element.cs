@@ -22,7 +22,7 @@ namespace engine.Common.Entities
             set
             {
                 if (value < 0) value *= -1;
-                if (value > 360) value = value % 360;
+                while (value > 360) value = value % 360;
                 _angle = value;
             }
         }

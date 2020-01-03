@@ -333,6 +333,14 @@ namespace engine.Common
                 case Constants.UpArrow:
                     ydelta = -1;
                     break;
+                case Constants.Forward:
+                case Constants.Forward2:
+                    zdelta -= 1;
+                    break;
+                case Constants.Back:
+                case Constants.Back2:
+                    zdelta += 1;
+                    break;
                 case Constants.RightMouse:
                     // use the mouse to move in the direction of the angle
                     float r = (Human.Angle % 90) / 90f;
@@ -811,7 +819,7 @@ namespace engine.Common
 
                 // get action from AI
 
-                var action = ai.Action(elements, angleToCenter, inZone, ref xdelta, ref ydelta, ref angle);
+                var action = ai.Action(elements, angleToCenter, inZone, ref xdelta, ref ydelta, ref zdelta, ref angle);
 
                 // provide details for telemetry
                 if (OnBeforeAction != null)
@@ -823,6 +831,7 @@ namespace engine.Common
                         InZone = inZone,
                         XDelta = xdelta,
                         YDelta = ydelta,
+                        ZDelta = zdelta,
                         Angle = angle
                     });
                 }
@@ -869,8 +878,6 @@ namespace engine.Common
                 if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(ai, action, result);
 
                 // have the AI move
-                float oxdelta = xdelta;
-                float oydelta = ydelta;
                 var moved = Move(ai, xdelta, ydelta, zdelta);
                 ai.Feedback(ActionEnum.Move, null, moved);
                 if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);

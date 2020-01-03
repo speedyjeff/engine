@@ -14,6 +14,7 @@ namespace engine.Common
         public bool InZone;
         public float XDelta;
         public float YDelta;
+        public float ZDelta;
         public float Angle;
     }
 }
