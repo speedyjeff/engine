@@ -81,10 +81,11 @@ namespace engine.Common.Entities
             }
         }
 
-        public void Move(float xDelta, float yDelta)
+        public void Move(float xDelta, float yDelta, float zDelta)
         {
             X += xDelta;
             Y += yDelta;
+            Z += zDelta;
         }
 
         public void ReduceHealth(float damage)

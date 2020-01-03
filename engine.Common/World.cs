@@ -48,7 +48,7 @@ namespace engine.Common
             UniquePlayers = new HashSet<int>();
 
             // setup map
-            Map = new Map(Config.Width, Config.Height, objects, background);
+            Map = new Map(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
 
             // hook up map callbacks
             Map.OnEphemerialEvent += AddEphemerialElement;
@@ -160,7 +160,7 @@ namespace engine.Common
             // draw all elements
             var hidden = new HashSet<int>();
             var visiblePlayers = new List<Player>();
-            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z, Surface.Width * (1 / ZoomFactor), Surface.Height * (1 / ZoomFactor), depth: Constants.Sky))
+            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z, Surface.Width * (1 / ZoomFactor), Surface.Height * (1 / ZoomFactor), depth: Constants.ProximityViewDepth))
             {
                 if (elem.IsDead) continue;
                 else if (elem is Player)
@@ -300,6 +300,7 @@ namespace engine.Common
             Type item = null;
             float xdelta = 0;
             float ydelta = 0;
+            float zdelta = 0;
 
             // pass the key off to the caller to see if they know what to 
             // do in this case
@@ -346,7 +347,7 @@ namespace engine.Common
             if (OnBeforeAction != null)
             {
                 // NOTE: Do not apply the ZoomFactor (to keep the view fair)
-                List<Element> elements = Map.WithinWindow(Human.X, Human.Y, Human.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.Sky).ToList();
+                List<Element> elements = Map.WithinWindow(Human.X, Human.Y, Human.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
                 var angleToCenter = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Config.Width / 2, Config.Height / 2);
                 var inZone = Map.Background.Damage(Human.X, Human.Y) > 0;
 
@@ -447,7 +448,7 @@ namespace engine.Common
             if (xdelta != 0 || ydelta != 0)
             {
                 // ActionEnum.Move;
-                result = Move(Human, xdelta, ydelta);
+                result = Move(Human, xdelta, ydelta, zdelta);
                 Human.Feedback(ActionEnum.Move, null, result);
                 if (OnAfterAction != null) OnAfterAction(Human, ActionEnum.Move, result);
             }
@@ -724,10 +725,11 @@ namespace engine.Common
                 }
                 do
                 {
-                    // apply parachute
+                    // check that we are in a safe place to land
                     float xdelta = xstep;
                     float ydelta = 0;
-                    if (Move(detail.Player, xdelta, ydelta))
+                    float zdelta = 0;
+                    if (Move(detail.Player, xdelta, ydelta, zdelta))
                     {
                         break;
                     }
@@ -789,6 +791,7 @@ namespace engine.Common
                 AI ai = detail.Player as AI;
                 float xdelta = 0;
                 float ydelta = 0;
+                float zdelta = 0;
                 float angle = 0;
 
                 if (ai.IsDead)
@@ -802,7 +805,7 @@ namespace engine.Common
                 }
 
                 // NOTE: Do not apply the ZoomFactor (as it distorts the AI when debugging)
-                List<Element> elements = Map.WithinWindow(ai.X, ai.Y, ai.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.Sky).ToList();
+                List<Element> elements = Map.WithinWindow(ai.X, ai.Y, ai.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
                 var angleToCenter = Collision.CalculateAngleFromPoint(ai.X, ai.Y, Config.Width / 2, Config.Height / 2);
                 var inZone = Map.Background.Damage(ai.X, ai.Y) > 0;
 
@@ -868,7 +871,7 @@ namespace engine.Common
                 // have the AI move
                 float oxdelta = xdelta;
                 float oydelta = ydelta;
-                var moved = Move(ai, xdelta, ydelta);
+                var moved = Move(ai, xdelta, ydelta, zdelta);
                 ai.Feedback(ActionEnum.Move, null, moved);
                 if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
             }
@@ -1147,12 +1150,12 @@ namespace engine.Common
                 attack == AttackStateEnum.FiredWithContact);
         }
 
-        private bool Move(Player player, float xdelta, float ydelta, float pace = 0)
+        private bool Move(Player player, float xdelta, float ydelta, float zdelta, float pace = 0)
         {
             if (player.IsDead) return false;
 
             Element touching;
-            if (Map.Move(player, ref xdelta, ref ydelta, out touching, pace))
+            if (Map.Move(player, ref xdelta, ref ydelta, ref zdelta, out touching, pace))
             {
                 // the move completed
                 if (touching != null) throw new Exception("There should not be an object touching");
@@ -1190,8 +1193,9 @@ namespace engine.Common
             // check that the player is touching something below them
             var xdelta = 0f;
             var ydelta = Constants.IsTouchingDistance;
+            var zdelta = 0f;
             Element touching;
-            if (Map.WhatWouldPlayerTouch(player, ref xdelta, ref ydelta, out touching))
+            if (Map.WhatWouldPlayerTouch(player, ref xdelta, ref ydelta, ref zdelta, out touching))
             {
                 // successfully checked
                 if (touching != null && player.Y < touching.Y)

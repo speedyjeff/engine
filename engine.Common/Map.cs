@@ -9,14 +9,15 @@ namespace engine.Common
 {
     class Map
     {
-        public Map(int width, int height, Element[] objects, Background background)
+        public Map(int width, int height, int depth, Element[] objects, Background background)
         {
-            if (width <= 0 || height <= 0) throw new Exception("Must specific a valid Width and Height");
+            if (width <= 0 || height <= 0 || depth <= 0) throw new Exception("Must specific a valid Width, Height, and Depth");
             if (background == null) throw new Exception("Must create a background");
 
             // init
             Width = width;
             Height = height;
+            Depth = depth;
             Background = background;
             Locks = new Dictionary<int, object>();
             LocksLock = new ReaderWriterLockSlim();
@@ -26,12 +27,13 @@ namespace engine.Common
             var items = (objects != null) ? objects.Where(o => o.CanAcquire) : new List<Element>();
 
             // add all things to the map
-            Obstacles = new RegionCollection(obstacles, Width, Height, depth: (int)Constants.Sky);
-            Items = new RegionCollection(items, Width, Height, depth: (int)Constants.Sky);
+            Obstacles = new RegionCollection(obstacles, Width, Height, Depth);
+            Items = new RegionCollection(items, Width, Height, Depth);
         }
 
         public int Width { get; private set; }
         public int Height { get; private set; }
+        public int Depth { get; private set; }
 
         public bool IsPaused { get; set; }
 
@@ -43,9 +45,7 @@ namespace engine.Common
 
         public IEnumerable<Element> WithinWindow(float x, float y, float z, float width, float height, float depth)
         {
-            // do not take Z into account, as the view should be unbostructed (top down)
-
-            // return objects that are within the window
+            // return objects that are within the bounding box
             var x1 = x - width / 2;
             var y1 = y - height / 2;
             var x2 = x + width / 2;
@@ -60,6 +60,10 @@ namespace engine.Common
                 {
                     if (elem.IsDead) continue;
 
+                    // check that they within the bounds of z
+                    if (((depth / 2) + (elem.Depth / 2)) < Math.Abs(z - elem.Z)) continue;
+
+                    // check they are within the bounds of x,y
                     var x3 = elem.X - elem.Width / 2;
                     var y3 = elem.Y - elem.Height / 2;
                     var x4 = elem.X + elem.Width / 2;
@@ -74,12 +78,12 @@ namespace engine.Common
             }
         }
 
-        public bool Move(Player player, ref float xdelta, ref float ydelta, out Element touching, float pace = 0)
+        public bool Move(Player player, ref float xdelta, ref float ydelta, ref float zdelta, out Element touching, float pace)
         {
             var guard = GetLock(player);
             lock (guard)
             {
-                if (WhatWouldPlayerTouch(player, ref xdelta, ref ydelta, out touching, pace))
+                if (WhatWouldPlayerTouch(player, ref xdelta, ref ydelta, ref zdelta, out touching, pace))
                 {
                     // successfully checked, and there is no object touching
                     if (touching == null)
@@ -88,7 +92,7 @@ namespace engine.Common
                         var beforeRegion = Obstacles.GetRegion(player);
 
                         // move the player
-                        player.Move(xdelta, ydelta);
+                        player.Move(xdelta, ydelta, zdelta);
 
                         // get region after move
                         var afterRegion = Obstacles.GetRegion(player);
@@ -105,7 +109,7 @@ namespace engine.Common
             }
         }
 
-        public bool WhatWouldPlayerTouch(Player player, ref float xdelta, ref float ydelta, out Element touching, float pace = 0)
+        public bool WhatWouldPlayerTouch(Player player, ref float xdelta, ref float ydelta, ref float zdelta, out Element touching, float pace = 0)
         {
             // return no object
             touching = null;
@@ -119,14 +123,15 @@ namespace engine.Common
             float speed = Constants.Speed * pace;
 
             // check if the delta is legal
-            if (Math.Abs(xdelta) + Math.Abs(ydelta) > 1.00001) return false;
+            if (Math.Abs(xdelta) + Math.Abs(ydelta) + Math.Abs(zdelta) > 1.00001) return false;
 
             // adjust for speed
             xdelta *= speed;
             ydelta *= speed;
+            zdelta *= speed;
 
             // return if the player would collide with an object
-            touching = IntersectingRectangles(player, false /* consider acquirable */, xdelta, ydelta);
+            touching = RetrieveWhatPlayerIsTouching(player, false /* consider acquirable */, xdelta, ydelta, zdelta);
 
             // return that we actually checked
             return true;
@@ -142,7 +147,7 @@ namespace engine.Common
             lock (guard)
             {
                 // see if we are over an item
-                Element item = IntersectingRectangles(player, true /* consider acquirable */);
+                Element item = RetrieveWhatPlayerIsTouching(player, true /* consider acquirable */);
 
                 if (item != null)
                 {
@@ -171,78 +176,78 @@ namespace engine.Common
             var guard = GetLock(player);
             lock (guard)
             {
-                var hit = new HashSet<Element>();
+                List<Element> hit = null;
+                List<ShotTrajectory> trajectories = null;
                 var state = AttackStateEnum.None;
-                var trajectories = new List<ShotTrajectory>();
+                Tool weapon = null;
 
                 state = player.Attack();
 
                 // apply state change
                 if (state == AttackStateEnum.Fired)
                 {
-                    if (!(player.Primary is RangeWeapon)) throw new Exception("Must have a Gun to fire");
-                    var gun = player.Primary as RangeWeapon;
-                    Element elem = null;
+                    if (player.Primary == null || !(player.Primary is RangeWeapon)) throw new Exception("Must have a RangeWeapon to fire");
+                    weapon = player.Primary as RangeWeapon;
 
-                    // apply the bullet via the trajectory
-                    elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle, trajectories);
-                    if (elem != null) hit.Add(elem);
-                    if (gun.Spread != 0)
-                    {
-                        elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle - (gun.Spread / 2), trajectories);
-                        if (elem != null) hit.Add(elem);
-                        elem = TrackAttackTrajectory(player, gun, player.X, player.Y, player.Angle + (gun.Spread / 2), trajectories);
-                        if (elem != null) hit.Add(elem);
-                    }
+                    // fire the weapon (via a trajectory)
+                    TrackAttackTrajectory(player, weapon, out hit, out trajectories);
                 }
                 else if (state == AttackStateEnum.Melee)
                 {
-                    // project out a short range and check if there was contact
-                    Element elem = null;
-
                     // use either fists, or if the Primary provides damage
-                    Tool weapon = (player.Primary != null && player.Primary is Tool) ? player.Primary as Tool : player.Fists;
+                    weapon = (player.Primary != null && player.Primary is Tool) ? player.Primary as Tool : player.Fists;
 
-                    // apply the bullet via the trajectory
-                    elem = TrackAttackTrajectory(player, weapon, player.X, player.Y, player.Angle, trajectories);
-                    if (elem != null) hit.Add(elem);
+                    // swing the tool (via a trajectory)
+                    TrackAttackTrajectory(player, weapon, out hit, out trajectories);
 
-                    // disregard any trajectories
+                    // disregard any trajectories (there is no visible sign of the tool)
                     trajectories.Clear();
                 }
 
                 // send notifications
                 bool targetDied = false; // used to change the fired state
                 bool targetHit = false;
-                foreach (var elem in hit)
+                if (hit != null && hit.Count > 0)
                 {
-                    targetHit = true;
-
-                    if (OnElementHit != null) OnElementHit(player, elem);
-
-                    if (elem.IsDead)
+                    foreach (var elem in hit)
                     {
-                        // increment kills
-                        if (elem is Player) player.Kills++;
+                        // skip elements that have died
+                        if (elem.IsDead) continue;
 
-                        if (OnElementDied != null) OnElementDied(elem);
+                        // apply damage
+                        if (elem.TakesDamage) elem.ReduceHealth(weapon.Damage);
 
-                        if (OnEphemerialEvent != null)
+                        // indicate that there was a successful hit and notify
+                        targetHit = true;
+                        if (OnElementHit != null) OnElementHit(player, elem);
+
+                        // if the damage killed the element, then notify
+                        if (elem.IsDead)
                         {
-                            OnEphemerialEvent(new OnScreenText()
+                            targetDied = true;
+
+                            // increment kills
+                            if (elem is Player) player.Kills++;
+
+                            if (OnElementDied != null) OnElementDied(elem);
+
+                            if (OnEphemerialEvent != null)
                             {
-                                Text = string.Format("Player {0} killed {1}", player.Name, elem.Name)
-                            });
+                                OnEphemerialEvent(new OnScreenText()
+                                {
+                                    Text = string.Format("Player {0} killed {1}", player.Name, elem.Name)
+                                });
+                            }
                         }
                     }
                 }
 
                 // add bullet trajectories
-                foreach (var t in trajectories)
+                if (trajectories != null && trajectories.Count > 0)
                 {
-                    if (OnEphemerialEvent != null)
+                    foreach (var t in trajectories)
                     {
-                        OnEphemerialEvent(t);
+                        if (OnEphemerialEvent != null) OnEphemerialEvent(t);
                     }
                 }
 
@@ -326,15 +331,15 @@ namespace engine.Common
             return false;
         }
 
-        public bool IsTouching(Element elem1, Element elem2)
+        public virtual bool IsTouching(Element elem1, Element elem2, float x1delta = 0, float y1delta = 0, float z1delta = 0)
         {
             // check that they intersect on the depth plane
-            if (((elem1.Depth / 2) + (elem2.Depth / 2)) < Math.Abs(elem1.Z - elem2.Z)) return false;
+            if (((elem1.Depth / 2) + (elem2.Depth / 2)) < Math.Abs((elem1.Z + z1delta) - elem2.Z)) return false;
 
-            float x1 = (elem1.X) - (elem1.Width / 2);
-            float y1 = (elem1.Y) - (elem1.Height / 2);
-            float x2 = (elem1.X) + (elem1.Width / 2);
-            float y2 = (elem1.Y) + (elem1.Height / 2);
+            float x1 = (elem1.X + x1delta) - (elem1.Width / 2);
+            float y1 = (elem1.Y + y1delta) - (elem1.Height / 2);
+            float x2 = (elem1.X + x1delta) + (elem1.Width / 2);
+            float y2 = (elem1.Y + y1delta) + (elem1.Height / 2);
 
             float x3 = (elem2.X) - (elem2.Width / 2);
             float y3 = (elem2.Y) - (elem2.Height / 2);
@@ -352,7 +357,54 @@ namespace engine.Common
         private ReaderWriterLockSlim LocksLock;
         private Dictionary<int, object> Locks;
 
-        private Element IntersectingRectangles(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
+        protected virtual bool TrackAttackTrajectory(Player player, Tool weapon, out List<Element> hit, out List<ShotTrajectory> trajectories)
+        {
+            // init
+            hit = new List<Element>();
+            trajectories = new List<ShotTrajectory>();
+
+            // if this is a spread weapon, apply additional trajectories
+            var angles = new List<float>() { player.Angle };
+            if (weapon.Spread != 0)
+            {
+                angles.Add(player.Angle - (weapon.Spread / 2) );
+                angles.Add(player.Angle + (weapon.Spread / 2));
+            }
+
+            // apply trajectories
+            foreach (var angle in angles)
+            {
+                // calcualte the line that represents the trajectory
+                float x1, y1, x2, y2;
+                Collision.CalculateLineByAngle(player.X, player.Y, angle, weapon.Distance, out x1, out y1, out x2, out y2);
+
+                // find what was hit
+                var elem = LineIntersectingRectangle(player, x1, y1, x2, y2);
+
+                if (elem != null)
+                {
+                    // reduce the visual shot on screen based on where the bullet hit
+                    var distance = DistanceToObject(player, elem);
+                    Collision.CalculateLineByAngle(player.X, player.Y, angle, distance, out x1, out y1, out x2, out y2);
+
+                    hit.Add(elem);
+                }
+
+                // add bullet effect
+                trajectories.Add(new ShotTrajectory()
+                {
+                    X1 = x1,
+                    Y1 = y1,
+                    X2 = x2,
+                    Y2 = y2,
+                    Damage = weapon.Damage
+                });
+            }
+
+            return hit.Count > 0;
+        }
+
+        private Element RetrieveWhatPlayerIsTouching(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
         {
             float x1 = (player.X + xdelta) - (player.Width / 2);
             float y1 = (player.Y + ydelta) - (player.Height / 2);
@@ -368,6 +420,7 @@ namespace engine.Common
             // check collisions
             foreach (var elem in objects.Values(x1, y1, z1, x2, y2, z2))
             {
+                // check if we should consider this object
                 if (elem.Id == player.Id) continue;
                 if (elem.IsDead) continue;
                 if (!considerAquireable)
@@ -378,17 +431,9 @@ namespace engine.Common
                 {
                     if (!elem.CanAcquire) continue;
                 }
-                // check that they intersect on the depth plane
-                if (((elem.Depth / 2) + (player.Depth / 2)) >= Math.Abs(elem.Z - player.Z))
-                {
-                    float x3 = elem.X - (elem.Width / 2);
-                    float y3 = elem.Y - (elem.Height / 2);
-                    float x4 = elem.X + (elem.Width / 2);
-                    float y4 = elem.Y + (elem.Height / 2);
 
-                    // check if these collide
-                    if (Collision.IntersectingRectangles(x1, y1, x2, y2, x3, y3, x4, y4)) return elem;
-                }
+                // check that they intersect on the depth plane
+                if (IsTouching(player, elem, xdelta, ydelta, zdelta)) return elem;
             }
 
             return null;
@@ -435,40 +480,6 @@ namespace engine.Common
             }
 
             return item;
-        }
-
-        private Element TrackAttackTrajectory(Player player, Tool weapon, float x, float y, float angle, List<ShotTrajectory> trajectories)
-        {
-            float x1, y1, x2, y2;
-            Collision.CalculateLineByAngle(x, y, angle, weapon.Distance, out x1, out y1, out x2, out y2);
-
-            // determine damage
-            var elem = LineIntersectingRectangle(player, x1, y1, x2, y2);
-
-            if (elem != null)
-            {
-                // apply damage
-                if (elem.TakesDamage)
-                {
-                    elem.ReduceHealth(weapon.Damage);
-                }
-
-                // reduce the visual shot on screen based on where the bullet hit
-                var distance = DistanceToObject(player, elem);
-                Collision.CalculateLineByAngle(x, y, angle, distance, out x1, out y1, out x2, out y2);
-            }
-
-            // add bullet effect
-            trajectories.Add( new ShotTrajectory()
-                {
-                    X1 = x1,
-                    Y1 = y1,
-                    X2 = x2,
-                    Y2 = y2,
-                    Damage = weapon.Damage
-                });
- 
-            return elem;
         }
 
         private object GetLock(Element elem)

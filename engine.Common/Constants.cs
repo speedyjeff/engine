@@ -69,6 +69,7 @@ namespace engine.Common
         public const float Sky = 1f;
         public const float ProximityViewHeight = 888;
         public const float ProximityViewWidth = 1384;
+        public const float ProximityViewDepth = 10;
 
         // diagnstics
         public const bool Debug_ShowHitBoxes = false;
