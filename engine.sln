@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28010.2019
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29613.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.Common", "engine.Common\engine.Common.csproj", "{A181B9F7-0422-4805-915E-573E13D07312}"
 EndProject
@@ -22,6 +22,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Platformer2D", "Samples\Winforms\Platformer2D\Platformer2D.csproj", "{AC1115F5-91BD-49D9-AE88-CE3708B51A2C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TopDownPlatformer", "Samples\Winforms\TopDownPlatformer\TopDownPlatformer.csproj", "{0F250448-FF6C-4FEE-B803-30654132C0BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flyover3D", "Samples\Winforms\Flyover3D\Flyover3D.csproj", "{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -61,6 +63,10 @@ Global
 		{0F250448-FF6C-4FEE-B803-30654132C0BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0F250448-FF6C-4FEE-B803-30654132C0BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0F250448-FF6C-4FEE-B803-30654132C0BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -72,6 +78,7 @@ Global
 		{10822F01-C219-443C-BB84-BD375C39DE23} = {2A6BA02C-4532-4C05-98AE-E483E5E80AF3}
 		{AC1115F5-91BD-49D9-AE88-CE3708B51A2C} = {2A6BA02C-4532-4C05-98AE-E483E5E80AF3}
 		{0F250448-FF6C-4FEE-B803-30654132C0BB} = {2A6BA02C-4532-4C05-98AE-E483E5E80AF3}
+		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE} = {2A6BA02C-4532-4C05-98AE-E483E5E80AF3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {136F7BCF-9AD6-4812-8F1F-4048EB404D36}
