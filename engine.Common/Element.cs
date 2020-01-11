@@ -85,7 +85,7 @@ namespace engine.Common
                 }
                 g.Text(RGBA.Black, X - Width / 2, Y - Height / 2 - 20, DisplayName);
             }
-            if (TakesDamage && ShowDamage && Z == Constants.Ground)
+            if (TakesDamage && ShowDamage)
             {
                 if (Health != PreviousHealth || Shield != PreviousShield)
                 {

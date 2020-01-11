@@ -111,11 +111,11 @@ public struct WorldConfiguration
 {
   public int Width;
   public int Height;
-  public bool CenterIndicator;
+  public bool CenterIndicator; // not available in 3D
   public Menu StartMenu;
   public Menu EndMenu;
   public Menu HUD;
-  public bool EnableZoom;
+  public bool EnableZoom;     // not available in 3D
   public bool DisplayStats;
   public bool ShowCoordinates;
   public bool ApplyForces;

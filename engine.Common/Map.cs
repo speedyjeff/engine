@@ -139,7 +139,6 @@ namespace engine.Common
 
         public Type Pickup(Player player)
         {
-            if (player.Z != Constants.Ground) return null;
             if (player.IsDead) return null;
             if (IsPaused) return null;
 
@@ -169,7 +168,6 @@ namespace engine.Common
         // player is the one attacking
         public AttackStateEnum Attack(Player player)
         {
-            if (player.Z != Constants.Ground) return AttackStateEnum.None;
             if (player.IsDead) return AttackStateEnum.None;
             if (IsPaused) return AttackStateEnum.None;
 
@@ -271,7 +269,6 @@ namespace engine.Common
 
         public Type Drop(Player player)
         {
-            if (player.Z != Constants.Ground) return null;
             if (IsPaused) return null;
             // this action is allowed for a dead player
 

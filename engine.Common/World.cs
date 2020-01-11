@@ -76,7 +76,7 @@ namespace engine.Common
             foreach (var player in players) AddItem(player);
 
             // setup window (based on placement on the map)
-            if (Human.Z > Constants.Ground) ZoomFactor = 0.05f;
+            if (!Config.Is3D && Human.Z > Constants.Ground) ZoomFactor = 0.05f;
 
             // start paused
             if (Config.StartMenu != null)
@@ -130,7 +130,7 @@ namespace engine.Common
             Map.Background.Draw(Surface);
 
             // add center indicator
-            if (Human.Z == Constants.Ground && Config.CenterIndicator)
+            if (Config.CenterIndicator && !Config.Is3D && Human.Z == Constants.Ground)
             {
                 var centerAngle = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Map.Width / 2, Map.Height / 2);
                 float x1, y1, x2, y2;
@@ -472,6 +472,7 @@ namespace engine.Common
         {
             // disabled by the developer
             if (!Config.EnableZoom) return;
+            if (Config.Is3D) return;
 
             // block usage if a menu is being displayed
             if (Map.IsPaused) return;
@@ -1258,6 +1259,9 @@ namespace engine.Common
             attack = AttackStateEnum.None;
 
             if (player.IsDead) return false;
+
+            if (!Config.Is3D && player.Z > Constants.Ground) return false;
+
             attack = Map.Attack(player);
 
             if (player.Id == Human.Id)
