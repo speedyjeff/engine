@@ -36,7 +36,7 @@ namespace engine.Common
         }
     }
 
-    public delegate bool TranslateCoordinatesDelegate(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out bool isOnScreen, out float twidth, out float theight, out float tother);
+    public delegate bool TranslateCoordinatesDelegate(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother);
 
     public interface IGraphics
     {
@@ -47,15 +47,18 @@ namespace engine.Common
         void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill = true, bool border = false); 
         void Text(RGBA color, float x, float y, string text, float fontsize = 16);
         void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness);
-        void Polygon(RGBA color, Point[] points, bool fill = true);
         void Image(string path, float x, float y, float width = 0, float height = 0);
         void Image(IImage img, float x, float y, float width = 0, float height = 0);
         void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0);
 
-        void RotateTransform(float angle);
-
+        // support to not project to screen coordinates
         void DisableTranslation(bool nonScaledTranslation=false);
         void EnableTranslation();
+
+        // 3D support
+        void Polygon(RGBA color, Point[] points, bool fill = true);
+        void CapturePolygons();
+        void RenderPolygons();
 
         // details
         int Height { get; }

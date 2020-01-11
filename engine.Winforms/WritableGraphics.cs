@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 
 using engine.Common;
 
@@ -63,7 +64,7 @@ namespace engine.Winforms
             float swidth = width;
             float sheight = height;
             float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out float sz, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x = y = width = height = thickness = 0;
@@ -88,7 +89,7 @@ namespace engine.Winforms
             float swidth = width;
             float sheight = height;
             float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out float sz, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x = y = width = height = thickness = 0;
@@ -121,10 +122,10 @@ namespace engine.Winforms
             float swidth = 0;
             float sheight = 0;
             float sother = 0;
-            bool isOnScreen;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out isOnScreen, out swidth, out sheight, out sthickness)) return;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, z: Constants.Ground, width, height, other, out sx2, out sy2, out isOnScreen, out swidth, out sheight, out sother)) return;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x3, y3, z: Constants.Ground, width, height, other, out sx3, out sy3, out isOnScreen, out swidth, out sheight, out sother)) return;
+            float sz;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, z: Constants.Ground, width, height, other, out sx2, out sy2, out sz, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x3, y3, z: Constants.Ground, width, height, other, out sx3, out sy3, out sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x1 = y1 = x2 = y2 = x3 = y3 = thickness = 0;
@@ -154,7 +155,7 @@ namespace engine.Winforms
             float swidth = 0;
             float sheight = 0;
             float sfontsize = fontsize;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, 0, 0, fontsize, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sfontsize)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, 0, 0, fontsize, out sx, out sy, out float sz, out swidth, out sheight, out sfontsize)) return;
 
             // safe guard accidental usage
             x = y = fontsize = 0;
@@ -173,7 +174,8 @@ namespace engine.Winforms
             float sheight = height;
             float sthickness = thickness;
             bool isOnScreen;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out isOnScreen, out swidth, out sheight, out sthickness)) return;
+            float sz;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x1 = y1 = thickness = 0;
@@ -181,53 +183,12 @@ namespace engine.Winforms
             float sx2 = x2;
             float sy2 = y2;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, z: Constants.Ground, width, height, 0, out sx2, out sy2, out isOnScreen, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, z: Constants.Ground, width, height, 0, out sx2, out sy2, out sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x2 = y2 = 0;
 
             Graphics.DrawLine(GetCachedPen(color, sthickness), sx1, sy1, sx2, sy2);
-        }
-
-        public void Polygon(RGBA color, Common.Point[] points, bool fill = true)
-        {
-            if (points == null || points.Length <= 1) throw new Exception("Must provide a valid number of points");
-
-            var localPoints = new System.Drawing.PointF[points.Length];
-
-            // translate each point into the System.Drawing structure
-            float thickness = 5f;
-            float sthickness = thickness;
-            var numOffScreen = 0;
-            for(int i=0; i<points.Length; i++)
-            {
-                float sx = points[i].X;
-                float sy = points[i].Y;
-                float sz = points[i].Z;
-                bool isOnScreen = true;
-
-                // translate
-                if (Translate != null && DoTranslation && !Translate(DoScaling, points[i].X, points[i].Y, points[i].Z, width: 0, height: 0, thickness, out sx, out sy, out isOnScreen, out float swidth, out float sheight, out sthickness)) return;
-
-                // convert to type
-                localPoints[i] = new System.Drawing.PointF(sx, sy);
-
-                // count if this is offscreen
-                if (!isOnScreen) numOffScreen++;
-            }
-
-            // check if all the points of this polygon are off screen then do not show it
-            if (numOffScreen == points.Length) return;
-
-            if (fill)
-            {
-                Graphics.FillPolygon(GetCachedSolidBrush(color), localPoints);
-                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), localPoints);
-            }
-            else
-            {
-                Graphics.DrawPolygon(GetCachedPen(color, sthickness), localPoints);
-            }
         }
 
         public void Image(string path, float x, float y, float width = 0, float height = 0)
@@ -239,7 +200,7 @@ namespace engine.Winforms
             float swidth = width == 0 ? img.Width : width;
             float sheight = height == 0 ? img.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;
@@ -259,7 +220,7 @@ namespace engine.Winforms
             float swidth = width == 0 ? bitmap.Width : width;
             float sheight = height == 0 ? bitmap.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;
@@ -284,20 +245,13 @@ namespace engine.Winforms
             float swidth = width == 0 ? img.Width : width;
             float sheight = height == 0 ? img.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;
 
             // use screen coordinates
             Graphics.DrawImage(img, sx, sy, swidth, sheight);
-        }
-
-        public void RotateTransform(float angle)
-        {
-            Graphics.TranslateTransform(1 * Width / 2, 1 * Height / 2);
-            Graphics.RotateTransform(angle);
-            Graphics.TranslateTransform(-1 * Width / 2, -1 * Height / 2);
         }
 
         public void EnableTranslation()
@@ -311,6 +265,77 @@ namespace engine.Winforms
             DoTranslation = false;
             DoScaling = false;
             if (nonScaledTranslation) DoTranslation = true;
+        }
+
+        // 3d support
+
+        public void Polygon(RGBA color, Common.Point[] points, bool fill = true)
+        {
+            if (points == null || points.Length <= 1) throw new Exception("Must provide a valid number of points");
+
+            var localPoints = (_CapturePolygons) ? null : new System.Drawing.PointF[points.Length];
+
+            // translate each point into the System.Drawing structure
+            float thickness = 5f;
+            float sthickness = thickness;
+            for (int i = 0; i < points.Length; i++)
+            {
+                // translate
+                if (Translate != null && DoTranslation && !Translate(DoScaling, points[i].X, points[i].Y, points[i].Z, width: 0, height: 0, thickness, out points[i].X, out points[i].Y, out points[i].Z, out float swidth, out float sheight, out sthickness)) return;
+
+                // convert to type
+                if (localPoints != null) localPoints[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
+            }
+
+            // defer rending for later
+            if (_CapturePolygons)
+            {
+                Poloygons.Add(new PolygonDetails()
+                {
+                    Color = color,
+                    Points = points,
+                    Fill = fill
+                });
+                return;
+            }
+
+            if (fill)
+            {
+                Graphics.FillPolygon(GetCachedSolidBrush(color), localPoints);
+                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), localPoints);
+            }
+            else
+            {
+                Graphics.DrawPolygon(GetCachedPen(color, sthickness), localPoints);
+            }
+        }
+
+        public void CapturePolygons()
+        {
+            if (Poloygons == null) Poloygons = new List<PolygonDetails>();
+            else Poloygons.Clear();
+
+            // start capturing
+            _CapturePolygons = true;
+        }
+
+        public void RenderPolygons()
+        {
+            // stop capturing
+            _CapturePolygons = false;
+
+            // disable translation as it has already been done
+            DisableTranslation(nonScaledTranslation: false);
+            {
+                foreach (var polygon in Poloygons.OrderBy(p => p.FurthestZ()))
+                {
+                    Polygon(polygon.Color, polygon.Points, polygon.Fill);
+                }
+            }
+            EnableTranslation();
+
+            // clear
+            Poloygons.Clear();
         }
 
         public int Height { get; private set; }
@@ -335,6 +360,28 @@ namespace engine.Winforms
         private bool DoTranslation;
         private bool DoScaling;
 
+        // 3D support
+        class PolygonDetails
+        {
+            public RGBA Color;
+            public bool Fill;
+            public Common.Point[] Points;
+
+            public float FurthestZ()
+            {
+                if (Points == null || Points.Length == 0) return float.MinValue;
+                var minZ = float.MaxValue;
+                for(int i=0; i<Points.Length; i++) 
+                {
+                    if (Points[i].Z < minZ) minZ = Points[i].Z;
+                }
+                return minZ;
+            }
+        }
+        private bool _CapturePolygons;
+        private List<PolygonDetails> Poloygons;
+
+        // caches
         private Dictionary<string, Image> ImageCache;
         private Dictionary<int, SolidBrush> SolidBrushCache;
         private Dictionary<long, Pen> PenCache;

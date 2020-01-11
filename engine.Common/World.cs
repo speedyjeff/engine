@@ -159,6 +159,9 @@ namespace engine.Common
                 Surface.EnableTranslation();
             }
 
+            // if 3d, defer the rendering of the polygons to ensure proper ordering
+            if (Config.Is3D) Surface.CapturePolygons();
+
             // draw all elements
             var hidden = new HashSet<int>();
             var visiblePlayers = new List<Player>();
@@ -208,6 +211,9 @@ namespace engine.Common
                 if (hidden.Contains(player.Id)) continue;
                 player.Draw(Surface);
             }
+
+            // if 3d, then render all the polygons (in order)
+            if (Config.Is3D) Surface.RenderPolygons();
 
             // add any ephemerial elements
             lock (Ephemerial)
@@ -1050,11 +1056,10 @@ namespace engine.Common
         }
 
         // support
-        private bool TranslateCoordinates(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out bool isOnScreen, out float twidth, out float theight, out float tother)
+        private bool TranslateCoordinates(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother)
         {
             // transform the world x,y coordinates into scaled and screen coordinates
-            tx = ty = twidth = theight = tother = 0;
-            isOnScreen = true;
+            tx = ty = tz = twidth = theight = tother = 0;
 
             if (!Config.Is3D)
             {
@@ -1072,6 +1077,7 @@ namespace engine.Common
                 // now translate to the window
                 tx = ((x - Human.X) * zoom) + windowHWidth;
                 ty = ((y - Human.Y) * zoom) + windowHHeight;
+                tz = z;
                 twidth = width;
                 theight = height;
                 tother = other * zoom;
@@ -1105,10 +1111,7 @@ namespace engine.Common
                 // now translate to the window
                 tx = x + windowHWidth;
                 ty = y + windowHHeight;
-
-                // determine if this point is out of view
-                // simple (eg. z is behind the player)
-                if (z > 0) isOnScreen = false;
+                tz = z;
             }
 
             return true;
