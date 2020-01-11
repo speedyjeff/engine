@@ -284,6 +284,7 @@ namespace engine.Common
                 {
                     item.X = player.X;
                     item.Y = player.Y;
+                    item.Z = player.Z;
                     Items.Add(item.Id, item);
 
                     return item.GetType();

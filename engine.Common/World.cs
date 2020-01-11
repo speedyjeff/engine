@@ -24,6 +24,10 @@ namespace engine.Common
         public bool DisplayStats;
         public bool ShowCoordinates;
         public bool ApplyForces;
+        public float HorizonX;
+        public float HorizonY;
+        public float HorizonZ;
+        public bool Is3D;
     }
 
     public class World : IUserInteraction
@@ -72,8 +76,6 @@ namespace engine.Common
             foreach (var player in players) AddItem(player);
 
             // setup window (based on placement on the map)
-            WindowX = Human.X;
-            WindowY = Human.Y;
             if (Human.Z > Constants.Ground) ZoomFactor = 0.05f;
 
             // start paused
@@ -160,7 +162,8 @@ namespace engine.Common
             // draw all elements
             var hidden = new HashSet<int>();
             var visiblePlayers = new List<Player>();
-            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z, Surface.Width * (1 / ZoomFactor), Surface.Height * (1 / ZoomFactor), depth: Constants.ProximityViewDepth))
+            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z, 
+                Surface.Width * (1 / ZoomFactor) + Config.HorizonX, Surface.Height * (1 / ZoomFactor) + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
             {
                 if (elem.IsDead) continue;
                 else if (elem is Player)
@@ -256,6 +259,9 @@ namespace engine.Common
                 {
                     Surface.Text(RGBA.Black, 200, 10, string.Format("X {0}", Human.X));
                     Surface.Text(RGBA.Black, 200, 30, string.Format("Y {0}", Human.Y));
+                    Surface.Text(RGBA.Black, 200, 50, string.Format("Z {0}", Human.Z));
+                    Surface.Text(RGBA.Black, 200, 70, string.Format("A {0}", Human.Angle));
+                    Surface.Text(RGBA.Black, 200, 90, string.Format("P {0}", Human.PitchAngle));
                 }
                 Surface.EnableTranslation();
             }
@@ -316,22 +322,26 @@ namespace engine.Common
                 case Constants.Down:
                 case Constants.Down2:
                 case Constants.DownArrow:
-                    ydelta = 1;
+                    if (!Config.Is3D) ydelta = 1;
+                    else DirectionByAngle(Human.Angle + 180, out xdelta, out zdelta);
                     break;
                 case Constants.Left:
                 case Constants.Left2:
                 case Constants.LeftArrow:
-                    xdelta = -1;
+                    if (!Config.Is3D) xdelta = -1;
+                    else DirectionByAngle(Human.Angle - 90, out xdelta, out zdelta);
                     break;
                 case Constants.Right:
                 case Constants.Right2:
                 case Constants.RightArrow:
-                    xdelta = 1;
+                    if (!Config.Is3D) xdelta = 1;
+                    else DirectionByAngle(Human.Angle + 90, out xdelta, out zdelta);
                     break;
                 case Constants.Up:
                 case Constants.Up2:
                 case Constants.UpArrow:
-                    ydelta = -1;
+                    if (!Config.Is3D) ydelta = -1;
+                    else DirectionByAngle(Human.Angle, out xdelta, out zdelta);
                     break;
                 case Constants.Forward:
                 case Constants.Forward2:
@@ -343,12 +353,8 @@ namespace engine.Common
                     break;
                 case Constants.RightMouse:
                     // use the mouse to move in the direction of the angle
-                    float r = (Human.Angle % 90) / 90f;
-                    xdelta = 1 * r;
-                    ydelta = 1 * (1 - r);
-                    if (Human.Angle > 0 && Human.Angle < 90) ydelta *= -1;
-                    else if (Human.Angle > 180 && Human.Angle <= 270) xdelta *= -1;
-                    else if (Human.Angle > 270) { ydelta *= -1; xdelta *= -1; }
+                    if (!Config.Is3D) DirectionByAngle(Human.Angle, out xdelta, out ydelta);
+                    else DirectionByAngle(Human.Angle, out xdelta, out zdelta);
                     break;
             }
 
@@ -367,6 +373,7 @@ namespace engine.Common
                     InZone = inZone,
                     XDelta = xdelta,
                     YDelta = ydelta,
+                    ZDelta = zdelta,
                     Angle = Human.Angle
                 });
             }
@@ -436,7 +443,6 @@ namespace engine.Common
                     break;
 
                 case ActionEnum.Jump:
-                    // ActionEnum.Jump (special)
                     result = Jump(Human);
                     Human.Feedback(action, null, result);
                     break;
@@ -453,7 +459,7 @@ namespace engine.Common
             }
 
             // if a move command, then move
-            if (xdelta != 0 || ydelta != 0)
+            if (xdelta != 0 || ydelta != 0 || zdelta != 0)
             {
                 // ActionEnum.Move;
                 result = Move(Human, xdelta, ydelta, zdelta, Constants.DefaultPace);
@@ -486,9 +492,38 @@ namespace engine.Common
         {
             // block usage if a menu is being displayed
             if (Map.IsPaused) return;
+            if (Human.IsDead) return;
 
             // use the angle to turn the human player
-            Turn(Human, angle);
+            if (!Config.Is3D)
+            {
+                // rotate based on unit circle
+                Human.Angle = angle;
+            }
+
+            // if (Config.Is3D)
+            else
+            {
+                //       45
+                //        |
+                //        0
+                // 0---359|0---359
+                //       359
+                //        |
+                //       315
+
+                // horiztonal (angle)
+                var hwidth = Surface.Width / 2f;
+                if (x >= hwidth) x -= hwidth;
+                Human.Angle = (x / hwidth) * 360;
+
+                // vertical (pitchAngle)
+                var hheight = Surface.Height / 2f;
+                var foundation = 0f;
+                if (y >= hheight) y -= hheight;
+                else foundation = 315f;
+                Human.PitchAngle = ((y / hheight) * 45) + foundation;
+            }
         }
 
         public void Mousedown(MouseButton btn, float x, float y)
@@ -525,13 +560,16 @@ namespace engine.Common
                     details.UpdatePlayerTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
                 }
 
-                // check that the player is not above the sky
-                if (item.Z > Constants.Sky) item.Z = Constants.Sky;
-
-                // initialize parachute (if necessary)
-                if (item.Z > Constants.Ground)
+                if (!Config.Is3D)
                 {
-                    details.ParachuteTimer = new Timer(PlayerParachute, item.Id, 0, Constants.GlobalClock);
+                    // check that the player is not above the sky
+                    if (item.Z > Constants.Sky) item.Z = Constants.Sky;
+
+                    // initialize parachute (if necessary)
+                    if (item.Z > Constants.Ground)
+                    {
+                        details.ParachuteTimer = new Timer(PlayerParachute, item.Id, 0, Constants.GlobalClock);
+                    }
                 }
             }
         }
@@ -624,7 +662,7 @@ namespace engine.Common
             }
         }
 
-        public void Teleport(Player player, float x, float y)
+        public void Teleport(Player player, float x, float y, float z = 0)
         {
             if (player == null || player.IsDead) throw new Exception("Cannot teleport an invalid player");
 
@@ -634,12 +672,7 @@ namespace engine.Common
             // move
             player.X = x;
             player.Y = y;
-
-            if (player.Id == Human.Id)
-            {
-                WindowX = x;
-                WindowY = y;
-            }
+            player.Z = z;
 
             // add them back
             AddItem(player);
@@ -660,8 +693,6 @@ namespace engine.Common
         private float ZoomFactor;
         private ISounds Sounds;
         private Map Map;
-        private float WindowX;
-        private float WindowY;
         private Dictionary<int, PlayerDetails> Details;
         private Menu Menu;
         private WorldConfiguration Config;
@@ -743,7 +774,7 @@ namespace engine.Common
                     }
 
                     // move over
-                    Teleport(detail.Player, detail.Player.X + xmove, detail.Player.Y);
+                    Teleport(detail.Player, detail.Player.X + xmove, detail.Player.Y, detail.Player.Z);
                 }
                 while (count-- > 0);
 
@@ -1018,30 +1049,137 @@ namespace engine.Common
         }
 
         // support
-        private bool TranslateCoordinates(bool autoScale, float x, float y, float width, float height, float other, out float tx, out float ty, out float twidth, out float theight, out float tother)
+        private bool TranslateCoordinates(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out bool isOnScreen, out float twidth, out float theight, out float tother)
         {
             // transform the world x,y coordinates into scaled and screen coordinates
             tx = ty = twidth = theight = tother = 0;
+            isOnScreen = true;
 
-            float zoom = (autoScale) ? ZoomFactor : 1;
+            if (!Config.Is3D)
+            {
+                float zoom = (autoScale) ? ZoomFactor : 1;
 
-            // determine scaling factor
-            float scale = (1 / zoom);
-            width *= zoom;
-            height *= zoom;
+                // determine scaling factor
+                float scale = (1 / zoom);
+                width *= zoom;
+                height *= zoom;
 
-            // Surface.Width & Surface.Height are the current windows width & height
-            float windowHWidth = Surface.Width / 2.0f;
-            float windowHHeight = Surface.Height / 2.0f;
+                // Surface.Width & Surface.Height are the current windows width & height
+                float windowHWidth = Surface.Width / 2.0f;
+                float windowHHeight = Surface.Height / 2.0f;
 
-            // now translate to the window
-            tx = ((x - WindowX) * zoom) + windowHWidth;
-            ty = ((y - WindowY) * zoom) + windowHHeight;
-            twidth = width;
-            theight = height;
-            tother = other * zoom;
+                // now translate to the window
+                tx = ((x - Human.X) * zoom) + windowHWidth;
+                ty = ((y - Human.Y) * zoom) + windowHHeight;
+                twidth = width;
+                theight = height;
+                tother = other * zoom;
+            }
+
+            // if (Config.Is3D)
+            else
+            {
+                // translate to 0,0,0 (origin)
+                // TODO use a camera delta to accomodate the camera not being in the center of gravity
+                x -= Human.X;
+                y -= Human.Y;
+                z -= Human.Z;
+
+                // turn first
+                YRotate(Human.Angle, ref x, ref y, ref z);
+
+                // tilt head
+                XRotate(Human.PitchAngle, ref x, ref y, ref z);
+
+                // scale
+                var zoom = (autoScale) ? Scale(Config.HorizonZ*2, ref x, ref y, ref z) : 1;
+                twidth = width - (width * zoom);
+                theight = height - (height * zoom);
+                tother = other - (other * zoom);
+
+                // Surface.Width & Surface.Height are the current windows width & height
+                float windowHWidth = Surface.Width / 2.0f;
+                float windowHHeight = Surface.Height / 2.0f;
+
+                // now translate to the window
+                tx = x + windowHWidth;
+                ty = y + windowHHeight;
+
+                // determine if this point is out of view
+                // simple (eg. z is behind the player)
+                if (z > 0) isOnScreen = false;
+            }
 
             return true;
+        }
+
+        public static float Scale(float maxZ, ref float x, ref float y, ref float z)
+        {
+            // ratio
+            var ratio = (-1 * z) / maxZ;
+
+            // delta for aspect ratio
+            var dx = Math.Abs(x) * ratio;
+            var dy = Math.Abs(y) * ratio;
+
+            if (x < 0) x += dx;
+            else x -= dx;
+
+            if (y < 0) y += dy;
+            else y -= dy;
+
+            return ratio;
+        }
+
+        // pitch (head tip)
+        private static void XRotate(float angle, ref float x, ref float y, ref float z)
+        {
+            // https://en.wikipedia.org/wiki/Rotation_matrix
+
+            // rotate
+            var radians = angle * (Math.PI / 180);
+
+            var cosa = (float)Math.Cos(radians);
+            var sina = (float)Math.Sin(radians);
+
+            var nx = (1 * x) + (0 * y) + (0 * z);
+            var ny = (0 * x) + (cosa * y) - (sina * z);
+            var nz = (0 * x) + (sina * y) + (cosa * z);
+
+            x = nx;
+            y = ny;
+            z = nz;
+        }
+
+        // yaw (turn)
+        private static void YRotate(float angle,  ref float x, ref float y, ref float z)
+        {
+            // https://en.wikipedia.org/wiki/Rotation_matrix
+
+            // rotate
+            var radians = angle * (Math.PI / 180);
+
+            var cosa = (float)Math.Cos(radians);
+            var sina = (float)Math.Sin(radians);
+
+            var nx = (cosa * x) + (0 * y) + (sina * z);
+            var ny = (0 * x) + (1 * y) + (0 * z);
+            var nz = (sina * x * -1) + (0 * y) + (cosa * z);
+
+            x = nx;
+            y = ny;
+            z = nz;
+        }
+
+        private static void DirectionByAngle(float angle, out float x, out float y)
+        {
+            // get line based on angle
+            Collision.CalculateLineByAngle(x: 0, y: 0, angle, 1f, out float x1, out float y1, out x, out y);
+
+            // normalize
+            var sum = (Math.Abs(x) + Math.Abs(y));
+            x /= sum;
+            y /= sum;
         }
 
         private void AddEphemerialElement(EphemerialElement element)
@@ -1167,13 +1305,6 @@ namespace engine.Common
                 // the move completed
                 if (touching != null) throw new Exception("There should not be an object touching");
 
-                if (player.Id == Human.Id)
-                {
-                    // move the screen
-                    WindowX += xdelta;
-                    WindowY += ydelta;
-                }
-
                 return true;
             }
             else
@@ -1184,12 +1315,6 @@ namespace engine.Common
                 // TODO may want to move back a bit in the opposite direction
                 return false;
             }
-        }
-
-        private void Turn(Player player, float angle)
-        {
-            if (player.IsDead) return;
-            player.Angle = angle;
         }
 
         private bool Jump(Player player)

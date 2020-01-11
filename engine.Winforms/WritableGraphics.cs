@@ -63,7 +63,7 @@ namespace engine.Winforms
             float swidth = width;
             float sheight = height;
             float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, width, height, thickness, out sx, out sy, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x = y = width = height = thickness = 0;
@@ -88,7 +88,7 @@ namespace engine.Winforms
             float swidth = width;
             float sheight = height;
             float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, width, height, thickness, out sx, out sy, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x = y = width = height = thickness = 0;
@@ -121,9 +121,10 @@ namespace engine.Winforms
             float swidth = 0;
             float sheight = 0;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, width, height, thickness, out sx1, out sy1, out swidth, out sheight, out sthickness)) return;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, width, height, other, out sx2, out sy2, out swidth, out sheight, out sother)) return;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x3, y3, width, height, other, out sx3, out sy3, out swidth, out sheight, out sother)) return;
+            bool isOnScreen;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out isOnScreen, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, z: Constants.Ground, width, height, other, out sx2, out sy2, out isOnScreen, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x3, y3, z: Constants.Ground, width, height, other, out sx3, out sy3, out isOnScreen, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x1 = y1 = x2 = y2 = x3 = y3 = thickness = 0;
@@ -153,7 +154,7 @@ namespace engine.Winforms
             float swidth = 0;
             float sheight = 0;
             float sfontsize = fontsize;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, 0, 0, fontsize, out sx, out sy, out swidth, out sheight, out sfontsize)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, 0, 0, fontsize, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sfontsize)) return;
 
             // safe guard accidental usage
             x = y = fontsize = 0;
@@ -171,7 +172,8 @@ namespace engine.Winforms
             float swidth = width;
             float sheight = height;
             float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, width, height, thickness, out sx1, out sy1, out swidth, out sheight, out sthickness)) return;
+            bool isOnScreen;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out isOnScreen, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x1 = y1 = thickness = 0;
@@ -179,12 +181,53 @@ namespace engine.Winforms
             float sx2 = x2;
             float sy2 = y2;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, width, height, 0, out sx2, out sy2, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, z: Constants.Ground, width, height, 0, out sx2, out sy2, out isOnScreen, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x2 = y2 = 0;
 
             Graphics.DrawLine(GetCachedPen(color, sthickness), sx1, sy1, sx2, sy2);
+        }
+
+        public void Polygon(RGBA color, Common.Point[] points, bool fill = true)
+        {
+            if (points == null || points.Length <= 1) throw new Exception("Must provide a valid number of points");
+
+            var localPoints = new System.Drawing.PointF[points.Length];
+
+            // translate each point into the System.Drawing structure
+            float thickness = 5f;
+            float sthickness = thickness;
+            var numOffScreen = 0;
+            for(int i=0; i<points.Length; i++)
+            {
+                float sx = points[i].X;
+                float sy = points[i].Y;
+                float sz = points[i].Z;
+                bool isOnScreen = true;
+
+                // translate
+                if (Translate != null && DoTranslation && !Translate(DoScaling, points[i].X, points[i].Y, points[i].Z, width: 0, height: 0, thickness, out sx, out sy, out isOnScreen, out float swidth, out float sheight, out sthickness)) return;
+
+                // convert to type
+                localPoints[i] = new System.Drawing.PointF(sx, sy);
+
+                // count if this is offscreen
+                if (!isOnScreen) numOffScreen++;
+            }
+
+            // check if all the points of this polygon are off screen then do not show it
+            if (numOffScreen == points.Length) return;
+
+            if (fill)
+            {
+                Graphics.FillPolygon(GetCachedSolidBrush(color), localPoints);
+                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), localPoints);
+            }
+            else
+            {
+                Graphics.DrawPolygon(GetCachedPen(color, sthickness), localPoints);
+            }
         }
 
         public void Image(string path, float x, float y, float width = 0, float height = 0)
@@ -196,7 +239,7 @@ namespace engine.Winforms
             float swidth = width == 0 ? img.Width : width;
             float sheight = height == 0 ? img.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, swidth, sheight, 0, out sx, out sy, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;
@@ -216,7 +259,7 @@ namespace engine.Winforms
             float swidth = width == 0 ? bitmap.Width : width;
             float sheight = height == 0 ? bitmap.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, swidth, sheight, 0, out sx, out sy, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;
@@ -241,7 +284,7 @@ namespace engine.Winforms
             float swidth = width == 0 ? img.Width : width;
             float sheight = height == 0 ? img.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, swidth, sheight, 0, out sx, out sy, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out bool isOnScreen, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;

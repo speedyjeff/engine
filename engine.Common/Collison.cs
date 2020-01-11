@@ -85,8 +85,8 @@ namespace engine.Common
         
         public static bool CalculateLineByAngle(float x, float y, float angle, float distance, out float x1, out float y1, out float x2, out float y2)
         {
-            if (angle < 0) angle *= -1;
-            angle = angle % 360;
+            while (angle < 0) angle += 360;
+            while (angle > 360) angle -= 360;
 
             x1 = x;
             y1 = y;

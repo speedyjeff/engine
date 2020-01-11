@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace engine.Common.Entities
+namespace engine.Common
 {
     public class Element
     {
@@ -13,6 +13,8 @@ namespace engine.Common.Entities
         public float X { get; set; }
         public float Y { get; set; }
         public float Z { get; set; }
+
+        // yaw
         public float Angle
         {
             get
@@ -21,9 +23,23 @@ namespace engine.Common.Entities
             }
             set
             {
-                if (value < 0) value *= -1;
-                while (value > 360) value = value % 360;
+                while (value < 0) value += 360;
+                while (value >= 360) value -= 360;
                 _angle = value;
+            }
+        }
+        // pitch
+        public float PitchAngle
+        {
+            get
+            {
+                return _pitchAngle;
+            }
+            set
+            {
+                while (value < 0) value += 360;
+                while (value >= 360) value -= 360;
+                _pitchAngle = value;
             }
         }
 
@@ -119,6 +135,7 @@ namespace engine.Common.Entities
         private float PreviousShield;
 
         private float _angle;
+        private float _pitchAngle;
         private static int NextId = 0;
         private static int GetNextId()
         {

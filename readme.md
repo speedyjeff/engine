@@ -128,6 +128,7 @@ public struct ActionDetails
     public bool InZone;
     public float XDelta;
     public float YDelta;
+    public float ZDelta;
     public float Angle;
 }
 
@@ -145,6 +146,7 @@ public event Func<Player, ActionEnum, bool> OnAfterAction;
 
 public int Width { get; }
 public int Height {  get; }
+public int Depth { get; }
 
 public Player Human { get; }
 public int Alive { get; }
@@ -155,28 +157,28 @@ public void RemoveItem(Element item);
 public void Play(string path);
 public void Music(string path, bool repeat);
 public void ShowMenu(Menu menu);
-public void Teleport(Player player, float x, float y);
+public void Teleport(Player player, float x, float y, float z);
 ```
 
 There are a default set of key bindings which can be overridden by subscribing to OnBeforeKeyPressed.
 
-Key(s) | Action
--------|-------
-`s` `S` `arrow:down` | y-axis + 1
-`a` `A` `arrow:left` | x-axis - 1
-`d` `D` `arrow:right` | x-axis + 1
-`w` `W` `arrow:up` | y-axis + 1
+Key(s) | Action (2d) | Action (3d)
+-------|-------------|------------
+`s` `S` `arrow:down` | y-axis + 1 | x-z axis relative to Angle
+`a` `A` `arrow:left` | x-axis - 1 | x-z axis relative to Angle
+`d` `D` `arrow:right` | x-axis + 1 | x-z axis relative to Angle
+`w` `W` `arrow:up` | y-axis + 1 | x-z axis relative to Angle
+`z` `Z` | z-axis - 1 | z-axis - 1
+`c` `C` | z-axis + 1 | z-axis + 1
 `1` | switch primary
 `q` `Q` `0` `2` | drop primary
 `r` `R` `mouse:middle click` | reload
 `space` `mouse:left' | attack
 `j` `J` | jump
-`mouse:right` | move in angle created by the mouse
+`mouse:right` | x-y axis relative to Angle | x-z axis relative to Angle
 `esc` | Show/dismiss menu
 
 #### Board
-
-<tbd>
 
 ```C#
 public struct BoardConfiguration
@@ -283,13 +285,14 @@ public enum ActionEnum
   Move
 };
 
-public virtual ActionEnum Action(List<Element> elements, float angleToCenter, bool inZone, ref float xdelta, ref float ydelta, ref float angle)
+public virtual ActionEnum Action(List<Element> elements, float angleToCenter, bool inZone, ref float xdelta, ref float ydelta, ref float zdelta, ref float angle)
 {
   // [in] elements - A list of all elements within the window of view
   // [in] angleToCenter - An angle that points towards the center of the world
   // [in] inZone - An indicator if the background is delivering damage
-  // [out] xdelta - Delta to move left(-) and right(+): Between -1...1 (where |xdelta|+|ydelta|==1)
-  // [out] ydelta - Delta to move up(-) and down(+): Between -1...1 (where |xdelta|+|ydelta|==1)
+  // [out] xdelta - Delta to move left(-) and right(+): Between -1...1 (where |xdelta|+|ydelta|+|zdelta|<=1)
+  // [out] ydelta - Delta to move up(-) and down(+): Between -1...1 (where |xdelta|+|ydelta|+|zdelta|<=1)
+  // [out] zdelta - Delta to move towards(+) and away (-1): Between -1...1 (where |xdelta|+|ydelta|+|zdelta|<=1)
   // [out] angle - Direction to point
   return ActionEnum.None;
 }
