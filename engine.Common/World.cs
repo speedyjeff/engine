@@ -23,12 +23,14 @@ namespace engine.Common
         public bool EnableZoom;
         public bool DisplayStats;
         public bool ShowCoordinates;
-        public bool ApplyForces;
+        public int ForcesAppied;
         public float HorizonX;
         public float HorizonY;
         public float HorizonZ;
         public bool Is3D;
     }
+
+    public enum Forces { None = 0, X = 1, Y = 2, Z = 4};
 
     public class World : IUserInteraction
     {
@@ -562,7 +564,7 @@ namespace engine.Common
                 }
 
                 // setup humans and AI
-                if (item is AI || Config.ApplyForces)
+                if (item is AI || Config.ForcesAppied > 0)
                 {
                     details.UpdatePlayerTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
                 }
@@ -921,91 +923,97 @@ namespace engine.Common
                 if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
             }
 
+            bool inAir = false;
+            int retries;
+            float dist;
+            float pace;
+
             // apply forces, if necessary
-            if (Config.ApplyForces && detail.Player.CanMove)
+            if (Config.ForcesAppied > 0 && detail.Player.CanMove)
             {
-                bool inAir = false;
-                int retries;
-                float dist;
-                float pace;
-
                 // apply upward force
-                if (detail.Player.YForcePercentage > 0)
+                if ((Config.ForcesAppied & (int)Forces.Y) > 0)
                 {
-                    retries = 3;
-                    pace = Constants.YForcePace;
-                    dist = -1 * detail.Player.YForcePercentage;
-                    do
+                    if (detail.Player.YForcePercentage > 0)
                     {
-                        // degrade the y delta
-                        detail.Player.YForcePercentage -= Constants.YForceDegrade;
-                        if (detail.Player.YForcePercentage < 0) detail.Player.YForcePercentage = 0;
-
-                        // apply
-                        if (Move(detail.Player, xdelta: 0, ydelta: dist, zdelta: 0, pace))
+                        retries = 3;
+                        pace = Constants.YForcePace;
+                        dist = -1 * detail.Player.YForcePercentage;
+                        do
                         {
-                            inAir = true;
-                            break;
+                            // degrade the y delta
+                            detail.Player.YForcePercentage -= Constants.YForceDegrade;
+                            if (detail.Player.YForcePercentage < 0) detail.Player.YForcePercentage = 0;
+
+                            // apply
+                            if (Move(detail.Player, xdelta: 0, ydelta: dist, zdelta: 0, pace: pace))
+                            {
+                                inAir = true;
+                                break;
+                            }
+
+                            // we are too close, reduce how far we try
+                            dist /= 2;
+                            pace /= 2;
                         }
-
-                        // we are too close, reduce how far we try
-                        dist /= 2;
-                        pace /= 2;
+                        while (retries-- > 0);
                     }
-                    while (retries-- > 0);
-                }
 
-                // apply downward force
-                else
-                {
-                    retries = 3;
-                    dist = 1;
-                    pace = Constants.YForcePace;
-                    do
+                    // apply downward force
+                    else
                     {
-                        // apply
-                        if (Move(detail.Player, xdelta: 0, ydelta: dist, zdelta: 0, pace))
+                        retries = 3;
+                        dist = 1;
+                        pace = Constants.YForcePace;
+                        do
                         {
-                            inAir = true;
-                            break;
-                        }
+                            // apply
+                            if (Move(detail.Player, xdelta: 0, ydelta: dist, zdelta: 0, pace: pace))
+                            {
+                                inAir = true;
+                                break;
+                            }
 
-                        // we are too close, reduce how far we try
-                        dist /= 2;
-                        pace /= 2;
+                            // we are too close, reduce how far we try
+                            dist /= 2;
+                            pace /= 2;
+                        }
+                        while (retries-- > 0);
                     }
-                    while (retries-- > 0);
                 }
 
                 // apply a horizontal force, if necessary
-                if (inAir && detail.Player.XForcePercentage != 0)
+                if ((Config.ForcesAppied & (int)Forces.X) > 0)
                 {
-                    retries = 3;
-                    pace = Constants.XForcePace;
-                    dist = (detail.Player.XForcePercentage < 0) ? -1 : 1;
-                    do
+                    if (inAir && detail.Player.XForcePercentage != 0)
                     {
-                        // degrade the x delta
-                        if (detail.Player.XForcePercentage > 0)
+                        retries = 3;
+                        pace = Constants.XForcePace;
+                        dist = (detail.Player.XForcePercentage < 0) ? -1 : 1;
+                        do
                         {
-                            detail.Player.XForcePercentage -= Constants.XForceDegrade;
-                            if (detail.Player.XForcePercentage < 0)
-                                detail.Player.XForcePercentage = 0;
-                        }
-                        else if (detail.Player.XForcePercentage < 0)
-                        {
-                            detail.Player.XForcePercentage += Constants.XForceDegrade;
+                            // degrade the x delta
                             if (detail.Player.XForcePercentage > 0)
-                                detail.Player.XForcePercentage = 0;
-                        }
+                            {
+                                detail.Player.XForcePercentage -= Constants.XForceDegrade;
+                                if (detail.Player.XForcePercentage < 0)
+                                    detail.Player.XForcePercentage = 0;
+                            }
+                            else if (detail.Player.XForcePercentage < 0)
+                            {
+                                detail.Player.XForcePercentage += Constants.XForceDegrade;
+                                if (detail.Player.XForcePercentage > 0)
+                                    detail.Player.XForcePercentage = 0;
+                            }
 
-                        if (Move(detail.Player, xdelta: dist, ydelta: 0, zdelta: 0, pace))
-                            break;
-                        // we are too close, reduce how far we try
-                        dist /= 2;
-                        pace /= 2;
+                            if (Move(detail.Player, xdelta: dist, ydelta: 0, zdelta: 0, pace: pace))
+                                break;
+                            // we are too close, reduce how far we try
+                            dist /= 2;
+                            pace /= 2;
+                        }
+                        while (retries-- > 0);
                     }
-                    while (retries-- > 0);
                 }
             }
             timer.Stop();
@@ -1178,7 +1186,7 @@ namespace engine.Common
         private static void DirectionByAngle(float angle, out float x, out float y)
         {
             // get line based on angle
-            Collision.CalculateLineByAngle(x: 0, y: 0, angle, 1f, out float x1, out float y1, out x, out y);
+            Collision.CalculateLineByAngle(x: 0, y: 0, angle: angle, distance: 1f, out float x1, out float y1, out x, out y);
 
             // normalize
             var sum = (Math.Abs(x) + Math.Abs(y));
@@ -1327,7 +1335,7 @@ namespace engine.Common
         private bool Jump(Player player)
         {
             if (player.IsDead) return false;
-            if (!Config.ApplyForces) return false;
+            if ((Config.ForcesAppied & (int)Forces.Y) == 0) return false;
 
             // check that the player is touching something below them
             var xdelta = 0f;
