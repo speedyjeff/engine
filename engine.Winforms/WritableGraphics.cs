@@ -173,7 +173,6 @@ namespace engine.Winforms
             float swidth = width;
             float sheight = height;
             float sthickness = thickness;
-            bool isOnScreen;
             float sz;
             if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
 

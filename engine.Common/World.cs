@@ -563,22 +563,16 @@ namespace engine.Common
                     UniquePlayers.Add(item.Id);
                 }
 
+                if ((Config.ForcesAppied & (int)Forces.Z) > 0)
+                {
+                    // apply an initial Z force
+                    (item as Player).ZForcePercentage = Constants.ZForcePace;
+                }
+
                 // setup humans and AI
                 if (item is AI || Config.ForcesAppied > 0)
                 {
                     details.UpdatePlayerTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
-                }
-
-                if (!Config.Is3D)
-                {
-                    // check that the player is not above the sky
-                    if (item.Z > Constants.Sky) item.Z = Constants.Sky;
-
-                    // initialize parachute (if necessary)
-                    if (item.Z > Constants.Ground)
-                    {
-                        details.ParachuteTimer = new Timer(PlayerParachute, item.Id, 0, Constants.GlobalClock);
-                    }
                 }
             }
         }
@@ -691,10 +685,8 @@ namespace engine.Common
         class PlayerDetails
         {
             public Player Player;
-            public Timer ParachuteTimer;
             public Timer UpdatePlayerTimer;
             public int UpdatePlayerLock; // to avoid reentrancy in the timer
-            public int PlayerParachuteLock; // to avoid reentrancy in the timer
         }
 
         private IGraphics Surface;
@@ -730,82 +722,6 @@ namespace engine.Common
             }
 
             Map.IsPaused = false;
-        }
-
-        // callbacks to support time lapse actions
-        private void PlayerParachute(object state)
-        {
-            // block usage if a menu is being displayed
-            if (Map.IsPaused) return;
-
-            // execute the parachute
-            int id = (int)state;
-
-            // grab the details
-            PlayerDetails detail = null;
-            lock (Details)
-            {
-                if (!Details.TryGetValue(id, out detail))
-                {
-                    // the player must be dead and caused the record to be cleaned up
-                    return;
-                }
-            }
-
-            // the timer is reentrant, so only allow one instance to run
-            if (System.Threading.Interlocked.CompareExchange(ref detail.PlayerParachuteLock, 1, 0) != 0) return;
-
-            if (detail.Player.Z <= Constants.Ground)
-            {
-                // ensure the player is on the ground
-                detail.Player.Z = Constants.Ground;
-                detail.ParachuteTimer.Dispose();
-
-                // check if the player is touching an object, if so then move
-                int count = 100;
-                float xstep = 0.01f;
-                float xmove = 10f;
-                if (detail.Player.X > Map.Width / 2)
-                {
-                    // move the other way
-                    xstep *= -1;
-                    xmove *= -1;
-                }
-                do
-                {
-                    // check that we are in a safe place to land
-                    float xdelta = xstep;
-                    float ydelta = 0;
-                    float zdelta = 0;
-                    if (Move(detail.Player, xdelta, ydelta, zdelta, Constants.DefaultPace))
-                    {
-                        break;
-                    }
-
-                    // move over
-                    Teleport(detail.Player, detail.Player.X + xmove, detail.Player.Y, detail.Player.Z);
-                }
-                while (count-- > 0);
-
-                if (count <= 0)
-                {
-                    System.Diagnostics.Debug.WriteLine("Failed to move after parachute");
-                }
-
-                return;
-            }
-
-            // decend
-            detail.Player.Z -= (Constants.ZoomStep/10);
-
-            if (detail.Player.Id == Human.Id)
-            {
-                // zoom in
-                ZoomFactor += (Constants.ZoomStep / 10);
-            }
-
-            // set state back to not running
-            System.Threading.Volatile.Write(ref detail.PlayerParachuteLock, 0);
         }
 
         // AI and other updates for players
@@ -923,22 +839,19 @@ namespace engine.Common
                 if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
             }
 
-            bool inAir = false;
-            int retries;
-            float dist;
-            float pace;
-
             // apply forces, if necessary
             if (Config.ForcesAppied > 0 && detail.Player.CanMove)
             {
+                bool inAir = false;
+
                 // apply upward force
                 if ((Config.ForcesAppied & (int)Forces.Y) > 0)
                 {
                     if (detail.Player.YForcePercentage > 0)
                     {
-                        retries = 3;
-                        pace = Constants.YForcePace;
-                        dist = -1 * detail.Player.YForcePercentage;
+                        var retries = 3;
+                        var pace = Constants.YForcePace;
+                        var dist = -1 * detail.Player.YForcePercentage;
                         do
                         {
                             // degrade the y delta
@@ -962,9 +875,9 @@ namespace engine.Common
                     // apply downward force
                     else
                     {
-                        retries = 3;
-                        dist = 1;
-                        pace = Constants.YForcePace;
+                        var retries = 3;
+                        var dist = 1;
+                        var pace = Constants.YForcePace;
                         do
                         {
                             // apply
@@ -987,9 +900,9 @@ namespace engine.Common
                 {
                     if (inAir && detail.Player.XForcePercentage != 0)
                     {
-                        retries = 3;
-                        pace = Constants.XForcePace;
-                        dist = (detail.Player.XForcePercentage < 0) ? -1 : 1;
+                        var retries = 3;
+                        var pace = Constants.XForcePace;
+                        var dist = (detail.Player.XForcePercentage < 0) ? -1 : 1;
                         do
                         {
                             // degrade the x delta
@@ -1013,6 +926,65 @@ namespace engine.Common
                             pace /= 2;
                         }
                         while (retries-- > 0);
+                    }
+                }
+
+                // apply z force, if necessary
+                if ((Config.ForcesAppied & (int)Forces.Z) > 0)
+                {
+                    if (detail.Player.ZForcePercentage != 0)
+                    {
+                        if (detail.Player.Z <= Constants.Ground)
+                        {
+                            // ensure the player is on the ground
+                            detail.Player.Z = Constants.Ground;
+                            detail.Player.ZForcePercentage = 0f;
+
+                            // check if the player is touching an object, if so then move
+                            int count = 100;
+                            float xstep = 0.01f;
+                            float xmove = 10f;
+                            if (detail.Player.X > Map.Width / 2)
+                            {
+                                // move the other way
+                                xstep *= -1;
+                                xmove *= -1;
+                            }
+                            do
+                            {
+                                // check that we are in a safe place to land
+                                float xdelta = xstep;
+                                float ydelta = 0;
+                                float zdelta = 0;
+                                if (Move(detail.Player, xdelta, ydelta, zdelta, Constants.DefaultPace))
+                                {
+                                    break;
+                                }
+
+                                // move over
+                                Teleport(detail.Player, detail.Player.X + xmove, detail.Player.Y, detail.Player.Z);
+                            }
+                            while (count-- > 0);
+
+                            if (count <= 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine("Failed to move after ZForce");
+                            }
+                        }
+
+                        // decend
+                        else
+                        {
+                            // move downward
+                            var step = (Constants.ZoomStep / 10f);
+                            Move(detail.Player, xdelta: 0f, ydelta: 0f, zdelta: -1 * (step / Constants.Speed), pace: 1f);
+
+                            if (detail.Player.Id == Human.Id)
+                            {
+                                // zoom in
+                                ZoomFactor += step;
+                            }
+                        }
                     }
                 }
             }

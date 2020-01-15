@@ -66,6 +66,9 @@ namespace engine.Common
         public const float XForceDegrade = YForceDegrade / 2f;
         public const float XForcePace = 1f;
 
+        public const float ZForceDegrade = 0f;
+        public const float ZForcePace = 1f;
+
         // world options
         public const float DefaultPace = 0f; // causes it to be collected from background
         public const float MaxZoomIn = 10f;

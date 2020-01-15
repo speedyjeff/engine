@@ -42,8 +42,9 @@ namespace engine.Common.Entities
 
         public int Ranking { get; set; }
 
-        public float YForcePercentage { get; set; }
         public float XForcePercentage { get; set; }
+        public float YForcePercentage { get; set; }
+        public float ZForcePercentage { get; set; }
 
         public float MaxYForcePercentage { get; protected set; }
 
