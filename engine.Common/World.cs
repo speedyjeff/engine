@@ -876,7 +876,7 @@ namespace engine.Common
                     else
                     {
                         var retries = 3;
-                        var dist = 1;
+                        var dist = 1f;
                         var pace = Constants.YForcePace;
                         do
                         {
@@ -902,7 +902,7 @@ namespace engine.Common
                     {
                         var retries = 3;
                         var pace = Constants.XForcePace;
-                        var dist = (detail.Player.XForcePercentage < 0) ? -1 : 1;
+                        var dist = (detail.Player.XForcePercentage < 0) ? -1f : 1f;
                         do
                         {
                             // degrade the x delta
