@@ -383,5 +383,5 @@ private void InitializeComponent()
 * Tree
 * Wedge
 
-Additional objects can be created via the engine.ConvertObj tool using output from ![Microsoft 3D Builder](https://www.microsoft.com/en-us/p/3d-builder/9wzdncrfj3t6).
+Additional objects can be created via the engine.ConvertObj tool using output from Microsoft 3D Builder https://www.microsoft.com/en-us/p/3d-builder/9wzdncrfj3t6.
 

@@ -1,6 +1,6 @@
 # Conversion tool
 
-![Microsoft 3D Builder](https://www.microsoft.com/en-us/p/3d-builder/9wzdncrfj3t6) can produce out that can be converted into 3D Elements for this game engine.  This tool converts the `.obj` format into code that can be used to add new 3D objects.
+Microsoft 3D Builder https://www.microsoft.com/en-us/p/3d-builder/9wzdncrfj3t6 can produce out that can be converted into 3D Elements for this game engine.  This tool converts the `.obj` format into code that can be used to add new 3D objects.
 
 ## Getting Started
 
