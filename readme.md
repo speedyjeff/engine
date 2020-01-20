@@ -15,7 +15,7 @@ git submodule update
 ```
 
 ### Samples
-![samples](https://github.com/speedyjeff/engine/blob/master/Samples/Winforms/samplecontrols.png)
+![samples](https://github.com/speedyjeff/engine/blob/master/Samples/Winforms/samplecontrols.png)
 
 Check out [sample controls](/Samples) for examples on how to get started.
 
@@ -118,7 +118,11 @@ public struct WorldConfiguration
   public bool EnableZoom;     // not available in 3D
   public bool DisplayStats;
   public bool ShowCoordinates;
-  public bool ApplyForces;
+  public bool ForcesApplied;
+  public float HorizonX;
+  public float HorizonY;
+  public float HorizonZ;
+  public bool Is3D;           // enables 3D
 }
 
 public struct ActionDetails
@@ -170,11 +174,11 @@ Key(s) | Action (2d) | Action (3d)
 `w` `W` `arrow:up` | y-axis + 1 | x-z axis relative to Angle
 `z` `Z` | z-axis - 1 | z-axis - 1
 `c` `C` | z-axis + 1 | z-axis + 1
-`1` | switch primary
-`q` `Q` `0` `2` | drop primary
+`1` | switch primary | ...
+`q` `Q` `0` `2` | drop primary | ...
 `r` `R` `mouse:middle click` | reload
 `space` `mouse:left' | attack
-`j` `J` | jump
+`j` `J` | jump | ...
 `mouse:right` | x-y axis relative to Angle | x-z axis relative to Angle
 `esc` | Show/dismiss menu
 
@@ -321,3 +325,63 @@ There are a few special types of Acquirable Objects:
 * Health - Increases the players health
 * RangeWeapon - This is a weapon that can shot and hit a target from afar
 * Shield - Increases the players shield
+
+
+#### 3D
+3D support is early but has basic drawing capabilities.  There is no shading or collision detection (yet).
+
+##### 3D Example
+```C#
+using engine.Common;
+using engine.Common.Entities3D;
+
+private UIHookup UI;
+
+private void InitializeComponent()
+{
+  ...
+  this.Width = 1024;
+  this.Height = 800;
+  // setting a double buffer eliminates the flicker
+  this.DoubleBuffered = true;
+
+  // basic green background
+  var width = 10000;
+  var height = 800;
+  var background = new Background(width, height) { GroundColor = new RGBA { R = 100, G = 255, B = 100, A =   255 } };
+  // put the player in the middle
+  var players = new Player[]
+    {
+      new Player3D() { Name = "YoBro", X = 0, Y = 0 }
+    };
+  // any objects to interact with
+  Element[] objects = new Element[] { new Tree() { Width = 100, Height = 100, Depth = 100, WireFrame = true } };
+  var world = new World(
+    new WorldConfiguration()
+    {
+      Width = width,
+      Height = height,
+      Is3D = true
+    }, 
+    players, 
+    objects,
+    background
+  );
+  // start the UI painting
+  UI = new UIHookup(this, world);
+}  // InitializeComponent
+```
+
+##### 3D Objects
+* Cone
+* Cube
+* Cylinder
+* Hexagon
+* Pyramid
+* Sphere
+* Torus
+* Tree
+* Wedge
+
+Additional objects can be created via the engine.ConvertObj tool using output from ![Microsoft 3D Builder](https://www.microsoft.com/en-us/p/3d-builder/9wzdncrfj3t6).
+

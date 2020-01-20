@@ -56,7 +56,7 @@ namespace engine.Common
         void EnableTranslation();
 
         // 3D support
-        void Polygon(RGBA color, Point[] points, bool fill = true);
+        void Polygon(RGBA color, Point[] points, bool fill = true, bool border = false, float thickness = 5f);
         void CapturePolygons();
         void RenderPolygons();
 

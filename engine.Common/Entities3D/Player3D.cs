@@ -6,9 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Flyover3D
+namespace engine.Common.Entities3D
 {
-    class FirstPerson : Player
+    public class Player3D : Player
     {
         public override void Draw(IGraphics g)
         {

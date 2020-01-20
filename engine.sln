@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TopDownPlatformer", "Sample
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flyover3D", "Samples\Winforms\Flyover3D\Flyover3D.csproj", "{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.ConvertObj", "engine.ConvertObj\engine.ConvertObj.csproj", "{EF5C698A-0AE2-4EC1-A063-8624E607A6DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,6 +69,10 @@ Global
 		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF5C698A-0AE2-4EC1-A063-8624E607A6DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF5C698A-0AE2-4EC1-A063-8624E607A6DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF5C698A-0AE2-4EC1-A063-8624E607A6DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF5C698A-0AE2-4EC1-A063-8624E607A6DD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

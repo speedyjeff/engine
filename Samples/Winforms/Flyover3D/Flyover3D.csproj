@@ -46,8 +46,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Cube.cs" />
-    <Compile Include="FirstPerson.cs" />
     <Compile Include="Flyover3D.cs">
       <SubType>Form</SubType>
     </Compile>

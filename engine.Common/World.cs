@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 using engine.Common.Entities;
 using engine.Common.Entities.AI;
+using engine.Common.Entities3D;
 
 namespace engine.Common
 {
@@ -23,7 +24,7 @@ namespace engine.Common
         public bool EnableZoom;
         public bool DisplayStats;
         public bool ShowCoordinates;
-        public int ForcesAppied;
+        public int ForcesApplied;
         public float HorizonX;
         public float HorizonY;
         public float HorizonZ;
@@ -96,6 +97,9 @@ namespace engine.Common
             // graphics
             Surface = surface;
             Surface.SetTranslateCoordinates(TranslateCoordinates);
+
+            // 3D shaders
+            Element3D.SetShader(Element3DShader);
 
             // sounds
             Sounds = sounds;
@@ -563,14 +567,14 @@ namespace engine.Common
                     UniquePlayers.Add(item.Id);
                 }
 
-                if ((Config.ForcesAppied & (int)Forces.Z) > 0)
+                if ((Config.ForcesApplied & (int)Forces.Z) > 0)
                 {
                     // apply an initial Z force
                     (item as Player).ZForcePercentage = Constants.ZForcePace;
                 }
 
                 // setup humans and AI
-                if (item is AI || Config.ForcesAppied > 0)
+                if (item is AI || Config.ForcesApplied > 0)
                 {
                     details.UpdatePlayerTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
                 }
@@ -840,12 +844,12 @@ namespace engine.Common
             }
 
             // apply forces, if necessary
-            if (Config.ForcesAppied > 0 && detail.Player.CanMove)
+            if (Config.ForcesApplied > 0 && detail.Player.CanMove)
             {
                 bool inAir = false;
 
                 // apply upward force
-                if ((Config.ForcesAppied & (int)Forces.Y) > 0)
+                if ((Config.ForcesApplied & (int)Forces.Y) > 0)
                 {
                     if (detail.Player.YForcePercentage > 0)
                     {
@@ -896,7 +900,7 @@ namespace engine.Common
                 }
 
                 // apply a horizontal force, if necessary
-                if ((Config.ForcesAppied & (int)Forces.X) > 0)
+                if ((Config.ForcesApplied & (int)Forces.X) > 0)
                 {
                     if (inAir && detail.Player.XForcePercentage != 0)
                     {
@@ -930,7 +934,7 @@ namespace engine.Common
                 }
 
                 // apply z force, if necessary
-                if ((Config.ForcesAppied & (int)Forces.Z) > 0)
+                if ((Config.ForcesApplied & (int)Forces.Z) > 0)
                 {
                     if (detail.Player.ZForcePercentage != 0)
                     {
@@ -1036,6 +1040,22 @@ namespace engine.Common
         }
 
         // support
+        private RGBA Element3DShader(Element3D elem, Point[] points, RGBA color)
+        {
+            // validate
+            if (points == null || elem == null) throw new Exception("Invalid input to shader");
+
+            // todo - shade appropriately
+            var avgY = points.Average(p => p.Y);
+            var ratio = 1 - ((elem.Y - (elem.Height / 2)) - (avgY * elem.Height)) / elem.Height;
+
+            color.R = (byte)(color.R * ratio);
+            color.G = (byte)(color.G * ratio);
+            color.B = (byte)(color.B * ratio);
+
+            return color;
+        }
+
         private bool TranslateCoordinates(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother)
         {
             // transform the world x,y coordinates into scaled and screen coordinates
@@ -1073,13 +1093,16 @@ namespace engine.Common
                 z -= Human.Z;
 
                 // turn first
-                YRotate(Human.Angle, ref x, ref y, ref z);
+                Utilities3D.Yaw(Human.Angle, ref x, ref y, ref z);
 
                 // tilt head
-                XRotate(Human.PitchAngle, ref x, ref y, ref z);
+                Utilities3D.Pitch(Human.PitchAngle, ref x, ref y, ref z);
+
+                // todo - roll
+                //Utilities3D.Roll(0f, ref x, ref y, ref z);
 
                 // scale
-                var zoom = (autoScale) ? Scale(Config.HorizonZ*2, ref x, ref y, ref z) : 1;
+                var zoom = (autoScale) ? Utilities3D.Perspective(Config.HorizonZ*2, ref x, ref y, ref z) : 1;
                 twidth = width - (width * zoom);
                 theight = height - (height * zoom);
                 tother = other - (other * zoom);
@@ -1095,64 +1118,6 @@ namespace engine.Common
             }
 
             return true;
-        }
-
-        public static float Scale(float maxZ, ref float x, ref float y, ref float z)
-        {
-            // ratio
-            var ratio = (-1 * z) / maxZ;
-
-            // delta for aspect ratio
-            var dx = Math.Abs(x) * ratio;
-            var dy = Math.Abs(y) * ratio;
-
-            if (x < 0) x += dx;
-            else x -= dx;
-
-            if (y < 0) y += dy;
-            else y -= dy;
-
-            return ratio;
-        }
-
-        // pitch (head tip)
-        private static void XRotate(float angle, ref float x, ref float y, ref float z)
-        {
-            // https://en.wikipedia.org/wiki/Rotation_matrix
-
-            // rotate
-            var radians = angle * (Math.PI / 180);
-
-            var cosa = (float)Math.Cos(radians);
-            var sina = (float)Math.Sin(radians);
-
-            var nx = (1 * x) + (0 * y) + (0 * z);
-            var ny = (0 * x) + (cosa * y) - (sina * z);
-            var nz = (0 * x) + (sina * y) + (cosa * z);
-
-            x = nx;
-            y = ny;
-            z = nz;
-        }
-
-        // yaw (turn)
-        private static void YRotate(float angle,  ref float x, ref float y, ref float z)
-        {
-            // https://en.wikipedia.org/wiki/Rotation_matrix
-
-            // rotate
-            var radians = angle * (Math.PI / 180);
-
-            var cosa = (float)Math.Cos(radians);
-            var sina = (float)Math.Sin(radians);
-
-            var nx = (cosa * x) + (0 * y) + (sina * z);
-            var ny = (0 * x) + (1 * y) + (0 * z);
-            var nz = (sina * x * -1) + (0 * y) + (cosa * z);
-
-            x = nx;
-            y = ny;
-            z = nz;
         }
 
         private static void DirectionByAngle(float angle, out float x, out float y)
@@ -1307,7 +1272,7 @@ namespace engine.Common
         private bool Jump(Player player)
         {
             if (player.IsDead) return false;
-            if ((Config.ForcesAppied & (int)Forces.Y) == 0) return false;
+            if ((Config.ForcesApplied & (int)Forces.Y) == 0) return false;
 
             // check that the player is touching something below them
             var xdelta = 0f;

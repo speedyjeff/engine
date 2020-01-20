@@ -88,7 +88,7 @@ namespace engine.Samples.Winforms
                     Height = height,
                     EnableZoom = true,
                     ShowCoordinates = true,
-                    ApplyForces = true
+                    ForcesApplied = (int)(Forces.Y)
                 },
                 players,
                 obstacles.ToArray(),

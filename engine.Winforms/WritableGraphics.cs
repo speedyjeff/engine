@@ -268,14 +268,13 @@ namespace engine.Winforms
 
         // 3d support
 
-        public void Polygon(RGBA color, Common.Point[] points, bool fill = true)
+        public void Polygon(RGBA color, Common.Point[] points, bool fill = false, bool border = false, float thickness = 5f)
         {
             if (points == null || points.Length <= 1) throw new Exception("Must provide a valid number of points");
 
             var localPoints = (_CapturePolygons) ? null : new System.Drawing.PointF[points.Length];
 
             // translate each point into the System.Drawing structure
-            float thickness = 5f;
             float sthickness = thickness;
             for (int i = 0; i < points.Length; i++)
             {
@@ -293,7 +292,9 @@ namespace engine.Winforms
                 {
                     Color = color,
                     Points = points,
-                    Fill = fill
+                    Fill = fill,
+                    Border = border,
+                    Thickness = sthickness
                 });
                 return;
             }
@@ -301,7 +302,7 @@ namespace engine.Winforms
             if (fill)
             {
                 Graphics.FillPolygon(GetCachedSolidBrush(color), localPoints);
-                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), localPoints);
+                if (border) Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), localPoints);
             }
             else
             {
@@ -328,7 +329,7 @@ namespace engine.Winforms
             {
                 foreach (var polygon in Poloygons.OrderBy(p => p.FurthestZ()))
                 {
-                    Polygon(polygon.Color, polygon.Points, polygon.Fill);
+                    Polygon(polygon.Color, polygon.Points, polygon.Fill, polygon.Border, polygon.Thickness);
                 }
             }
             EnableTranslation();
@@ -364,7 +365,9 @@ namespace engine.Winforms
         {
             public RGBA Color;
             public bool Fill;
+            public bool Border;
             public Common.Point[] Points;
+            public float Thickness;
 
             public float FurthestZ()
             {
