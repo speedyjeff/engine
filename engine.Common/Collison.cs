@@ -149,12 +149,136 @@ namespace engine.Common
             return false;
         }
 
+        public static bool IntersectingTriangles(Point p1, Point q1, Point r1, Point p2, Point q2, Point r2)
+        {
+            // https://gamedev.stackexchange.com/questions/88060/triangle-triangle-intersection-code
+            if (OrientTriangle(p1, q1, r1) < 0.0f)
+            {
+                if (OrientTriangle(p2, q2, r2) < 0.0f) return IsTriangleIntersection(p1, r1, q1, p2, r2, q2);
+
+                return IsTriangleIntersection(p1, r1, q1, p2, q2, r2);
+            }
+
+            if (OrientTriangle(p2, q2, r2) < 0.0f) return IsTriangleIntersection(p1, q1, r1, p2, r2, q2);
+
+            return IsTriangleIntersection(p1, q1, r1, p2, q2, r2);
+        }
+
         #region private
+
+        #region lines
+        // https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool CalcCcw(float x1, float y1, float x2, float y2, float x3, float y3)
         {
             return (y3 - y1) * (x2 - x1) > (y2 - y1) * (x3 - x1);
         }
+        #endregion
+
+        #region triangles
+        // https://gamedev.stackexchange.com/questions/88060/triangle-triangle-intersection-code
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static float OrientTriangle(Point a, Point b, Point c)
+        {
+            return ((a.X - c.X) * (b.Y - c.Y) - (a.Y - c.Y) * (b.X - c.X));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsTriangleIntersection(Point p1, Point q1, Point r1,
+                        Point p2, Point q2, Point r2)
+        {
+            if (OrientTriangle(p2, q2, p1) >= 0.0f)
+            {
+                if (OrientTriangle(q2, r2, p1) >= 0.0f)
+                {
+                    if (OrientTriangle(r2, p2, p1) >= 0.0f) return true;
+
+                    return IsTriangleEdgeIntersection(p1, q1, r1, p2, q2, r2);
+                }
+
+                if (OrientTriangle(r2, p2, p1) >= 0.0f) return IsTriangleEdgeIntersection(p1, q1, r1, r2, p2, q2);
+
+                return IsTriangleVertexIntersection(p1, q1, r1, p2, q2, r2);
+            }
+            else if (OrientTriangle(q2, r2, p1) >= 0.0f)
+            {
+                if (OrientTriangle(r2, p2, p1) >= 0.0f) return IsTriangleEdgeIntersection(p1, q1, r1, q2, r2, p2);
+
+                return IsTriangleVertexIntersection(p1, q1, r1, q2, r2, p2);
+            }
+
+            return IsTriangleVertexIntersection(p1, q1, r1, r2, p2, q2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsTriangleVertexIntersection(Point p1, Point q1, Point r1, Point p2, Point q2, Point r2)
+        {
+            if (OrientTriangle(r2, p2, q1) >= 0.0f)
+            {
+                if (OrientTriangle(r2, q2, q1) <= 0.0f)
+                {
+                    if (OrientTriangle(p1, p2, q1) > 0.0f)
+                    {
+                        if (OrientTriangle(p1, q2, q1) <= 0.0f) return true;
+                    }
+                    else if (OrientTriangle(p1, p2, r1) >= 0.0f)
+                    {
+                        if (OrientTriangle(q1, r1, p2) >= 0.0f) return true;
+                    }
+                }
+                else
+                {
+                    if (OrientTriangle(p1, q2, q1) <= 0.0f)
+                    {
+                        if (OrientTriangle(r2, q2, r1) <= 0.0f)
+                        {
+                            if (OrientTriangle(q1, r1, q2) >= 0.0f) return true;
+                        }
+                    }
+                }
+            }
+            else if (OrientTriangle(r2, p2, r1) >= 0.0f)
+            {
+                if (OrientTriangle(q1, r1, r2) >= 0.0f)
+                {
+                    if (OrientTriangle(p1, p2, r1) >= 0.0f) return true;
+                }
+                else if (OrientTriangle(q1, r1, q2) >= 0.0f)
+                {
+                    if (OrientTriangle(r2, r1, q2) >= 0.0f) return true;
+                }
+            }
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsTriangleEdgeIntersection(Point p1, Point q1, Point r1, Point p2, Point q2, Point r2)
+        {
+            if (OrientTriangle(r2, p2, q1) >= 0.0f)
+            {
+                if (OrientTriangle(p1, p2, q1) >= 0.0f)
+                {
+                    if (OrientTriangle(p1, q1, r2) >= 0.0f) return true;
+                }
+                else if (OrientTriangle(q1, r1, p2) >= 0.0f)
+                {
+                    if (OrientTriangle(r1, p1, p2) >= 0.0f) return true;
+                }
+            }
+            else if (OrientTriangle(r2, p2, r1) >= 0.0f)
+            {
+                if (OrientTriangle(p1, p2, r1) >= 0.0f)
+                {
+                    if (OrientTriangle(p1, r1, r2) >= 0.0f) return true;
+                    else if (OrientTriangle(q1, r1, r2) >= 0.0f) return true;
+                }
+            }
+
+            return false;
+        }
+        #endregion
+
         #endregion
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace engine.Common
 {
@@ -34,6 +35,36 @@ namespace engine.Common
             Y = y;
             Z = z;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Point Subtract(Point a, Point b)
+        {
+            return new Point()
+            {
+                X = a.X - b.X,
+                Y = a.Y - b.Y,
+                Z = a.Z - b.Z
+            };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Point Product(Point a, Point b)
+        {
+            // https://sciencing.com/plane-3-points-8123924.html
+            return new Point()
+            {
+                X = ((a.Y * b.Z) - (a.Z * b.Y)),
+                Y = ((a.Z * b.X) - (a.X * b.Z)),
+                Z = ((a.X * b.Y) - (a.Y * b.X))
+            };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Dot(Point a, Point b)
+        {
+            return (a.X * b.X) + (a.Y * b.Y) + (a.Z * b.Z);
+        }
+
     }
 
     public delegate bool TranslateCoordinatesDelegate(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother);

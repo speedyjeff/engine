@@ -58,6 +58,7 @@
     <Compile Include="Collision\Quad.cs" />
     <Compile Include="Collision\DistanceToObject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utilities3D\IntersectingTriangles.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
