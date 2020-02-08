@@ -38,7 +38,7 @@ namespace engine.Common
             {
                 if (x3 <= x1 && x4 >= x2) return true;
             }
-            else if (y3 < y1 && x3 < x1 && y4 > y2 && x4 > x2) return true;
+            else if (y3 <= y1 && x3 <= x1 && y4 >= y2 && x4 >= x2) return true;
 
             return false;
         }

@@ -257,34 +257,48 @@ namespace engine.Common.Entities3D
 
             // Projection of the triangles in 3D onto 2D such that the area of
             // the projection is maximized.
+            var P1 = new Point();
+            var Q1 = new Point();
+            var R1 = new Point();
+            var P2 = new Point();
+            var Q2 = new Point();
+            var R2 = new Point();
 
             if ((n_x > n_z) && (n_x >= n_y))
             {
                 // Project onto plane YZ
-                p1.X = q1.Z; p1.Y = q1.Y;
-                q1.X = p1.Z; q1.Y = p1.Y;
-                r1.X = r1.Z;
+                P1.X = q1.Z; P1.Y = q1.Y;
+                Q1.X = p1.Z; Q1.Y = p1.Y;
+                R1.X = r1.Z; R1.Y = r1.Y;
 
-                p2.X = q2.Z; p2.Y = q2.Y;
-                q2.X = p2.Z; q2.Y = p2.Y;
-                r2.X = r2.Z;
+                P2.X = q2.Z; P2.Y = q2.Y;
+                Q2.X = p2.Z; Q2.Y = p2.Y;
+                R2.X = r2.Z; R2.Y = r2.Y;
             }
             else if ((n_y > n_z) && (n_y >= n_x))
             {
                 // Project onto plane XZ
-                p1.X = q1.X; p1.Y = q1.Z;
-                q1.X = p1.X; q1.Y = p1.Z;
+                P1.X = q1.X; P1.Y = q1.Z;
+                Q1.X = p1.X; Q1.Y = p1.Z;
+                R1.X = r1.X; R1.Y = r1.Z;
 
-                p2.X = q2.X; p2.Y = q2.Z;
-                q2.X = p2.X; q2.Y = p2.Z;
-                r2.Y = r2.Z;
+                P2.X = q2.X; P2.Y = q2.Z;
+                Q2.X = p2.X; Q2.Y = p2.Z;
+                R2.X = r2.X; R2.Y = r2.Z;
             }
             else
             {
                 // Project onto plane XY
+                P1.X = p1.X; P1.Y = p1.Y;
+                Q1.X = q1.X; Q1.Y = q1.Y;
+                R1.X = r1.X; R1.Y = r1.Y;
+
+                P2.X = p2.X; P2.Y = p2.Y;
+                Q2.X = q2.X; Q2.Y = q2.Y;
+                R2.X = r2.X; R2.Y = r2.Y;
             }
 
-            return Collision.IntersectingTriangles(p1, q1, r1, p2, q2, r2);
+            return Collision.IntersectingTriangles(P1, Q1, R1, P2, Q2, R2);
         }
         #endregion
 

@@ -123,6 +123,23 @@ namespace engine.Common.Tests
 		}
 
 		[TestMethod]
+		public void NotTouching()
+		{
+			// realworld example
+			var a = new Point() { X = -25, Y = -50, Z = 234 };
+			var b = new Point() { X = -25, Y = -50, Z = 284 };
+			var c = new Point() { X = 25, Y = -50, Z = 284 };
+
+			var x = new Point() { X = -117, Y = -50, Z = 0 };
+			var y = new Point() { X = 26, Y = -50, Z = -45 };
+			var z = new Point() { X = -48, Y = -50, Z = -30 };
+
+			var collision = Common.Entities3D.Utilities3D.IntersectingTriangles(a, b, c, x, y, z); // false
+
+			Assert.IsFalse(collision, "NotTouching failed");
+		}
+
+		[TestMethod]
 		public void RotateTest()
 		{
 			var p1 = new Point() { X = 5, Y = 5, Z = 0 };
