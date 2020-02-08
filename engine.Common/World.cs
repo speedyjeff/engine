@@ -552,22 +552,29 @@ namespace engine.Common
 
         public void AddItem(Element item)
         {
+            // do not add a dead item
+            if (item.IsDead) return;
+
             Map.AddItem(item);
 
             if (item is Player)
             {
-                var details = new PlayerDetails() { Player = (item as Player) };
-
                 // add another alive player
                 Alive++;
 
+                PlayerDetails details = null;
                 lock (Details)
                 {
-                    // add to the set
+                    // try to get this player
+                    if (Details.ContainsKey(item.Id)) return;
+
+                    // add it
+                    details = new PlayerDetails() { Player = (item as Player) };
                     Details.Add(item.Id, details);
                     UniquePlayers.Add(item.Id);
                 }
 
+                // finish configuration (if this is the first time)
                 if ((Config.ForcesApplied & (int)Forces.Z) > 0)
                 {
                     // apply an initial Z force
@@ -631,9 +638,12 @@ namespace engine.Common
                 Human.Ranking = Alive;
 
                 // clean up the dead players
-                lock (Details)
+                if (player.IsDead)
                 {
-                    Details.Remove(player.Id);
+                    lock (Details)
+                    {
+                        Details.Remove(player.Id);
+                    }
                 }
             }
             else throw new Exception("Invalid item to remove");

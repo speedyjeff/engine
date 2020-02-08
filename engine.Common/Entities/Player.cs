@@ -24,7 +24,7 @@ namespace engine.Common.Entities
             // hit box
             Height = 50;
             Width = 50;
-            Depth = 50;
+            Depth = 0;
 
             // special melee
             Fists = new Tool() { Distance = (int)Width, Damage = 5 };

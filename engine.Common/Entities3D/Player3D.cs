@@ -13,6 +13,11 @@ namespace engine.Common.Entities3D
         public bool ShowTarget { get; set; }
         public Element3D Body { get; set; }
 
+        public Player3D()
+        {
+            Depth = Math.Max(Width, Height);
+        }
+
         public override void Draw(IGraphics g)
         {
             if (ShowTarget)
