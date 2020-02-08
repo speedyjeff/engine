@@ -55,7 +55,8 @@ namespace engine.Common
             UniquePlayers = new HashSet<int>();
 
             // setup map
-            Map = new Map(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
+            if (config.Is3D) Map = new Map3D(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
+            else Map = new Map(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
 
             // hook up map callbacks
             Map.OnEphemerialEvent += AddEphemerialElement;

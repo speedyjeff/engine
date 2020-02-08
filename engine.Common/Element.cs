@@ -14,35 +14,6 @@ namespace engine.Common
         public float Y { get; set; }
         public float Z { get; set; }
 
-        // yaw
-        public float Angle
-        {
-            get
-            {
-                return _angle;
-            }
-            set
-            {
-                while (value < 0) value += 360;
-                while (value >= 360) value -= 360;
-                _angle = value;
-            }
-        }
-        // pitch
-        public float PitchAngle
-        {
-            get
-            {
-                return _pitchAngle;
-            }
-            set
-            {
-                while (value < 0) value += 360;
-                while (value >= 360) value -= 360;
-                _pitchAngle = value;
-            }
-        }
-
         // bounds (hit box)
         public float Height { get; set; }
         public float Width { get; set; }
@@ -97,7 +68,7 @@ namespace engine.Common
             }
         }
 
-        public void Move(float xDelta, float yDelta, float zDelta)
+        public virtual void Move(float xDelta, float yDelta, float zDelta)
         {
             X += xDelta;
             Y += yDelta;
@@ -134,8 +105,6 @@ namespace engine.Common
         private float PreviousHealth;
         private float PreviousShield;
 
-        private float _angle;
-        private float _pitchAngle;
         private static int NextId = 0;
         private static int GetNextId()
         {

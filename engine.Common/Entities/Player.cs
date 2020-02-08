@@ -24,6 +24,7 @@ namespace engine.Common.Entities
             // hit box
             Height = 50;
             Width = 50;
+            Depth = 50;
 
             // special melee
             Fists = new Tool() { Distance = (int)Width, Damage = 5 };
@@ -49,6 +50,35 @@ namespace engine.Common.Entities
         public float MaxYForcePercentage { get; protected set; }
 
         public virtual string HurtSoundPath => "hurt";
+
+        // yaw
+        public float Angle
+        {
+            get
+            {
+                return _angle;
+            }
+            set
+            {
+                while (value < 0) value += 360;
+                while (value >= 360) value -= 360;
+                _angle = value;
+            }
+        }
+        // pitch
+        public float PitchAngle
+        {
+            get
+            {
+                return _pitchAngle;
+            }
+            set
+            {
+                while (value < 0) value += 360;
+                while (value >= 360) value -= 360;
+                _pitchAngle = value;
+            }
+        }
 
         public override void Draw(IGraphics g)
         {
@@ -221,5 +251,10 @@ namespace engine.Common.Entities
         public virtual void Feedback(ActionEnum action, object item, bool result)
         {
         }
+
+        #region private
+        private float _angle;
+        private float _pitchAngle;
+        #endregion
     }
 }

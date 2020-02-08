@@ -52,6 +52,7 @@
     <Compile Include="Entities3D\Cylinder.cs" />
     <Compile Include="Entities3D\Element3D.cs" />
     <Compile Include="Entities3D\Hexagon.cs" />
+    <Compile Include="Entities3D\Map3D.cs" />
     <Compile Include="Entities3D\Player3D.cs" />
     <Compile Include="Entities3D\Pyramid.cs" />
     <Compile Include="Entities3D\Sphere.cs" />

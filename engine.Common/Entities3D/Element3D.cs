@@ -21,6 +21,11 @@ namespace engine.Common.Entities3D
         // turn on color shading
         public bool DisableShading { get; set; }
 
+        public Element3D()
+        {
+            IsSolid = true;
+        }
+
         public override void Draw(IGraphics g)
         {
             // check if shaders should be applied

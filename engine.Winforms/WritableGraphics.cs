@@ -276,10 +276,14 @@ namespace engine.Winforms
 
             // translate each point into the System.Drawing structure
             float sthickness = thickness;
+            float minz = Single.MaxValue;
             for (int i = 0; i < points.Length; i++)
             {
                 // translate
                 if (Translate != null && DoTranslation && !Translate(DoScaling, points[i].X, points[i].Y, points[i].Z, width: 0, height: 0, thickness, out points[i].X, out points[i].Y, out points[i].Z, out float swidth, out float sheight, out sthickness)) return;
+
+                // track the furthestZ for sorting
+                if (points[i].Z < minz) minz = points[i].Z;
 
                 // convert to type
                 if (localPoints != null) localPoints[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
@@ -294,7 +298,8 @@ namespace engine.Winforms
                     Points = points,
                     Fill = fill,
                     Border = border,
-                    Thickness = sthickness
+                    Thickness = sthickness,
+                    MinZ = minz
                 });
                 return;
             }
@@ -324,10 +329,13 @@ namespace engine.Winforms
             // stop capturing
             _CapturePolygons = false;
 
+            // sort the Z's from back to front
+            Poloygons.Sort(SortPolygonsByZ);
+
             // disable translation as it has already been done
             DisableTranslation(nonScaledTranslation: false);
             {
-                foreach (var polygon in Poloygons.OrderBy(p => p.FurthestZ()))
+                foreach (var polygon in Poloygons)
                 {
                     Polygon(polygon.Color, polygon.Points, polygon.Fill, polygon.Border, polygon.Thickness);
                 }
@@ -368,20 +376,22 @@ namespace engine.Winforms
             public bool Border;
             public Common.Point[] Points;
             public float Thickness;
-
-            public float FurthestZ()
-            {
-                if (Points == null || Points.Length == 0) return float.MinValue;
-                var minZ = float.MaxValue;
-                for(int i=0; i<Points.Length; i++) 
-                {
-                    if (Points[i].Z < minZ) minZ = Points[i].Z;
-                }
-                return minZ;
-            }
+            public float MinZ;
         }
         private bool _CapturePolygons;
         private List<PolygonDetails> Poloygons;
+        private static PolygonComparer SortPolygonsByZ = new PolygonComparer();
+
+        class PolygonComparer : IComparer<PolygonDetails>
+        {
+            public int Compare(PolygonDetails x, PolygonDetails y)
+            {
+                // sort the z's from back to front
+                if (x.MinZ < y.MinZ) return -1;
+                else if (y.MinZ < x.MinZ) return 1;
+                else return 0;
+            }
+        }
 
         // caches
         private Dictionary<string, Image> ImageCache;

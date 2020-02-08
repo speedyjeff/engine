@@ -9,26 +9,11 @@ namespace engine.Common
 {
     class Map
     {
+        public Map() { }
+
         public Map(int width, int height, int depth, Element[] objects, Background background)
         {
-            if (width <= 0 || height <= 0 || depth <= 0) throw new Exception("Must specific a valid Width, Height, and Depth");
-            if (background == null) throw new Exception("Must create a background");
-
-            // init
-            Width = width;
-            Height = height;
-            Depth = depth;
-            Background = background;
-            Locks = new Dictionary<int, object>();
-            LocksLock = new ReaderWriterLockSlim();
-
-            // seperate the items from the obstacles (used to reduce what is considered, and for ordering)
-            var obstacles = (objects != null) ? objects.Where(o => !o.CanAcquire) : new List<Element>();
-            var items = (objects != null) ? objects.Where(o => o.CanAcquire) : new List<Element>();
-
-            // add all things to the map
-            Obstacles = new RegionCollection(obstacles, Width, Height, Depth);
-            Items = new RegionCollection(items, Width, Height, Depth);
+            Initialize(width: width, height: height, depth: depth, objects: objects, background: background);
         }
 
         public int Width { get; private set; }
@@ -354,6 +339,28 @@ namespace engine.Common
         private RegionCollection Items;
         private ReaderWriterLockSlim LocksLock;
         private Dictionary<int, object> Locks;
+
+        protected void Initialize(int width, int height, int depth, Element[] objects, Background background)
+        {
+            if (width <= 0 || height <= 0 || depth <= 0) throw new Exception("Must specific a valid Width, Height, and Depth");
+            if (background == null) throw new Exception("Must create a background");
+
+            // init
+            Width = width;
+            Height = height;
+            Depth = depth;
+            Background = background;
+            Locks = new Dictionary<int, object>();
+            LocksLock = new ReaderWriterLockSlim();
+
+            // seperate the items from the obstacles (used to reduce what is considered, and for ordering)
+            var obstacles = (objects != null) ? objects.Where(o => !o.CanAcquire) : new List<Element>();
+            var items = (objects != null) ? objects.Where(o => o.CanAcquire) : new List<Element>();
+
+            // add all things to the map
+            Obstacles = new RegionCollection(obstacles, Width, Height, Depth);
+            Items = new RegionCollection(items, Width, Height, Depth);
+        }
 
         protected virtual bool TrackAttackTrajectory(Player player, Tool weapon, out List<Element> hit, out List<ShotTrajectory> trajectories)
         {
