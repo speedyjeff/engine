@@ -9,6 +9,19 @@ namespace engine.Common.Entities3D
 {
     public static class Utilities3D
     {
+        static Utilities3D()
+        {
+            // populate the cos/sin caches (reduces the cost of recalcuating the values over and over again)
+            CosCache = new float[360];
+            SinCache = new float[360];
+            for (int angle=0; angle<360; angle++)
+            {
+                var radians = angle * (Math.PI / 180);
+                CosCache[angle] = (float)Math.Cos(radians);
+                SinCache[angle] = (float)Math.Sin(radians);
+            }
+        }
+
         // scale and apply perspective
         // assumes that the coordinates are normalized with z increasing into the screen
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -38,10 +51,8 @@ namespace engine.Common.Entities3D
             // https://en.wikipedia.org/wiki/Rotation_matrix
 
             // rotate
-            var radians = angle * (Math.PI / 180);
-
-            var cosa = (float)Math.Cos(radians);
-            var sina = (float)Math.Sin(radians);
+            var cosa = CosCache[(int)angle];
+            var sina = SinCache[(int)angle];
 
             var nx = (1 * x) + (0 * y) + (0 * z);
             var ny = (0 * x) + (cosa * y) - (sina * z);
@@ -60,10 +71,8 @@ namespace engine.Common.Entities3D
             // https://en.wikipedia.org/wiki/Rotation_matrix
 
             // rotate
-            var radians = angle * (Math.PI / 180);
-
-            var cosa = (float)Math.Cos(radians);
-            var sina = (float)Math.Sin(radians);
+            var cosa = CosCache[(int)angle];
+            var sina = SinCache[(int)angle];
 
             var nx = (cosa * x) + (0 * y) + (sina * z);
             var ny = (0 * x) + (1 * y) + (0 * z);
@@ -81,11 +90,8 @@ namespace engine.Common.Entities3D
         {
             // https://en.wikipedia.org/wiki/Rotation_matrix
 
-            // rotate
-            var radians = angle * (Math.PI / 180);
-
-            var cosa = (float)Math.Cos(radians);
-            var sina = (float)Math.Sin(radians);
+            var cosa = CosCache[(int)angle];
+            var sina = SinCache[(int)angle];
 
             var nx = (cosa * x) - (sina * y) + (0 * z);
             var ny = (sina * x) + (cosa * y) + (0 * z);
@@ -178,6 +184,9 @@ namespace engine.Common.Entities3D
         }
 
         #region private
+
+        private static float[] CosCache;
+        private static float[] SinCache;
 
         #region triangles
         // https://gamedev.stackexchange.com/questions/88060/triangle-triangle-intersection-code
