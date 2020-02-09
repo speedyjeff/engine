@@ -67,7 +67,9 @@ namespace engine.Common
 
     }
 
-    public delegate bool TranslateCoordinatesDelegate(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother);
+    public delegate bool TranslateCoordinatesDelegate(TranslationOptions options, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother);
+
+    public enum TranslationOptions { None = 0, Translation = 1, Scaling = 2, RotaionYaw = 4, RotationPitch = 8, Default = 0xfff};
 
     public interface IGraphics
     {
@@ -83,7 +85,7 @@ namespace engine.Common
         void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0);
 
         // support to not project to screen coordinates
-        void DisableTranslation(bool nonScaledTranslation=false);
+        void DisableTranslation(TranslationOptions options=0);
         void EnableTranslation();
 
         // 3D support

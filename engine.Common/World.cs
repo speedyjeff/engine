@@ -1067,14 +1067,14 @@ namespace engine.Common
             return color;
         }
 
-        private bool TranslateCoordinates(bool autoScale, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother)
+        private bool TranslateCoordinates(TranslationOptions options, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother)
         {
             // transform the world x,y coordinates into scaled and screen coordinates
             tx = ty = tz = twidth = theight = tother = 0;
 
             if (!Config.Is3D)
             {
-                float zoom = (autoScale) ? ZoomFactor : 1;
+                float zoom = ((options & TranslationOptions.Scaling) != 0) ? ZoomFactor : 1;
 
                 // determine scaling factor
                 float scale = (1 / zoom);
@@ -1104,16 +1104,16 @@ namespace engine.Common
                 z -= Human.Z;
 
                 // turn first
-                Utilities3D.Yaw(Human.Angle, ref x, ref y, ref z);
+                if ((options & TranslationOptions.RotaionYaw) != 0) Utilities3D.Yaw(Human.Angle, ref x, ref y, ref z);
 
                 // tilt head
-                Utilities3D.Pitch(Human.PitchAngle, ref x, ref y, ref z);
+                if ((options & TranslationOptions.RotationPitch) != 0) Utilities3D.Pitch(Human.PitchAngle, ref x, ref y, ref z);
 
                 // todo - roll
                 //Utilities3D.Roll(0f, ref x, ref y, ref z);
 
                 // scale
-                var zoom = (autoScale) ? Utilities3D.Perspective(Config.HorizonZ*2, ref x, ref y, ref z) : 1;
+                var zoom = ((options & TranslationOptions.Scaling) != 0) ? Utilities3D.Perspective(Config.HorizonZ*2, ref x, ref y, ref z) : 1;
                 twidth = width - (width * zoom);
                 theight = height - (height * zoom);
                 tother = other - (other * zoom);

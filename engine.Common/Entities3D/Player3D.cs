@@ -29,8 +29,13 @@ namespace engine.Common.Entities3D
                 }
                 g.EnableTranslation();
             }
-            // TODO the body should use the same angle as the parent
-            if (Body != null) Body.Draw(g);
+            if (Body != null)
+            {
+                g.DisableTranslation(TranslationOptions.Translation | TranslationOptions.Scaling | TranslationOptions.RotationPitch);
+                {
+                    Body.Draw(g);
+                };
+            }
         }
 
         public override void Move(float xDelta, float yDelta, float zDelta)

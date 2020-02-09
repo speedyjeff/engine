@@ -22,6 +22,7 @@ namespace engine.Winforms
             SolidBrushCache = new Dictionary<int, SolidBrush>();
             PenCache = new Dictionary<long, Pen>();
             ArialFontCache = new Dictionary<float, Font>();
+            Options = TranslationOptions.Default;
 
             // get graphics ready
             if (Context != null)
@@ -64,7 +65,7 @@ namespace engine.Winforms
             float swidth = width;
             float sheight = height;
             float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out float sz, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out float sz, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x = y = width = height = thickness = 0;
@@ -89,7 +90,7 @@ namespace engine.Winforms
             float swidth = width;
             float sheight = height;
             float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out float sz, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out float sz, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x = y = width = height = thickness = 0;
@@ -123,9 +124,9 @@ namespace engine.Winforms
             float sheight = 0;
             float sother = 0;
             float sz;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, z: Constants.Ground, width, height, other, out sx2, out sy2, out sz, out swidth, out sheight, out sother)) return;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x3, y3, z: Constants.Ground, width, height, other, out sx3, out sy3, out sz, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x2, y2, z: Constants.Ground, width, height, other, out sx2, out sy2, out sz, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x3, y3, z: Constants.Ground, width, height, other, out sx3, out sy3, out sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x1 = y1 = x2 = y2 = x3 = y3 = thickness = 0;
@@ -155,7 +156,7 @@ namespace engine.Winforms
             float swidth = 0;
             float sheight = 0;
             float sfontsize = fontsize;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, 0, 0, fontsize, out sx, out sy, out float sz, out swidth, out sheight, out sfontsize)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, 0, 0, fontsize, out sx, out sy, out float sz, out swidth, out sheight, out sfontsize)) return;
 
             // safe guard accidental usage
             x = y = fontsize = 0;
@@ -174,7 +175,7 @@ namespace engine.Winforms
             float sheight = height;
             float sthickness = thickness;
             float sz;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
 
             // safe guard accidental usage
             x1 = y1 = thickness = 0;
@@ -182,7 +183,7 @@ namespace engine.Winforms
             float sx2 = x2;
             float sy2 = y2;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x2, y2, z: Constants.Ground, width, height, 0, out sx2, out sy2, out sz, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x2, y2, z: Constants.Ground, width, height, 0, out sx2, out sy2, out sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x2 = y2 = 0;
@@ -199,7 +200,7 @@ namespace engine.Winforms
             float swidth = width == 0 ? img.Width : width;
             float sheight = height == 0 ? img.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;
@@ -219,7 +220,7 @@ namespace engine.Winforms
             float swidth = width == 0 ? bitmap.Width : width;
             float sheight = height == 0 ? bitmap.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;
@@ -244,7 +245,7 @@ namespace engine.Winforms
             float swidth = width == 0 ? img.Width : width;
             float sheight = height == 0 ? img.Height : height;
             float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(DoScaling, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
+            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
 
             // safe guard accidental usage
             x = y = 0;
@@ -255,15 +256,14 @@ namespace engine.Winforms
 
         public void EnableTranslation()
         {
-            DoScaling = true;
+            Options = TranslationOptions.Default;
             DoTranslation = true;
         }
 
-        public void DisableTranslation(bool nonScaledTranslation)
+        public void DisableTranslation(TranslationOptions options)
         {
-            DoTranslation = false;
-            DoScaling = false;
-            if (nonScaledTranslation) DoTranslation = true;
+            DoTranslation = (options & TranslationOptions.Translation) != 0;
+            Options = options;
         }
 
         // 3d support
@@ -277,13 +277,15 @@ namespace engine.Winforms
             // translate each point into the System.Drawing structure
             float sthickness = thickness;
             float minz = Single.MaxValue;
+            float miny = Single.MaxValue;
             for (int i = 0; i < points.Length; i++)
             {
                 // translate
-                if (Translate != null && DoTranslation && !Translate(DoScaling, points[i].X, points[i].Y, points[i].Z, width: 0, height: 0, thickness, out points[i].X, out points[i].Y, out points[i].Z, out float swidth, out float sheight, out sthickness)) return;
+                if (Translate != null && DoTranslation && !Translate(Options, points[i].X, points[i].Y, points[i].Z, width: 0, height: 0, thickness, out points[i].X, out points[i].Y, out points[i].Z, out float swidth, out float sheight, out sthickness)) return;
 
                 // track the furthestZ for sorting
                 if (points[i].Z < minz) minz = points[i].Z;
+                if (points[i].Y < miny) miny = points[i].Y;
 
                 // convert to type
                 if (localPoints != null) localPoints[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
@@ -299,7 +301,8 @@ namespace engine.Winforms
                     Fill = fill,
                     Border = border,
                     Thickness = sthickness,
-                    MinZ = minz
+                    MinZ = minz,
+                    MinY = miny
                 });
                 return;
             }
@@ -333,7 +336,7 @@ namespace engine.Winforms
             Poloygons.Sort(SortPolygonsByZ);
 
             // disable translation as it has already been done
-            DisableTranslation(nonScaledTranslation: false);
+            DisableTranslation(TranslationOptions.None);
             {
                 foreach (var polygon in Poloygons)
                 {
@@ -366,7 +369,7 @@ namespace engine.Winforms
         private BufferedGraphicsContext Context;
         private TranslateCoordinatesDelegate Translate;
         private bool DoTranslation;
-        private bool DoScaling;
+        private TranslationOptions Options;
 
         // 3D support
         class PolygonDetails
@@ -377,6 +380,7 @@ namespace engine.Winforms
             public Common.Point[] Points;
             public float Thickness;
             public float MinZ;
+            public float MinY;
         }
         private bool _CapturePolygons;
         private List<PolygonDetails> Poloygons;
@@ -389,6 +393,10 @@ namespace engine.Winforms
                 // sort the z's from back to front
                 if (x.MinZ < y.MinZ) return -1;
                 else if (y.MinZ < x.MinZ) return 1;
+                // when z's are equal, sort by y's
+                else if (x.MinY < y.MinY) return -1;
+                else if (y.MinY < x.MinY) return 1;
+                // equal
                 else return 0;
             }
         }
