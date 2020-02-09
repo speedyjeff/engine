@@ -34,7 +34,8 @@ namespace engine.Common.Entities3D
                 g.DisableTranslation(TranslationOptions.Translation | TranslationOptions.Scaling | TranslationOptions.RotationPitch);
                 {
                     Body.Draw(g);
-                };
+                }
+                g.EnableTranslation();
             }
         }
 
