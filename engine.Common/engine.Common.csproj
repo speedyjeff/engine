@@ -55,6 +55,7 @@
     <Compile Include="Entities3D\Map3D.cs" />
     <Compile Include="Entities3D\Player3D.cs" />
     <Compile Include="Entities3D\Pyramid.cs" />
+    <Compile Include="Entities3D\Sheet.cs" />
     <Compile Include="Entities3D\Sphere.cs" />
     <Compile Include="Entities3D\Torus.cs" />
     <Compile Include="Entities3D\Tree.cs" />
