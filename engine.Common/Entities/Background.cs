@@ -14,6 +14,7 @@ namespace engine.Common.Entities
             IsSolid = false;
             CanAcquire = false;
             IsTransparent = false;
+            BasePace = 2;
 
             // dimensions
             Width = width;
@@ -25,6 +26,7 @@ namespace engine.Common.Entities
         }
 
         public RGBA GroundColor { get; set; }
+        public float BasePace { get; set; }
 
         public override void Draw(IGraphics g)
         {
@@ -38,7 +40,7 @@ namespace engine.Common.Entities
 
         public virtual float Pace(float x, float y)
         {
-            return 2;
+            return BasePace;
         }
 
         public virtual float Damage(float x, float y)
