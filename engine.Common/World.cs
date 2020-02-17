@@ -57,6 +57,7 @@ namespace engine.Common
             Alive = 0;
             UniquePlayers = new HashSet<int>();
             EphemerialLock = new ReaderWriterLockSlim();
+            DetailsLock = new ReaderWriterLockSlim();
 
             // setup map
             if (config.Is3D) Map = new Map3D(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
@@ -190,8 +191,9 @@ namespace engine.Common
                     // if the player is intersecting with this item, then do not display it
                     if (Map.IsTouching(Human, elem)) continue;
 
-                    lock (Details)
+                    try
                     {
+                        DetailsLock.EnterReadLock();
                         // check if one of the bots is hidden by this object
                         foreach (var detail in Details.Values)
                         {
@@ -209,7 +211,11 @@ namespace engine.Common
                                 }
                             }
                         }
-                    } // lock(Details)
+                    } 
+                    finally
+                    {
+                        DetailsLock.ExitReadLock();
+                    }
                 }
 
                 // draw
@@ -581,15 +587,28 @@ namespace engine.Common
                 Alive++;
 
                 PlayerDetails details = null;
-                lock (Details)
+                try
                 {
+                    DetailsLock.EnterUpgradeableReadLock();
                     // try to get this player
                     if (Details.ContainsKey(item.Id)) return;
 
-                    // add it
-                    details = new PlayerDetails() { Player = (item as Player) };
-                    Details.Add(item.Id, details);
-                    UniquePlayers.Add(item.Id);
+                    try
+                    {
+                        DetailsLock.EnterWriteLock();
+                        // add it
+                        details = new PlayerDetails() { Player = (item as Player) };
+                        Details.Add(item.Id, details);
+                        UniquePlayers.Add(item.Id);
+                    }
+                    finally
+                    {
+                        DetailsLock.ExitWriteLock();
+                    }
+                }
+                finally
+                {
+                    DetailsLock.ExitUpgradeableReadLock();
                 }
 
                 // finish configuration (if this is the first time)
@@ -612,8 +631,9 @@ namespace engine.Common
             // iterate through players and remove all of this type
             var toRemove = new List<Player>();
 
-            lock (Details)
+            try
             {
+                DetailsLock.EnterReadLock();
                 foreach (var detail in Details.Values)
                 {
                     if (detail.Player != null && detail.Player.GetType() == type)
@@ -621,6 +641,10 @@ namespace engine.Common
                         toRemove.Add(detail.Player);
                     }
                 }
+            }
+            finally
+            {
+                DetailsLock.ExitReadLock();
             }
 
             foreach (var player in toRemove)
@@ -658,9 +682,14 @@ namespace engine.Common
                 // clean up the dead players
                 if (player.IsDead)
                 {
-                    lock (Details)
+                    try
                     {
+                        DetailsLock.EnterWriteLock();
                         Details.Remove(player.Id);
+                    }
+                    finally
+                    {
+                        DetailsLock.ExitWriteLock();
                     }
                 }
             }
@@ -731,8 +760,10 @@ namespace engine.Common
         private Menu Menu;
         private WorldConfiguration Config;
         private Timer BackgroundTimer;
+        private int BackgroundLock;
         private HashSet<int> UniquePlayers;
         private ReaderWriterLockSlim EphemerialLock;
+        private ReaderWriterLockSlim DetailsLock;
 
         private const string NothingSoundPath = "nothing";
         private const string PickupSoundPath = "pickup";
@@ -770,13 +801,18 @@ namespace engine.Common
 
             // grab the details
             PlayerDetails detail = null;
-            lock (Details)
+            try
             {
+                DetailsLock.EnterReadLock();
                 if (!Details.TryGetValue(id, out detail))
                 {
                     // the player must be dead and caused the record to be cleaned up
                     return;
                 }
+            }
+            finally
+            {
+                DetailsLock.ExitReadLock();
             }
 
             // the timer is reentrant, so only allow one instance to run
@@ -1033,7 +1069,12 @@ namespace engine.Common
         private void BackgroundUpdate(object state)
         {
             if (Map.IsPaused) return;
-            var deceased = new List<Element>();
+
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            // the timer is reentrant, so only allow one instance to run
+            if (System.Threading.Interlocked.CompareExchange(ref BackgroundLock, 1, 0) != 0) return;
 
             // update the map
             Map.Background.Update();
@@ -1089,8 +1130,10 @@ namespace engine.Common
             }
 
             // apply any necessary damage to the players
-            lock (Details)
+            var deceased = new List<Element>();
+            try
             {
+                DetailsLock.EnterReadLock();
                 foreach (var detail in Details.Values)
                 {
                     if (detail.Player == null || detail.Player.IsDead) continue;
@@ -1106,6 +1149,10 @@ namespace engine.Common
                     }
                 }
             }
+            finally
+            {
+                DetailsLock.ExitReadLock();
+            }
 
             // notify the deceased
             foreach (var elem in deceased)
@@ -1117,6 +1164,13 @@ namespace engine.Common
                         Text = string.Format("Player {0} died in the zone", elem.Name)
                     });
             }
+
+            // set state back to not running
+            System.Threading.Volatile.Write(ref BackgroundLock, 0);
+
+            timer.Stop();
+
+            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**BackgroundUpdate Duration {0} ms", timer.ElapsedMilliseconds);
         }
 
         // support
@@ -1402,8 +1456,9 @@ namespace engine.Common
                 RemoveItem(element);
 
                 // track how many players are alive
-                lock (Details)
+                try
                 {
+                    DetailsLock.EnterReadLock();
                     var alive = 0;
                     foreach (var elem in Details.Values)
                     {
@@ -1411,6 +1466,10 @@ namespace engine.Common
                         alive++;
                     }
                     Alive = alive;
+                }
+                finally
+                {
+                    DetailsLock.ExitReadLock();
                 }
 
                 // callback

@@ -7,14 +7,12 @@ namespace engine.Common.Entities3D
 {
     public class ShotTrajectory3D : ShotTrajectory
     {
-        public float Z1 { get; set; }
-        public float Z2 { get; set; }
         public Element3D Body { get; set; }
 
         public ShotTrajectory3D(float x, float y, float z) : base()
         {
             Duration = 50;
-            BasePace = 4;
+            BasePace = 10;
             Health = 100;
             Width = Height = Depth = 10f;
             X = x;

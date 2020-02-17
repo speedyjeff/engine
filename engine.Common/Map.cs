@@ -104,7 +104,6 @@ namespace engine.Common
 
             if (pace == Constants.DefaultPace) pace = Background.Pace(elem.X, elem.Y);
             if (pace < Constants.MinSpeedMultiplier) pace = Constants.MinSpeedMultiplier;
-            if (pace > Constants.MaxSpeedMultiplier) pace = Constants.MaxSpeedMultiplier;
             float speed = Constants.Speed * pace;
 
             // check if the delta is legal

@@ -89,13 +89,15 @@ namespace engine.Common.Entities3D
             var y1 = 0f;
             var z1 = -1 * player.Depth;
             Utilities3D.Yaw(360f - player.Angle, ref x1, ref y1, ref z1);
-            Utilities3D.Pitch(player.PitchAngle, ref x1, ref y1, ref z1);
+            // todo - apply pitch
+            //Utilities3D.Pitch(player.PitchAngle, ref x1, ref y1, ref z1);
 
             var x2 = 0f;
             var y2 = 0f;
             var z2 = -1 * player.Depth * 4;
             Utilities3D.Yaw(360f - player.Angle, ref x2, ref y2, ref z2);
-            Utilities3D.Pitch(player.PitchAngle, ref x2, ref y2, ref z2);
+            // todo - apply pitch
+            //Utilities3D.Pitch(player.PitchAngle, ref x2, ref y2, ref z2);
 
             // add projectile
             trajectories.Add(new ShotTrajectory3D(x: player.X + x1, y: player.Y + y1, z: player.Z + z1)
