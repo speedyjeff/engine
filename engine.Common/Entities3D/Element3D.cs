@@ -68,7 +68,19 @@ namespace engine.Common.Entities3D
             OnShader = shader;
         }
 
-        // todo - rotate the element 
+        public void Rotate(float yaw, float pitch, float roll)
+        {
+            // iterate through all the points and apply the angle
+            for(int i=0; i<Polygons.Length; i++)
+            {
+                for(int j=0; j<Polygons[i].Length; j++)
+                {
+                    if (yaw != 0) Utilities3D.Yaw(yaw, ref Polygons[i][j].X, ref Polygons[i][j].Y, ref Polygons[i][j].Z);
+                    if (pitch != 0) Utilities3D.Pitch(pitch, ref Polygons[i][j].X, ref Polygons[i][j].Y, ref Polygons[i][j].Z);
+                    if (roll != 0) Utilities3D.Roll(roll, ref Polygons[i][j].X, ref Polygons[i][j].Y, ref Polygons[i][j].Z);
+                }
+            }
+        }
 
         #region private
         // global shader support

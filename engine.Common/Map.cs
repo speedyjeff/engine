@@ -94,15 +94,15 @@ namespace engine.Common
             }
         }
 
-        public bool WhatWouldPlayerTouch(Player player, ref float xdelta, ref float ydelta, ref float zdelta, out Element touching, float pace = 0)
+        public bool WhatWouldPlayerTouch(Element elem, ref float xdelta, ref float ydelta, ref float zdelta, out Element touching, float pace = 0)
         {
             // return no object
             touching = null;
 
-            if (player.IsDead) return false;
+            if (elem.IsDead) return false;
             if (IsPaused) return false;
 
-            if (pace == Constants.DefaultPace) pace = Background.Pace(player.X, player.Y);
+            if (pace == Constants.DefaultPace) pace = Background.Pace(elem.X, elem.Y);
             if (pace < Constants.MinSpeedMultiplier) pace = Constants.MinSpeedMultiplier;
             if (pace > Constants.MaxSpeedMultiplier) pace = Constants.MaxSpeedMultiplier;
             float speed = Constants.Speed * pace;
@@ -116,7 +116,7 @@ namespace engine.Common
             zdelta *= speed;
 
             // return if the player would collide with an object
-            touching = RetrieveWhatPlayerIsTouching(player, false /* consider acquirable */, xdelta, ydelta, zdelta);
+            touching = RetrieveWhatPlayerIsTouching(elem, false /* consider acquirable */, xdelta, ydelta, zdelta);
 
             // return that we actually checked
             return true;
@@ -409,14 +409,14 @@ namespace engine.Common
             return hit.Count > 0;
         }
 
-        private Element RetrieveWhatPlayerIsTouching(Player player, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
+        private Element RetrieveWhatPlayerIsTouching(Element primaryElem, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
         {
-            float x1 = (player.X + xdelta) - (player.Width / 2);
-            float y1 = (player.Y + ydelta) - (player.Height / 2);
-            float z1 = (player.Z + zdelta) - (player.Depth / 2);
-            float x2 = (player.X + xdelta) + (player.Width / 2);
-            float y2 = (player.Y + ydelta) + (player.Height / 2);
-            float z2 = (player.Z + zdelta) + (player.Depth / 2);
+            float x1 = (primaryElem.X + xdelta) - (primaryElem.Width / 2);
+            float y1 = (primaryElem.Y + ydelta) - (primaryElem.Height / 2);
+            float z1 = (primaryElem.Z + zdelta) - (primaryElem.Depth / 2);
+            float x2 = (primaryElem.X + xdelta) + (primaryElem.Width / 2);
+            float y2 = (primaryElem.Y + ydelta) + (primaryElem.Height / 2);
+            float z2 = (primaryElem.Z + zdelta) + (primaryElem.Depth / 2);
 
             // either choose to iterate through solid objects (obstacles) or items
             RegionCollection objects = Obstacles;
@@ -426,7 +426,7 @@ namespace engine.Common
             foreach (var elem in objects.Values(x1, y1, z1, x2, y2, z2))
             {
                 // check if we should consider this object
-                if (elem.Id == player.Id) continue;
+                if (elem.Id == primaryElem.Id) continue;
                 if (elem.IsDead) continue;
                 if (!considerAquireable)
                 {
@@ -438,7 +438,7 @@ namespace engine.Common
                 }
 
                 // check that they intersect on the depth plane
-                if (IsTouching(player, elem, xdelta, ydelta, zdelta)) return elem;
+                if (IsTouching(primaryElem, elem, xdelta, ydelta, zdelta)) return elem;
             }
 
             return null;

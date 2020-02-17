@@ -12,9 +12,9 @@ namespace engine.Common.Entities3D
         static Utilities3D()
         {
             // populate the cos/sin caches (reduces the cost of recalcuating the values over and over again)
-            CosCache = new float[360];
-            SinCache = new float[360];
-            for (int angle=0; angle<360; angle++)
+            CosCache = new float[361];
+            SinCache = new float[361];
+            for (int angle=0; angle<361; angle++)
             {
                 var radians = angle * (Math.PI / 180);
                 CosCache[angle] = (float)Math.Cos(radians);

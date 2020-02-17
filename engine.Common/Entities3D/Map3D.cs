@@ -21,9 +21,11 @@ namespace engine.Common.Entities3D
             {
                 // get the 3D object's polygons
                 var e1_3D = (elem1 is Element3D) ? elem1 as Element3D : 
-                    ((elem1 is Player3D) ? (elem1 as Player3D).Body : null);
+                    ((elem1 is Player3D) ? (elem1 as Player3D).Body : 
+                    ((elem1 is ShotTrajectory3D) ? (elem1 as ShotTrajectory3D).Body : null) );
                 var e2_3D = (elem2 is Element3D) ? elem2 as Element3D :
-                    ((elem2 is Player3D) ? (elem2 as Player3D).Body : null);
+                    ((elem2 is Player3D) ? (elem2 as Player3D).Body :
+                    ((elem2 is ShotTrajectory3D) ? (elem2 as ShotTrajectory3D).Body : null));
 
                 // test if both have polygons
                 if (e1_3D != null && e2_3D != null)
@@ -74,5 +76,40 @@ namespace engine.Common.Entities3D
             // not touching
             return false;
         }
+
+        #region private
+        protected override bool TrackAttackTrajectory(Player player, Tool weapon, out List<Element> hit, out List<ShotTrajectory> trajectories)
+        {
+            // init
+            hit = new List<Element>();
+            trajectories = new List<ShotTrajectory>();
+
+            // provide a trajectory that takes into account the players yaw and pitch
+            var x1 = 0f;
+            var y1 = 0f;
+            var z1 = -1 * player.Depth;
+            Utilities3D.Yaw(360f - player.Angle, ref x1, ref y1, ref z1);
+            Utilities3D.Pitch(player.PitchAngle, ref x1, ref y1, ref z1);
+
+            var x2 = 0f;
+            var y2 = 0f;
+            var z2 = -1 * player.Depth * 4;
+            Utilities3D.Yaw(360f - player.Angle, ref x2, ref y2, ref z2);
+            Utilities3D.Pitch(player.PitchAngle, ref x2, ref y2, ref z2);
+
+            // add projectile
+            trajectories.Add(new ShotTrajectory3D(x: player.X + x1, y: player.Y + y1, z: player.Z + z1)
+            { 
+                X1 = player.X + x1,
+                Y1 = player.Y + y1,
+                Z1 = player.Z + z1,
+                X2 = player.X + x2,
+                Y2 = player.Y + y2,
+                Z2 = player.Z + z2,
+            });
+
+            return true;
+        }
+        #endregion
     }
 }

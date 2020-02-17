@@ -29,6 +29,9 @@ namespace engine.Common
         public float HorizonY;
         public float HorizonZ;
         public bool Is3D;
+        public float CameraX;
+        public float CameraY;
+        public float CameraZ;
     }
 
     public enum Forces { None = 0, X = 1, Y = 2, Z = 4};
@@ -53,6 +56,7 @@ namespace engine.Common
             Details = new Dictionary<int, PlayerDetails>();
             Alive = 0;
             UniquePlayers = new HashSet<int>();
+            EphemerialLock = new ReaderWriterLockSlim();
 
             // setup map
             if (config.Is3D) Map = new Map3D(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
@@ -113,8 +117,8 @@ namespace engine.Common
 
         public event Func<Menu> OnPaused;
         public event Action OnResumed;
-        public event Action<Player, Element> OnContact;
-        public event Action<Player, Element> OnAttack;
+        public event Action<Element, Element> OnContact;
+        public event Action<Element, Element> OnAttack;
         public event Action<Element> OnDeath;
         public event BeforeKeyPressedDelegate OnBeforeKeyPressed;
         public event Func<Player, char, bool> OnAfterKeyPressed;
@@ -219,30 +223,44 @@ namespace engine.Common
                 player.Draw(Surface);
             }
 
+            // add any ephemerial elements (non-text)
+            try
+            {
+                EphemerialLock.EnterReadLock();
+                foreach (var b in Ephemerial)
+                {
+                    // skip all the messages
+                    if (b is OnScreenText) continue;
+                    // draw
+                    b.Draw(Surface);
+                }
+            }
+            finally
+            {
+                EphemerialLock.ExitReadLock();
+            }
+
             // if 3d, then render all the polygons (in order)
             if (Config.Is3D) Surface.RenderPolygons();
 
-            // add any ephemerial elements
-            lock (Ephemerial)
+            // add any ephemerial elements (text only)
+            try
             {
-                var toremove = new List<EphemerialElement>();
-                var messageShown = false;
+                EphemerialLock.EnterReadLock();
                 foreach (var b in Ephemerial)
                 {
+                    // show only 1 message at a time
                     if (b is OnScreenText)
                     {
-                        // only show one message at a time
-                        if (messageShown) continue;
-                        messageShown = true;
+                        // draw
+                        b.Draw(Surface);
+                        break;
                     }
-                    b.Draw(Surface);
-                    b.Duration--;
-                    if (b.Duration < 0) toremove.Add(b);
                 }
-                foreach (var b in toremove)
-                {
-                    Ephemerial.Remove(b);
-                }
+            }
+            finally
+            {
+                EphemerialLock.ExitReadLock();
             }
 
             // display the player counts
@@ -714,6 +732,7 @@ namespace engine.Common
         private WorldConfiguration Config;
         private Timer BackgroundTimer;
         private HashSet<int> UniquePlayers;
+        private ReaderWriterLockSlim EphemerialLock;
 
         private const string NothingSoundPath = "nothing";
         private const string PickupSoundPath = "pickup";
@@ -1019,6 +1038,56 @@ namespace engine.Common
             // update the map
             Map.Background.Update();
 
+            // update the ephemerial items
+            var toremove = new List<EphemerialElement>();
+            try
+            {
+                EphemerialLock.EnterReadLock();
+                foreach (var b in Ephemerial)
+                {
+                    // advance
+                    if (!b.IsDead && b.Action(out float xdelta, out float ydelta, out float zdelta))
+                    {
+                        if (Map.WhatWouldPlayerTouch(b, ref xdelta, ref ydelta, ref zdelta, out Element touching, b.BasePace))
+                        {
+                            if (touching == null)
+                            {
+                                // would not hit anything, ok to move
+                                b.Move(xdelta, ydelta, zdelta);
+                                b.Feedback(result: true);
+                            }
+                            else
+                            {
+                                // would hit something, notify that an attack occured
+                                HitByAttack(b, touching);
+                                b.Feedback(result: false);
+                            }
+                        }
+                    }
+
+                    // advance and remove when it hits the end
+                    if (++b.CurrentDuration >= b.Duration) toremove.Add(b);
+                }
+            }
+            finally
+            {
+                EphemerialLock.ExitReadLock();
+            }
+
+            try
+            {
+                EphemerialLock.EnterWriteLock();
+                // remove any as necessary
+                foreach (var b in toremove)
+                {
+                    Ephemerial.Remove(b);
+                }
+            }
+            finally
+            {
+                EphemerialLock.ExitWriteLock();
+            }
+
             // apply any necessary damage to the players
             lock (Details)
             {
@@ -1098,19 +1167,23 @@ namespace engine.Common
             else
             {
                 // translate to 0,0,0 (origin)
-                // TODO use a camera delta to accomodate the camera not being in the center of gravity
                 x -= Human.X;
                 y -= Human.Y;
                 z -= Human.Z;
 
-                // turn first
-                if ((options & TranslationOptions.RotaionYaw) != 0) Utilities3D.Yaw(Human.Angle, ref x, ref y, ref z);
+                // turn first (yaw)
+                if ((options & TranslationOptions.RotaionYaw) != 0 && Human.Angle != 0) Utilities3D.Yaw(Human.Angle, ref x, ref y, ref z);
 
-                // tilt head
-                if ((options & TranslationOptions.RotationPitch) != 0) Utilities3D.Pitch(Human.PitchAngle, ref x, ref y, ref z);
+                // tilt head (pitch)
+                if ((options & TranslationOptions.RotationPitch) != 0 && Human.PitchAngle != 0) Utilities3D.Pitch(Human.PitchAngle, ref x, ref y, ref z);
 
-                // todo - roll
-                //Utilities3D.Roll(0f, ref x, ref y, ref z);
+                // todo - rotate (roll)
+                // if ((options & TranslationOptions.RotationRoll) != 0 && Human.RollAngle != 0) Utilities3D.Roll(Human.RollAngle, ref x, ref y, ref z);
+
+                // apply camera
+                z += Config.CameraZ;
+                y += Config.CameraY;
+                x += Config.CameraX;
 
                 // scale
                 var zoom = ((options & TranslationOptions.Scaling) != 0) ? Utilities3D.Perspective(Config.HorizonZ*2, ref x, ref y, ref z) : 1;
@@ -1144,9 +1217,14 @@ namespace engine.Common
 
         private void AddEphemerialElement(EphemerialElement element)
         {
-            lock (Ephemerial)
+            try
             {
+                EphemerialLock.EnterWriteLock();
                 Ephemerial.Add(element);
+            }
+            finally
+            {
+                EphemerialLock.ExitWriteLock();
             }
         }
 
@@ -1303,7 +1381,7 @@ namespace engine.Common
         }
 
         // callbacks
-        private void HitByAttack(Player player, Element element)
+        private void HitByAttack(Element primaryElement, Element element)
         {
             // play sound if the human is hit
             if (element is Player && element.Id == Human.Id)
@@ -1312,7 +1390,7 @@ namespace engine.Common
             }
 
             // notify the outside world that we hit something
-            if (OnAttack != null) OnAttack(player, element);
+            if (OnAttack != null) OnAttack(primaryElement, element);
         }
 
         private void PlayerDied(Element element)

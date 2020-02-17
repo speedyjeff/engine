@@ -370,7 +370,7 @@ namespace engine.Winforms
         private TranslateCoordinatesDelegate Translate;
         private bool DoTranslation;
         private TranslationOptions Options;
-
+        
         // 3D support
         class PolygonDetails
         {
