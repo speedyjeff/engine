@@ -101,8 +101,7 @@ namespace engine.Common
         public void InitializeGraphics(IGraphics surface, ISounds sounds)
         {
             // graphics
-            Surface = surface;
-            Surface.SetTranslateCoordinates(TranslateCoordinates);
+            Surface = new WorldTranslationGraphics(surface);
 
             // 3D shaders
             Element3D.SetShader(Element3DShader);
@@ -137,6 +136,14 @@ namespace engine.Common
         {
             // exit early if there is no Surface to draw too
             if (Surface == null) return;
+
+            // set graphics the perspective
+            Surface.SetPerspective(is3D: Config.Is3D,
+                centerX: Human.X, centerY: Human.Y, centerZ: Human.Z,
+                yaw: Human.Angle, pitch: Human.PitchAngle, roll: 0f,
+                cameraX: Config.CameraX, cameraY: Config.CameraY, cameraZ: Config.CameraZ,
+                zoom: ZoomFactor,
+                horizon: Config.HorizonZ * 2);
 
             // draw the map
             Map.Background.Draw(Surface);
@@ -751,7 +758,7 @@ namespace engine.Common
             public int UpdatePlayerLock; // to avoid reentrancy in the timer
         }
 
-        private IGraphics Surface;
+        private WorldTranslationGraphics Surface;
         private List<EphemerialElement> Ephemerial;
         private float ZoomFactor;
         private ISounds Sounds;
@@ -1188,74 +1195,6 @@ namespace engine.Common
             color.B = (byte)(color.B * ratio);
 
             return color;
-        }
-
-        private bool TranslateCoordinates(TranslationOptions options, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother)
-        {
-            // transform the world x,y coordinates into scaled and screen coordinates
-            tx = ty = tz = twidth = theight = tother = 0;
-
-            if (!Config.Is3D)
-            {
-                float zoom = ((options & TranslationOptions.Scaling) != 0) ? ZoomFactor : 1;
-
-                // determine scaling factor
-                float scale = (1 / zoom);
-                width *= zoom;
-                height *= zoom;
-
-                // Surface.Width & Surface.Height are the current windows width & height
-                float windowHWidth = Surface.Width / 2.0f;
-                float windowHHeight = Surface.Height / 2.0f;
-
-                // now translate to the window
-                tx = ((x - Human.X) * zoom) + windowHWidth;
-                ty = ((y - Human.Y) * zoom) + windowHHeight;
-                tz = z;
-                twidth = width;
-                theight = height;
-                tother = other * zoom;
-            }
-
-            // if (Config.Is3D)
-            else
-            {
-                // translate to 0,0,0 (origin)
-                x -= Human.X;
-                y -= Human.Y;
-                z -= Human.Z;
-
-                // turn first (yaw)
-                if ((options & TranslationOptions.RotaionYaw) != 0 && Human.Angle != 0) Utilities3D.Yaw(Human.Angle, ref x, ref y, ref z);
-
-                // tilt head (pitch)
-                if ((options & TranslationOptions.RotationPitch) != 0 && Human.PitchAngle != 0) Utilities3D.Pitch(Human.PitchAngle, ref x, ref y, ref z);
-
-                // todo - rotate (roll)
-                // if ((options & TranslationOptions.RotationRoll) != 0 && Human.RollAngle != 0) Utilities3D.Roll(Human.RollAngle, ref x, ref y, ref z);
-
-                // apply camera
-                z += Config.CameraZ;
-                y += Config.CameraY;
-                x += Config.CameraX;
-
-                // scale
-                var zoom = ((options & TranslationOptions.Scaling) != 0) ? Utilities3D.Perspective(Config.HorizonZ*2, ref x, ref y, ref z) : 1;
-                twidth = width - (width * zoom);
-                theight = height - (height * zoom);
-                tother = other - (other * zoom);
-
-                // Surface.Width & Surface.Height are the current windows width & height
-                float windowHWidth = Surface.Width / 2.0f;
-                float windowHHeight = Surface.Height / 2.0f;
-
-                // now translate to the window
-                tx = x + windowHWidth;
-                ty = y + windowHHeight;
-                tz = z;
-            }
-
-            return true;
         }
 
         private static void DirectionByAngle(float angle, out float x, out float y)

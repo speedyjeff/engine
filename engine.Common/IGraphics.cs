@@ -67,17 +67,15 @@ namespace engine.Common
 
     }
 
-    public delegate bool TranslateCoordinatesDelegate(TranslationOptions options, float x, float y, float z, float width, float height, float other, out float tx, out float ty, out float tz, out float twidth, out float theight, out float tother);
-
     public enum TranslationOptions { None = 0, Translation = 1, Scaling = 2, RotaionYaw = 4, RotationPitch = 8, Default = 0xfff};
 
     public interface IGraphics
     {
         // drawing
         void Clear(RGBA color);
-        void Ellipse(RGBA color, float x, float y, float width, float height, bool fill = true);
-        void Rectangle(RGBA color, float x, float y, float width, float height, bool fill = true);
-        void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill = true, bool border = false); 
+        void Ellipse(RGBA color, float x, float y, float width, float height, bool fill = true, bool border = true, float thickness = 5f);
+        void Rectangle(RGBA color, float x, float y, float width, float height, bool fill = true, bool border = true, float thickness = 5f);
+        void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill = true, bool border = false, float thickness = 5f); 
         void Text(RGBA color, float x, float y, string text, float fontsize = 16);
         void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness);
         void Image(string path, float x, float y, float width = 0, float height = 0);
@@ -85,21 +83,16 @@ namespace engine.Common
         void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0);
 
         // support to not project to screen coordinates
+        void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float zoom = 0f, float horizon = 0f);
         void DisableTranslation(TranslationOptions options=0);
         void EnableTranslation();
 
         // 3D support
         void Polygon(RGBA color, Point[] points, bool fill = true, bool border = false, float thickness = 5f);
-        void CapturePolygons();
-        void RenderPolygons();
 
         // details
         int Height { get; }
         int Width { get; }
-
-        // translate the coordinates to screen
-        // take into acount windowing and scalling
-        void SetTranslateCoordinates(TranslateCoordinatesDelegate callback);
 
         // helper
         IImage CreateImage(int width, int height);

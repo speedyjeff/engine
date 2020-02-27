@@ -92,6 +92,7 @@
     </Compile>
     <Compile Include="Resources.cs" />
     <Compile Include="World.cs" />
+    <Compile Include="WorldTranslationGraphics.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">

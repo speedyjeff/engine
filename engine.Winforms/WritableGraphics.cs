@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-
+using System.Runtime.CompilerServices;
 using engine.Common;
+using engine.Common.Entities3D;
 
 namespace engine.Winforms
 {
@@ -17,18 +18,13 @@ namespace engine.Winforms
             Graphics = g;
             Width = width;
             Height = height;
-            DoTranslation = true;
             ImageCache = new Dictionary<string, Image>();
             SolidBrushCache = new Dictionary<int, SolidBrush>();
             PenCache = new Dictionary<long, Pen>();
             ArialFontCache = new Dictionary<float, Font>();
-            Options = TranslationOptions.Default;
 
             // get graphics ready
-            if (Context != null)
-            {
-                RawResize(g, height, width);
-            }
+            if (Context != null) RawResize(g, height, width);
         }
 
         // access to the Graphics implementation
@@ -57,156 +53,66 @@ namespace engine.Winforms
             Graphics.FillRectangle(GetCachedSolidBrush(color), 0, 0, Width, Height);
         }
 
-        public void Ellipse(RGBA color, float x, float y, float width, float height, bool fill)
+        public void Ellipse(RGBA color, float x, float y, float width, float height, bool fill, bool border, float thickness)
         {
-            float thickness = 5f;
-            float sx = x;
-            float sy = y;
-            float swidth = width;
-            float sheight = height;
-            float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out float sz, out swidth, out sheight, out sthickness)) return;
-
-            // safe guard accidental usage
-            x = y = width = height = thickness = 0;
-
-            // use screen coordinates
             if (fill)
             {
-                Graphics.FillEllipse(GetCachedSolidBrush(color), sx, sy, swidth, sheight);
-                Graphics.DrawEllipse(GetCachedPen(RGBA.Black, sthickness), sx, sy, swidth, sheight);
+                Graphics.FillEllipse(GetCachedSolidBrush(color), x, y, width, height);
+                if (border) Graphics.DrawEllipse(GetCachedPen(RGBA.Black, thickness), x, y, width, height);
             }
             else
             {
-                Graphics.DrawEllipse(GetCachedPen(color, sthickness), sx, sy, swidth, sheight);
+                Graphics.DrawEllipse(GetCachedPen(color, thickness), x, y, width, height);
             }
         }
 
-        public void Rectangle(RGBA color, float x, float y, float width, float height, bool fill)
+        public void Rectangle(RGBA color, float x, float y, float width, float height, bool fill, bool border, float thickness)
         {
-            float thickness = 5f;
-            float sx = x;
-            float sy = y;
-            float swidth = width;
-            float sheight = height;
-            float sthickness = thickness;
-            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, width, height, thickness, out sx, out sy, out float sz, out swidth, out sheight, out sthickness)) return;
-
-            // safe guard accidental usage
-            x = y = width = height = thickness = 0;
-
-            // use screen coordinates
             if (fill)
             {
-                Graphics.FillRectangle(GetCachedSolidBrush(color), sx, sy, swidth, sheight);
-                Graphics.DrawRectangle(GetCachedPen(RGBA.Black, sthickness), sx, sy, swidth, sheight);
+                Graphics.FillRectangle(GetCachedSolidBrush(color), x, y, width, height);
+                if (border) Graphics.DrawRectangle(GetCachedPen(RGBA.Black, thickness), x, y, width, height);
             }
             else
             {
-                Graphics.DrawRectangle(GetCachedPen(color, sthickness), sx, sy, swidth, sheight);
+                Graphics.DrawRectangle(GetCachedPen(color, thickness), x, y, width, height);
             }
         }
 
-        public void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill, bool border)
+        public void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill, bool border, float thickness)
         {
-            float thickness = 5f;
-            float sthickness = 0f;
-            float sx1 = x1;
-            float sy1 = y1;
-            float sx2 = x2;
-            float sy2 = y2;
-            float sx3 = x3;
-            float sy3 = y3;
-            float width = 0;
-            float height = 0;
-            float other = 0;
-            float swidth = 0;
-            float sheight = 0;
-            float sother = 0;
-            float sz;
-            if (Translate != null && DoTranslation && !Translate(Options, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
-            if (Translate != null && DoTranslation && !Translate(Options, x2, y2, z: Constants.Ground, width, height, other, out sx2, out sy2, out sz, out swidth, out sheight, out sother)) return;
-            if (Translate != null && DoTranslation && !Translate(Options, x3, y3, z: Constants.Ground, width, height, other, out sx3, out sy3, out sz, out swidth, out sheight, out sother)) return;
-
-            // safe guard accidental usage
-            x1 = y1 = x2 = y2 = x3 = y3 = thickness = 0;
-
             // use screen coordinates
             var edges = new PointF[]
             {
-                new PointF(sx1, sy1),
-                new PointF(sx2, sy2),
-                new PointF(sx3, sy3)
+                new PointF(x1, y1),
+                new PointF(x2, y2),
+                new PointF(x3, y3)
             };
             if (fill)
             {
                 Graphics.FillPolygon(GetCachedSolidBrush(color), edges);
-                if (border) Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), edges);
+                if (border) Graphics.DrawPolygon(GetCachedPen(RGBA.Black, thickness), edges);
             }
             else
             {
-                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), edges);
+                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, thickness), edges);
             }
         }
 
         public void Text(RGBA color, float x, float y, string text, float fontsize = 16)
         {
-            float sx = x;
-            float sy = y;
-            float swidth = 0;
-            float sheight = 0;
-            float sfontsize = fontsize;
-            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, 0, 0, fontsize, out sx, out sy, out float sz, out swidth, out sheight, out sfontsize)) return;
-
-            // safe guard accidental usage
-            x = y = fontsize = 0;
-
-            // use screen coordinates
-            Graphics.DrawString(text, GetCachedArialFont(sfontsize), GetCachedSolidBrush(color), sx, sy);
+            Graphics.DrawString(text, GetCachedArialFont(fontsize), GetCachedSolidBrush(color), x, y);
         }
 
         public void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness)
         {
-            float sx1 = x1;
-            float sy1 = y1;
-            float width = Math.Abs(x1 - x2);
-            float height = Math.Abs(y1 - y2);
-            float swidth = width;
-            float sheight = height;
-            float sthickness = thickness;
-            float sz;
-            if (Translate != null && DoTranslation && !Translate(Options, x1, y1, z: Constants.Ground, width, height, thickness, out sx1, out sy1, out sz, out swidth, out sheight, out sthickness)) return;
-
-            // safe guard accidental usage
-            x1 = y1 = thickness = 0;
-
-            float sx2 = x2;
-            float sy2 = y2;
-            float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(Options, x2, y2, z: Constants.Ground, width, height, 0, out sx2, out sy2, out sz, out swidth, out sheight, out sother)) return;
-
-            // safe guard accidental usage
-            x2 = y2 = 0;
-
-            Graphics.DrawLine(GetCachedPen(color, sthickness), sx1, sy1, sx2, sy2);
+            Graphics.DrawLine(GetCachedPen(color, thickness), x1, y1, x2, y2);
         }
 
         public void Image(string path, float x, float y, float width = 0, float height = 0)
         {
             Image img = GetCachedImage(path);
-
-            float sx = x;
-            float sy = y;
-            float swidth = width == 0 ? img.Width : width;
-            float sheight = height == 0 ? img.Height : height;
-            float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
-
-            // safe guard accidental usage
-            x = y = 0;
-
-            // use screen coordinates
-            Graphics.DrawImage(img, sx, sy, swidth, sheight);
+            Graphics.DrawImage(img, x, y, width, height);
         }
 
         public void Image(IImage img, float x, float y, float width = 0, float height = 0)
@@ -214,152 +120,48 @@ namespace engine.Winforms
             var bitmap = img as BitmapImage;
             if (bitmap == null
                 || bitmap.UnderlyingImage == null) throw new Exception("Image(IImage) must be used with a BitmapImage");
-
-            float sx = x;
-            float sy = y;
-            float swidth = width == 0 ? bitmap.Width : width;
-            float sheight = height == 0 ? bitmap.Height : height;
-            float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
-
-            // safe guard accidental usage
-            x = y = 0;
-
-            // use screen coordinates
-            Graphics.DrawImage(bitmap.UnderlyingImage, sx, sy, swidth, sheight);
+            Graphics.DrawImage(bitmap.UnderlyingImage, x, y, width, height);
         }
 
         public void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0)
         {
-            System.Drawing.Image img = null;
-            if (!ImageCache.TryGetValue(name, out img))
-            {
-                img = System.Drawing.Image.FromStream(stream);
-                var bitmap = new Bitmap(img);
-                bitmap.MakeTransparent(bitmap.GetPixel(0, 0));
-                ImageCache.Add(name, bitmap);
-            }
+            Image img = GetCachedImage(name, stream);
 
-            float sx = x;
-            float sy = y;
-            float swidth = width == 0 ? img.Width : width;
-            float sheight = height == 0 ? img.Height : height;
-            float sother = 0;
-            if (Translate != null && DoTranslation && !Translate(Options, x, y, z: Constants.Ground, swidth, sheight, 0, out sx, out sy, out float sz, out swidth, out sheight, out sother)) return;
-
-            // safe guard accidental usage
-            x = y = 0;
-
-            // use screen coordinates
-            Graphics.DrawImage(img, sx, sy, swidth, sheight);
+            Graphics.DrawImage(img, x, y, width, height);
         }
 
-        public void EnableTranslation()
-        {
-            Options = TranslationOptions.Default;
-            DoTranslation = true;
-        }
-
-        public void DisableTranslation(TranslationOptions options)
-        {
-            DoTranslation = (options & TranslationOptions.Translation) != 0;
-            Options = options;
-        }
-
-        // 3d support
+        // no-op
+        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float zoom, float horizon) { }
+        public void EnableTranslation() { }
+        public void DisableTranslation(TranslationOptions options) {}
 
         public void Polygon(RGBA color, Common.Point[] points, bool fill = false, bool border = false, float thickness = 5f)
         {
             if (points == null || points.Length <= 1) throw new Exception("Must provide a valid number of points");
 
-            var localPoints = (_CapturePolygons) ? null : new System.Drawing.PointF[points.Length];
-
-            // translate each point into the System.Drawing structure
-            float sthickness = thickness;
-            float minz = Single.MaxValue;
-            float miny = Single.MaxValue;
+            // convert points into PointF
+            var edges = new System.Drawing.PointF[points.Length];
             for (int i = 0; i < points.Length; i++)
             {
-                // translate
-                if (Translate != null && DoTranslation && !Translate(Options, points[i].X, points[i].Y, points[i].Z, width: 0, height: 0, thickness, out points[i].X, out points[i].Y, out points[i].Z, out float swidth, out float sheight, out sthickness)) return;
-
-                // track the furthestZ for sorting
-                if (points[i].Z < minz) minz = points[i].Z;
-                if (points[i].Y < miny) miny = points[i].Y;
-
-                // convert to type
-                if (localPoints != null) localPoints[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
-            }
-
-            // defer rending for later
-            if (_CapturePolygons)
-            {
-                Poloygons.Add(new PolygonDetails()
-                {
-                    Color = color,
-                    Points = points,
-                    Fill = fill,
-                    Border = border,
-                    Thickness = sthickness,
-                    MinZ = minz,
-                    MinY = miny
-                });
-                return;
+                edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
             }
 
             if (fill)
             {
-                Graphics.FillPolygon(GetCachedSolidBrush(color), localPoints);
-                if (border) Graphics.DrawPolygon(GetCachedPen(RGBA.Black, sthickness), localPoints);
+                Graphics.FillPolygon(GetCachedSolidBrush(color), edges);
+                if (border) Graphics.DrawPolygon(GetCachedPen(RGBA.Black, thickness), edges);
             }
             else
             {
-                Graphics.DrawPolygon(GetCachedPen(color, sthickness), localPoints);
+                Graphics.DrawPolygon(GetCachedPen(color, thickness), edges);
             }
-        }
-
-        public void CapturePolygons()
-        {
-            if (Poloygons == null) Poloygons = new List<PolygonDetails>();
-            else Poloygons.Clear();
-
-            // start capturing
-            _CapturePolygons = true;
-        }
-
-        public void RenderPolygons()
-        {
-            // stop capturing
-            _CapturePolygons = false;
-
-            // sort the Z's from back to front
-            Poloygons.Sort(SortPolygonsByZ);
-
-            // disable translation as it has already been done
-            DisableTranslation(TranslationOptions.None);
-            {
-                foreach (var polygon in Poloygons)
-                {
-                    Polygon(polygon.Color, polygon.Points, polygon.Fill, polygon.Border, polygon.Thickness);
-                }
-            }
-            EnableTranslation();
-
-            // clear
-            Poloygons.Clear();
         }
 
         public int Height { get; private set; }
         public int Width { get; private set; }
 
-        public void SetTranslateCoordinates(TranslateCoordinatesDelegate callback)
-        {
-            Translate = callback;
-        }
-
         public IImage CreateImage(int width, int height)
         {
-            // todo Should this image inherit the TranslateCoordinates from its parent
             return new BitmapImage(width, height);
         }
 
@@ -367,39 +169,6 @@ namespace engine.Winforms
         private Graphics Graphics;
         private BufferedGraphics Surface;
         private BufferedGraphicsContext Context;
-        private TranslateCoordinatesDelegate Translate;
-        private bool DoTranslation;
-        private TranslationOptions Options;
-        
-        // 3D support
-        class PolygonDetails
-        {
-            public RGBA Color;
-            public bool Fill;
-            public bool Border;
-            public Common.Point[] Points;
-            public float Thickness;
-            public float MinZ;
-            public float MinY;
-        }
-        private bool _CapturePolygons;
-        private List<PolygonDetails> Poloygons;
-        private static PolygonComparer SortPolygonsByZ = new PolygonComparer();
-
-        class PolygonComparer : IComparer<PolygonDetails>
-        {
-            public int Compare(PolygonDetails x, PolygonDetails y)
-            {
-                // sort the z's from back to front
-                if (x.MinZ < y.MinZ) return -1;
-                else if (y.MinZ < x.MinZ) return 1;
-                // when z's are equal, sort by y's
-                else if (x.MinY < y.MinY) return -1;
-                else if (y.MinY < x.MinY) return 1;
-                // equal
-                else return 0;
-            }
-        }
 
         // caches
         private Dictionary<string, Image> ImageCache;
@@ -407,12 +176,14 @@ namespace engine.Winforms
         private Dictionary<long, Pen> PenCache;
         private Dictionary<float, Font> ArialFontCache;
 
-        private Image GetCachedImage(string path)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Image GetCachedImage(string path, Stream stream = null)
         {
             System.Drawing.Image img = null;
             if (!ImageCache.TryGetValue(path, out img))
             {
-                img = System.Drawing.Image.FromFile(path);
+                if (stream != null) img = System.Drawing.Image.FromStream(stream);
+                else img = System.Drawing.Image.FromFile(path);
                 var bitmap = new Bitmap(img);
                 bitmap.MakeTransparent(bitmap.GetPixel(0, 0));
                 ImageCache.Add(path, bitmap);
@@ -420,6 +191,7 @@ namespace engine.Winforms
             return img;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private SolidBrush GetCachedSolidBrush(RGBA color)
         {
             var key = color.GetHashCode();
@@ -432,6 +204,7 @@ namespace engine.Winforms
             return brush;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Pen GetCachedPen(RGBA color, float thickness)
         {
             var key = (long)color.GetHashCode() | ((long)thickness << 32);
@@ -444,6 +217,7 @@ namespace engine.Winforms
             return pen;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Font GetCachedArialFont(float size)
         {
             var key = (float)Math.Round(size, 2);
@@ -455,7 +229,6 @@ namespace engine.Winforms
             }
             return font;
         }
-
         #endregion
     }
 }
