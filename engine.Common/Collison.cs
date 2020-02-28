@@ -109,35 +109,37 @@ namespace engine.Common
                 );
         }
 
-        public static bool LineIntersectingRectangle(
+        public static float LineIntersectingRectangle(
             float x1, float y1, float x2, float y2, // line
             float x, float y, float width, float height // rectangle
             )
         {
-            bool collision = false;
+            float distance = Single.MaxValue;
 
-            // check if these would collide
-            float x3 = x - (width / 2);
-            float y3 = y - (height / 2);
-            float x4 = x + (width / 2);
-            float y4 = y + (height / 2);
+            // return the minimum point of intersection
+            var found = false;
+            var lines = new Tuple<float, float, float, float>[]
+            {
+                new Tuple<float,float,float,float>(x - (width/2f), y - (height/2f), x + (width/2), y - (height/2f)) ,
+                new Tuple<float,float,float,float>(x - (width/2f), y - (height/2f), x - (width/2), y + (height/2f)) ,
+                new Tuple<float,float,float,float>(x + (width/2f), y + (height/2f), x + (width/2), y - (height/2f)) ,
+                new Tuple<float,float,float,float>(x + (width/2f), y + (height/2f), x - (width/2), y + (height/2f)) ,
+            };
+            foreach(var line in lines)
+            {
+                if (PointOfLineSegmentIntersection(x1, y1, x2, y2, line.Item1, line.Item2, line.Item3, line.Item4, out float tix, out float tiy))
+                {
+                    // check if this point is closer
+                    var dist = DistanceBetweenPoints(x1, y1, tix, tiy);
+                    if (dist < distance)
+                    {
+                        distance = dist;
+                        found = true;
+                    }
+                }
+            }
 
-            // https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
-
-            // top
-            collision = Collision.IntersectingLine(x1, y1, x2, y2,
-                x3, y3, x4, y3);
-            // bottom
-            collision |= Collision.IntersectingLine(x1, y1, x2, y2,
-                x3, y4, x4, y4);
-            // left
-            collision |= Collision.IntersectingLine(x1, y1, x2, y2,
-                x3, y3, x3, y4);
-            // left
-            collision |= Collision.IntersectingLine(x1, y1, x2, y2,
-                x4, y3, x4, y4);
-
-            return collision;
+            return found ? distance : 0f;
         }
 
         public static bool IntersectingLine(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
@@ -164,14 +166,95 @@ namespace engine.Common
             return IsTriangleIntersection(p1, q1, r1, p2, q2, r2);
         }
 
-        #region private
+#region private
 
-        #region lines
+#region lines
         // https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool CalcCcw(float x1, float y1, float x2, float y2, float x3, float y3)
         {
             return (y3 - y1) * (x2 - x1) > (y2 - y1) * (x3 - x1);
+        }
+
+        private static bool PointOfLineSegmentIntersection(
+            float p1x, float p1y, float p2x, float p2y,
+            float q1x, float q1y, float q2x, float q2y,
+            out float ix, out float iy)
+        {
+            // initially set these to 0
+            ix = iy = 0f;
+
+            // https://www.codeproject.com/tips/862988/find-the-intersection-point-of-two-line-segments
+            // https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
+            var epsilon = 0.00000001;
+
+            //var r = p2 - p;
+            var rx = p2x - p1x;
+            var ry = p2y - p1y;
+
+            //var s = q2 - q;
+            var sx = q2x - q1x;
+            var sy = q2y - q1y;
+
+            //var t = q - p;
+            var tx = q1x - p1x;
+            var ty = q1y - p1y;
+
+            //var rxs = r.Cross(s);
+            var rxs = (rx * sy) - (ry * sx);
+
+            //var qpxr = (q - p).Cross(r);
+            var qpxr = (tx * ry) - (ty * rx);
+
+            // If r x s = 0 and (q - p) x r = 0, then the two lines are collinear.
+            if (Math.Abs(rxs) < epsilon && Math.Abs(qpxr) < epsilon)
+            {
+                // 1. If either  0 <= (q - p) * r <= r * r or 0 <= (p - q) * s <= * s
+                // then the two lines are overlapping,
+                //if ((0 <= (q - p) * r && (q - p) * r <= r * r) || (0 <= (p - q) * s && (p - q) * s <= s * s)) return true;
+                // TODO enable the coplanar example
+                //var u = p - q
+                //var ux = p1x - q1x;
+                //var uy = p1y - q1y;
+                //var r2 = r * r
+                //var r2 = (rx * rx) + (ry * ry);
+                //var s2 = s * s
+                //var s2 = (sx * sx) + (sy * sy);
+                //if ((0 <= ((tx * rx) + (ty * ry)) && ((tx * rx) + (tx * ry)) <= r2) || (0 <= ((ux * sx) + (uy * sy)) && ((ux * sx) + (uy * sy)) <= s2)) return true;
+
+                // 2. If neither 0 <= (q - p) * r = r * r nor 0 <= (p - q) * s <= s * s
+                // then the two lines are collinear but disjoint.
+                // No need to implement this expression, as it follows from the expression above.
+                return false;
+            }
+
+            // 3. If r x s = 0 and (q - p) x r != 0, then the two lines are parallel and non-intersecting.
+            if (Math.Abs(rxs) < epsilon && Math.Abs(qpxr) > epsilon) return false;
+
+            //var qpxr = (q - p).Cross(r);
+            var qpxs = (tx * sy) - (ty * sx);
+
+            //var t = (q - p).Cross(s) / rxs;
+            var t = qpxs / rxs;
+
+            //var u = (q - p).Cross(r) / rxs;
+            var u = qpxr / rxs;
+
+            // 4. If r x s != 0 and 0 <= t <= 1 and 0 <= u <= 1
+            // the two line segments meet at the point p + t r = q + u s.
+            if (Math.Abs(rxs) > epsilon && (0f <= t && t <= 1f) && (0f <= u && u <= 1f))
+            {
+                // We can calculate the intersection point using either t or u.
+                //intersection = p + t * r;
+                ix = p1x + (t * rx);
+                iy = p1y + (t * ry);
+
+                // An intersection was found.
+                return true;
+            }
+
+            // 5. Otherwise, the two line segments are not parallel but do not intersect.
+            return false;
         }
         #endregion
 
@@ -277,8 +360,8 @@ namespace engine.Common
 
             return false;
         }
-        #endregion
+#endregion
 
-        #endregion
+#endregion
     }
 }

@@ -67,6 +67,27 @@ namespace engine.Common
 
     }
 
+    // 2D Graphics
+    // (0,0) ----------------------- (+x, 0)
+    //       |
+    //       |
+    //       |
+    //       |
+    //    (+y, 0)
+
+    // 3D Graphics
+    //                (-y, 0)
+    //                   |   / (+z, 0)
+    //                   |  /
+    //                   | /
+    //                   |/
+    // (-x,0) ----------------------- (+x, 0)
+    //                  /|
+    //                 / |
+    //                /  |
+    //       (-z, 0) /   |
+    //                (+y, 0)
+
     public enum TranslationOptions { None = 0, Translation = 1, Scaling = 2, RotaionYaw = 4, RotationPitch = 8, Default = 0xfff};
 
     public interface IGraphics
@@ -82,7 +103,7 @@ namespace engine.Common
         void Image(IImage img, float x, float y, float width = 0, float height = 0);
         void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0);
 
-        // support to not project to screen coordinates
+        // support to project to screen coordinates
         void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float zoom = 0f, float horizon = 0f);
         void DisableTranslation(TranslationOptions options=0);
         void EnableTranslation();

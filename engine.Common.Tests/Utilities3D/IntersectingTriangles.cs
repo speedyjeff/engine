@@ -152,23 +152,23 @@ namespace engine.Common.Tests
 			var b3 = new Point() { X = 0, Y = 2, Z = 10 };
 
 			var yangles = new float[] { 0, 45, 90, 135, 180, 225, 270, 315 };
-			var xangles = new float[] { 0, -45, 45 };
+			var xangles = new float[] { 0, 315 /*-45*/, 45 };
 
 			var collisions = new Dictionary<float, Dictionary<float, bool>>()
 			{
-				{0, new Dictionary<float, bool>() { { 0, true }, { -45, true }, { 45, false } } },
-				{45, new Dictionary<float, bool>() { { 0, true }, { -45, true }, { 45, false } } },
-				{90, new Dictionary<float, bool>() { { 0, true }, { -45, false }, { 45, false } } },
-				{135, new Dictionary<float, bool>() { { 0, true }, { -45, false }, { 45, false } } },
-				{180, new Dictionary<float, bool>() { { 0, true }, { -45, true }, { 45, true } } },
-				{225, new Dictionary<float, bool>() { { 0, false }, { -45, false }, { 45, false } } },
-				{270, new Dictionary<float, bool>() { { 0, true }, { -45, false }, { 45, false } } },
-				{315, new Dictionary<float, bool>() { { 0, true }, { -45, false }, { 45, false } } }
+				{0, new Dictionary<float, bool>() { { 0, true }, { 315 /*-45*/, true }, { 45, false } } },
+				{45, new Dictionary<float, bool>() { { 0, true }, { 315 /*-45*/, true }, { 45, false } } },
+				{90, new Dictionary<float, bool>() { { 0, true }, { 315 /*-45*/, false }, { 45, false } } },
+				{135, new Dictionary<float, bool>() { { 0, true }, { 315 /*-45*/, false }, { 45, false } } },
+				{180, new Dictionary<float, bool>() { { 0, true }, { 315 /*-45*/, true }, { 45, true } } },
+				{225, new Dictionary<float, bool>() { { 0, false }, { 315 /*-45*/, false }, { 45, false } } },
+				{270, new Dictionary<float, bool>() { { 0, true }, { 315 /*-45*/, false }, { 45, false } } },
+				{315, new Dictionary<float, bool>() { { 0, true }, { 315 /*-45*/, false }, { 45, false } } }
 			};
 
 			for (int yangle = 0; yangle < 360; yangle += 45)
 			{
-				foreach (var xangle in new float[] { 0, -45, 45 })
+				foreach (var xangle in new float[] { 0, 315 /*-45*/, 45 })
 				{
 					var a = new Point() { X = p1.X, Y = p1.Y, Z = p1.Z };
 					var b = new Point() { X = p2.X, Y = p2.Y, Z = p2.Z };
@@ -233,7 +233,7 @@ namespace engine.Common.Tests
 
 			var ellapsed = timer.ElapsedMilliseconds;
 
-			Assert.IsTrue(ellapsed < 100, $"Execution was too long {ellapsed}");
+			Assert.IsTrue(ellapsed < 150, $"Execution was too long {ellapsed}");
 		}
 	}
 }

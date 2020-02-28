@@ -383,12 +383,11 @@ namespace engine.Common
                 Collision.CalculateLineByAngle(player.X, player.Y, angle, weapon.Distance, out x1, out y1, out x2, out y2);
 
                 // find what was hit
-                var elem = LineIntersectingRectangle(player, x1, y1, x2, y2);
+                var elem = LineIntersectingRectangle(player, x1, y1, x2, y2, out float distance);
 
                 if (elem != null)
                 {
                     // reduce the visual shot on screen based on where the bullet hit
-                    var distance = DistanceToObject(player, elem);
                     Collision.CalculateLineByAngle(player.X, player.Y, angle, distance, out x1, out y1, out x2, out y2);
 
                     hit.Add(elem);
@@ -443,17 +442,13 @@ namespace engine.Common
             return null;
         }
 
-        private float DistanceToObject(Element elem1, Element elem2)
+        private Element LineIntersectingRectangle(Player player, float x1, float y1, float x2, float y2, out float distance)
         {
-            return Collision.DistanceToObject(elem1.X, elem1.Y, elem1.Width, elem1.Height,
-                elem2.X, elem2.Y, elem2.Width, elem2.Height);
-        }
+            // init
+            distance = Single.MaxValue;
 
-        private Element LineIntersectingRectangle(Player player, float x1, float y1, float x2, float y2)
-        {
             // must ensure to find the closest object that intersects
             Element item = null;
-            float prvDistance = 0;
             float z1 = Constants.Ground;
             float z2 = Constants.Sky;
 
@@ -466,19 +461,17 @@ namespace engine.Common
 
                 // check if the line intersections this objects hit box
                 // after it has moved
-                var collision = Collision.LineIntersectingRectangle(
+                var tdistance = Collision.LineIntersectingRectangle(
                     x1, y1, x2, y2, // line
-                    elem.X, elem.Y, // element
-                    elem.Width, elem.Health);
-
-                if (collision)
+                    elem.X, elem.Y, elem.Width, elem.Height // element
+                    );
+                if (tdistance > 0f)
                 {
                     // check if this is the closest collision
-                    var distance = DistanceToObject(player, elem);
-                    if (item == null || distance < prvDistance)
+                    if (tdistance < distance)
                     {
                         item = elem;
-                        prvDistance = distance;
+                        distance = tdistance;
                     }
                 }
             }
@@ -516,6 +509,6 @@ namespace engine.Common
 
             return obj;
         }
-        #endregion
+#endregion
     }
 }

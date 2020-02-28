@@ -18,23 +18,23 @@ namespace engine.Common.Tests
             var index = 0;
             foreach (var input in new Quad[]
             {
-                // top
+                // bottom
                 new Quad()
                 {
                     X1 = 10,
                     Y1 = -35,
                     X2 = 10,
                     Y2 = 10,
-                    Result = true
+                    Value = 11f
                 },
-                // bottom
+                // top
                 new Quad()
                 {
                     X1 = 10,
-                    Y1 = 10,
+                    Y1 = 35,
                     X2 = 10,
-                    Y2 = 35,
-                    Result = true
+                    Y2 = 10,
+                    Value = 9f
                 },
                 // left
                 new Quad()
@@ -43,24 +43,24 @@ namespace engine.Common.Tests
                     Y1 = 10,
                     X2 = 10,
                     Y2 = 10,
-                    Result = true
+                    Value = 11f
                 },
                 // right
                 new Quad()
                 {
-                    X1 = 10,
+                    X1 = 35,
                     Y1 = 10,
-                    X2 = 35,
+                    X2 = 10,
                     Y2 = 10,
-                    Result = true
+                    Value = 9f
                 }
             })
             {
-                var result = Collision.LineIntersectingRectangle(
+                var distance = Collision.LineIntersectingRectangle(
                     input.X1, input.Y1, input.X2, input.Y2,
                     x, y, width, height);
 
-                Assert.AreEqual(input.Result, result, string.Format("Test {0}", index));
+                Assert.AreEqual(input.Value, distance, string.Format("Test {0} : {1} != {2}", index, input.Value, distance));
                 index++;
             }
         }
@@ -84,15 +84,15 @@ namespace engine.Common.Tests
                     Y1 = -10,
                     X2 = 60,
                     Y2 = 10,
-                    Result = true
+                    Value = 14.1421356f
                 }
             })
             {
-                var result = Collision.LineIntersectingRectangle(
+                var distance = Collision.LineIntersectingRectangle(
                     input.X1, input.Y1, input.X2, input.Y2,
                     x, y, width, height);
 
-                Assert.AreEqual(input.Result, result, string.Format("Test {0}", index));
+                Assert.AreEqual(input.Value, distance, string.Format("Test {0} : {1} != {2}", index, input.Value, distance));
                 index++;
             }
         }
