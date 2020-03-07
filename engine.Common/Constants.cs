@@ -60,14 +60,8 @@ namespace engine.Common
         public const int MaxAmmo = 500; // it is infinite, but any more than this is considered full
         public const float IsTouchingDistance = 0.1f;
 
-        public const float YForceDegrade = 0.1f;
-        public const float YForcePace = 3f;
-
-        public const float XForceDegrade = YForceDegrade / 2f;
-        public const float XForcePace = 1f;
-
-        public const float ZForceDegrade = 0f;
-        public const float ZForcePace = 1f;
+        public const float Gravity = 10f;
+        public const float Force = -20f;
 
         // world options
         public const float DefaultPace = 0f; // causes it to be collected from background

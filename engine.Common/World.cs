@@ -593,7 +593,7 @@ namespace engine.Common
                 // add another alive player
                 Alive++;
 
-                PlayerDetails details = null;
+                PlayerDetails detail = null;
                 try
                 {
                     DetailsLock.EnterUpgradeableReadLock();
@@ -604,8 +604,8 @@ namespace engine.Common
                     {
                         DetailsLock.EnterWriteLock();
                         // add it
-                        details = new PlayerDetails() { Player = (item as Player) };
-                        Details.Add(item.Id, details);
+                        detail = new PlayerDetails() { Player = (item as Player) };
+                        Details.Add(item.Id, detail);
                         UniquePlayers.Add(item.Id);
                     }
                     finally
@@ -622,13 +622,13 @@ namespace engine.Common
                 if ((Config.ForcesApplied & (int)Forces.Z) > 0)
                 {
                     // apply an initial Z force
-                    (item as Player).ZForcePercentage = Constants.ZForcePace;
+                    AddForce(detail, TimeAxis.Z, percentage: 1f);
                 }
 
                 // setup humans and AI
                 if (item is AI || Config.ForcesApplied > 0)
                 {
-                    details.UpdatePlayerTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
+                    detail.UpdatePlayerTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
                 }
             }
         }
@@ -750,13 +750,55 @@ namespace engine.Common
             AddItem(player);
         }
 
+        public void ApplyForce(Player player, Forces axis, float percentage)
+        {
+            PlayerDetails detail = null;
+            try
+            {
+                DetailsLock.EnterReadLock();
+                if (!Details.TryGetValue(player.Id, out detail)) throw new Exception("Unknown player");
+            }
+            finally
+            {
+                DetailsLock.ExitReadLock();
+            }
+
+            // add the force
+            switch(axis)
+            {
+                case Forces.X: AddForce(detail, TimeAxis.X, percentage); break;
+                case Forces.Y: AddForce(detail, TimeAxis.Y, percentage); break;
+                case Forces.Z: AddForce(detail, TimeAxis.Z, percentage); break;
+            }
+        }
+
         #region private
         class PlayerDetails
         {
             public Player Player;
             public Timer UpdatePlayerTimer;
             public int UpdatePlayerLock; // to avoid reentrancy in the timer
+
+            // physics
+            public object ForceLock;
+            public bool[] ForceInMotion;
+            public float[] ForceTime;
+            public float[] ForceBaseline;
+            public float[] Forces;
+
+            public PlayerDetails()
+            {
+                ForceLock = new object();
+                // x,y,z t for force calculations
+                // index by TimeAxis'
+                ForceTime = new float[3];
+                ForceBaseline = new float[3];
+                Forces = new float[3];
+                ForceInMotion = new bool[3];
+            }
         }
+
+        private enum TimeAxis { X = 0, Y = 1, Z = 2};
 
         private WorldTranslationGraphics Surface;
         private List<EphemerialElement> Ephemerial;
@@ -919,103 +961,35 @@ namespace engine.Common
             // apply forces, if necessary
             if (Config.ForcesApplied > 0 && detail.Player.CanMove)
             {
-                bool inAir = false;
-
-                // apply upward force
+                // apply 'jump' force
                 if ((Config.ForcesApplied & (int)Forces.Y) > 0)
                 {
-                    if (detail.Player.YForcePercentage > 0)
-                    {
-                        var retries = 3;
-                        var pace = Constants.YForcePace;
-                        var dist = -1 * detail.Player.YForcePercentage;
-                        do
-                        {
-                            // degrade the y delta
-                            detail.Player.YForcePercentage -= Constants.YForceDegrade;
-                            if (detail.Player.YForcePercentage < 0) detail.Player.YForcePercentage = 0;
-
-                            // apply
-                            if (Move(detail.Player, xdelta: 0, ydelta: dist, zdelta: 0, pace: pace))
-                            {
-                                inAir = true;
-                                break;
-                            }
-
-                            // we are too close, reduce how far we try
-                            dist /= 2;
-                            pace /= 2;
-                        }
-                        while (retries-- > 0);
-                    }
-
-                    // apply downward force
-                    else
-                    {
-                        var retries = 3;
-                        var dist = 1f;
-                        var pace = Constants.YForcePace;
-                        do
-                        {
-                            // apply
-                            if (Move(detail.Player, xdelta: 0, ydelta: dist, zdelta: 0, pace: pace))
-                            {
-                                inAir = true;
-                                break;
-                            }
-
-                            // we are too close, reduce how far we try
-                            dist /= 2;
-                            pace /= 2;
-                        }
-                        while (retries-- > 0);
-                    }
+                    var result = ApplyForce(detail, TimeAxis.Y, force: detail.Forces[(int)TimeAxis.Y], opposingForce: Constants.Gravity);
+                    // we are in the air if the force was successfully applied OR if we were heading up (negative) and were unsuccessful
+                    detail.ForceInMotion[(int)TimeAxis.Y] = (result & ForceState.Success) != 0 || ((result & ForceState.Failed) != 0 && (result & ForceState.Negative) != 0);
                 }
 
                 // apply a horizontal force, if necessary
                 if ((Config.ForcesApplied & (int)Forces.X) > 0)
                 {
-                    if (inAir && detail.Player.XForcePercentage != 0)
+                    if (detail.ForceInMotion[(int)TimeAxis.Y] && detail.Forces[(int)TimeAxis.X] != 0)
                     {
-                        var retries = 3;
-                        var pace = Constants.XForcePace;
-                        var dist = (detail.Player.XForcePercentage < 0) ? -1f : 1f;
-                        do
-                        {
-                            // degrade the x delta
-                            if (detail.Player.XForcePercentage > 0)
-                            {
-                                detail.Player.XForcePercentage -= Constants.XForceDegrade;
-                                if (detail.Player.XForcePercentage < 0)
-                                    detail.Player.XForcePercentage = 0;
-                            }
-                            else if (detail.Player.XForcePercentage < 0)
-                            {
-                                detail.Player.XForcePercentage += Constants.XForceDegrade;
-                                if (detail.Player.XForcePercentage > 0)
-                                    detail.Player.XForcePercentage = 0;
-                            }
-
-                            if (Move(detail.Player, xdelta: dist, ydelta: 0, zdelta: 0, pace: pace))
-                                break;
-                            // we are too close, reduce how far we try
-                            dist /= 2;
-                            pace /= 2;
-                        }
-                        while (retries-- > 0);
+                        var result = ApplyForce(detail, TimeAxis.X, force: detail.Forces[(int)TimeAxis.X], opposingForce: 0f);
+                        detail.ForceInMotion[(int)TimeAxis.X] = (result & ForceState.Success) != 0;
                     }
                 }
 
                 // apply z force, if necessary
                 if ((Config.ForcesApplied & (int)Forces.Z) > 0)
                 {
-                    if (detail.Player.ZForcePercentage != 0)
+                    if (detail.Forces[(int)TimeAxis.Z] != 0)
                     {
                         if (detail.Player.Z <= Constants.Ground)
                         {
                             // ensure the player is on the ground
                             detail.Player.Z = Constants.Ground;
-                            detail.Player.ZForcePercentage = 0f;
+                            detail.Forces[(int)TimeAxis.Z] = 0f;
+                            detail.ForceInMotion[(int)TimeAxis.Z] = false;
 
                             // check if the player is touching an object, if so then move
                             int count = 100;
@@ -1055,6 +1029,7 @@ namespace engine.Common
                             // move downward
                             var step = (Constants.ZoomStep / 10f);
                             Move(detail.Player, xdelta: 0f, ydelta: 0f, zdelta: -1 * (step / Constants.Speed), pace: 1f);
+                            detail.ForceInMotion[(int)TimeAxis.Z] = true;
 
                             if (detail.Player.Id == Human.Id)
                             {
@@ -1181,6 +1156,100 @@ namespace engine.Common
         }
 
         // support
+        private void AddForce(PlayerDetails detail, TimeAxis axis, float percentage)
+        {
+            lock (detail.ForceLock)
+            {
+                // setup supporting details
+                detail.ForceTime[(int)axis] = 0f;
+                detail.ForceBaseline[(int)axis] = 0f;
+                detail.ForceInMotion[(int)axis] = false;
+
+                // normalize -100%-0%-100%
+                percentage = (percentage < -1f) ? -1f : (percentage > 1f ? 1f : percentage);
+
+                // set percentage
+                switch (axis)
+                {
+                    case TimeAxis.X: detail.Forces[(int)TimeAxis.X] = percentage * Math.Abs(Constants.Force); break;
+                    case TimeAxis.Y: detail.Forces[(int)TimeAxis.Y] = percentage * Constants.Force; break;
+                    case TimeAxis.Z: detail.Forces[(int)TimeAxis.Z] = percentage * Constants.Gravity; break;
+                }
+            }
+        }
+
+        private void RemoveForce(PlayerDetails detail, TimeAxis axis)
+        {
+            lock (detail.ForceLock)
+            {
+                // cleanup supporting details
+                detail.ForceTime[(int)axis] = 0f;
+                detail.ForceBaseline[(int)axis] = 0f;
+                detail.Forces[(int)axis] = 0f;
+                detail.ForceInMotion[(int)axis] = false;
+            }
+        }
+
+        private enum ForceState { None = 0, Success = 1, Failed = 2, Negative = 4, Positive = 8 };
+        private ForceState ApplyForce(PlayerDetails detail, TimeAxis axis, float force, float opposingForce)
+        {
+            lock (detail.ForceLock)
+            {
+                // advance time
+                detail.ForceTime[(int)axis] += (Constants.GlobalClock / 1000f); // ms
+
+                // init
+                var t = detail.ForceTime[(int)axis];
+                var result = ForceState.None;
+
+                // calculate the distance (d=1/2*g*t^2 + v*t)
+                var distance = 0.5f * opposingForce * (t * t) + force * t;
+
+                // compute how far the player should move
+                var pace = (distance - detail.ForceBaseline[(int)axis]);
+
+                // determine direction
+                result = ForceState.Positive;
+                var direction = 1f;
+                if (pace < 0f)
+                {
+                    result = ForceState.Negative;
+                    direction = -1f;
+                    pace *= -1;
+                }
+
+                // apply (
+                var retries = 3;
+                do
+                {
+                    // apply movement equivalent to the force
+                    if (Move(detail.Player,
+                        xdelta: (axis == TimeAxis.X) ? direction : 0f,
+                        ydelta: (axis == TimeAxis.Y) ? direction : 0f,
+                        zdelta: (axis == TimeAxis.Z) ? direction : 0f,
+                        pace))
+                    {
+                        // retain baseline
+                        detail.ForceBaseline[(int)axis] += (direction * pace);
+
+                        // degrade the force
+                        detail.Forces[(int)axis] *= 0.99f;
+
+                        return result | ForceState.Success;
+                    }
+
+                    // we are too close, reduce how far we try
+                    pace /= 2f;
+                }
+                while (retries-- > 0);
+
+                // remove the force
+                RemoveForce(detail, axis);
+
+                return result | ForceState.Failed;
+            }
+        }
+
         private RGBA Element3DShader(Element3D elem, Point[] points, RGBA color)
         {
             // validate
@@ -1367,7 +1436,8 @@ namespace engine.Common
                 if (touching != null && player.Y < touching.Y)
                 {
                     // this player is standing on something
-                    player.YForcePercentage = player.MaxYForcePercentage; // 0-100%
+                    ApplyForce(player, Forces.Y, player.MaxYForcePercentage);
+                    return true;
                 }
             }
             return false;
