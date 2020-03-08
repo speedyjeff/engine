@@ -51,7 +51,6 @@ namespace engine.Common
 
             // init
             Ephemerial = new List<EphemerialElement>();
-            ZoomFactor = 1;
             Config = config;
             Details = new Dictionary<int, PlayerDetails>();
             Alive = 0;
@@ -83,9 +82,6 @@ namespace engine.Common
 
             // add all the players
             foreach (var player in players) AddItem(player);
-
-            // setup window (based on placement on the map)
-            if (!Config.Is3D && Human.Z > Constants.Ground) ZoomFactor = 0.05f;
 
             // start paused
             if (Config.StartMenu != null)
@@ -142,7 +138,6 @@ namespace engine.Common
                 centerX: Human.X, centerY: Human.Y, centerZ: Human.Z,
                 yaw: Human.Angle, pitch: Human.PitchAngle, roll: 0f,
                 cameraX: Config.CameraX, cameraY: Config.CameraY, cameraZ: Config.CameraZ,
-                zoom: ZoomFactor,
                 horizon: Config.HorizonZ * 2);
 
             // draw the map
@@ -184,8 +179,11 @@ namespace engine.Common
             // draw all elements
             var hidden = new HashSet<int>();
             var visiblePlayers = new List<Player>();
+
+            var ratio = (Human.Z + Config.CameraZ);
+            if (ratio < 1f) ratio = 1f;
             foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z, 
-                Surface.Width * (1 / ZoomFactor) + Config.HorizonX, Surface.Height * (1 / ZoomFactor) + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
+                Surface.Width * ratio + Config.HorizonX, Surface.Height * ratio + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
             {
                 if (elem.IsDead) continue;
                 else if (elem is Player)
@@ -404,7 +402,6 @@ namespace engine.Common
 
             if (OnBeforeAction != null)
             {
-                // NOTE: Do not apply the ZoomFactor (to keep the view fair)
                 List<Element> elements = Map.WithinWindow(Human.X, Human.Y, Human.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
                 var angleToCenter = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Config.Width / 2, Config.Height / 2);
                 var inZone = Map.Background.Damage(Human.X, Human.Y) > 0;
@@ -525,12 +522,12 @@ namespace engine.Common
             if (Human.Z != Constants.Ground) return;
 
             // adjust the zoom
-            if (delta < 0) ZoomFactor -= Constants.ZoomStep;
-            else if (delta > 0) ZoomFactor += Constants.ZoomStep;
+            if (delta > 0) Config.CameraZ -= 1f;
+            else if (delta < 0) Config.CameraZ += 1f;
 
             // cap the zoom capability
-            if (ZoomFactor < Constants.ZoomStep) ZoomFactor = Constants.ZoomStep;
-            if (ZoomFactor > Constants.MaxZoomIn) ZoomFactor = Constants.MaxZoomIn;
+            if (Config.CameraZ < Constants.Ground) Config.CameraZ = Constants.Ground;
+            if (Config.CameraZ > Constants.Sky) Config.CameraZ = Constants.Sky;
         }
 
         public void Mousemove(float x, float y, float angle)
@@ -736,7 +733,7 @@ namespace engine.Common
 
         public void Teleport(Player player, float x, float y, float z = 0)
         {
-            if (player == null || player.IsDead) throw new Exception("Cannot teleport an invalid player");
+            if (player == null) throw new Exception("Cannot teleport an invalid player");
 
             // remove the player
             RemoveItem(player);
@@ -802,7 +799,6 @@ namespace engine.Common
 
         private WorldTranslationGraphics Surface;
         private List<EphemerialElement> Ephemerial;
-        private float ZoomFactor;
         private ISounds Sounds;
         private Map Map;
         private Dictionary<int, PlayerDetails> Details;
@@ -887,7 +883,6 @@ namespace engine.Common
                     return;
                 }
 
-                // NOTE: Do not apply the ZoomFactor (as it distorts the AI when debugging)
                 List<Element> elements = Map.WithinWindow(ai.X, ai.Y, ai.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
                 var angleToCenter = Collision.CalculateAngleFromPoint(ai.X, ai.Y, Config.Width / 2, Config.Height / 2);
                 var inZone = Map.Background.Damage(ai.X, ai.Y) > 0;
@@ -984,12 +979,16 @@ namespace engine.Common
                 {
                     if (detail.Forces[(int)TimeAxis.Z] != 0)
                     {
-                        if (detail.Player.Z <= Constants.Ground)
+                        // decend
+                        var result = ApplyForce(detail, TimeAxis.Z, force: 0f, opposingForce: -0.03f * Constants.Gravity);
+                        if (detail.Player.Z <= Constants.IsTouchingDistance || 
+                            ((int)result & (int)ForceState.Failed) != 0)
                         {
                             // ensure the player is on the ground
-                            detail.Player.Z = Constants.Ground;
-                            detail.Forces[(int)TimeAxis.Z] = 0f;
-                            detail.ForceInMotion[(int)TimeAxis.Z] = false;
+                            Teleport(detail.Player, x: detail.Player.X, detail.Player.Y, z: Constants.Ground);
+
+                            // remove the force
+                            RemoveForce(detail, TimeAxis.Z);
 
                             // check if the player is touching an object, if so then move
                             int count = 100;
@@ -1001,9 +1000,10 @@ namespace engine.Common
                                 xstep *= -1;
                                 xmove *= -1;
                             }
+
+                            // check that we are in a safe place to land
                             do
                             {
-                                // check that we are in a safe place to land
                                 float xdelta = xstep;
                                 float ydelta = 0;
                                 float zdelta = 0;
@@ -1020,21 +1020,6 @@ namespace engine.Common
                             if (count <= 0)
                             {
                                 System.Diagnostics.Debug.WriteLine("Failed to move after ZForce");
-                            }
-                        }
-
-                        // decend
-                        else
-                        {
-                            // move downward
-                            var step = (Constants.ZoomStep / 10f);
-                            Move(detail.Player, xdelta: 0f, ydelta: 0f, zdelta: -1 * (step / Constants.Speed), pace: 1f);
-                            detail.ForceInMotion[(int)TimeAxis.Z] = true;
-
-                            if (detail.Player.Id == Human.Id)
-                            {
-                                // zoom in
-                                ZoomFactor += step;
                             }
                         }
                     }

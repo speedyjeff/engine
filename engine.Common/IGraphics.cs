@@ -104,7 +104,7 @@ namespace engine.Common
         void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0);
 
         // support to project to screen coordinates
-        void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float zoom = 0f, float horizon = 0f);
+        void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0f);
         void DisableTranslation(TranslationOptions options=0);
         void EnableTranslation();
 

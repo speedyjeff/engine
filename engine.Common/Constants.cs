@@ -65,10 +65,8 @@ namespace engine.Common
 
         // world options
         public const float DefaultPace = 0f; // causes it to be collected from background
-        public const float MaxZoomIn = 10f;
-        public const float ZoomStep = 0.1f;
         public const float Ground = 0f;
-        public const float Sky = 1f;
+        public const float Sky = 20f;
         public const float ProximityViewHeight = 888;
         public const float ProximityViewWidth = 1384;
         public const float ProximityViewDepth = 700;

@@ -95,7 +95,7 @@ namespace engine.Common
             Graphics.Image(name: name, stream, x, y, width, height);
         }
 
-        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float zoom, float horizon)
+        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon)
         {
             Is3D = is3D;
             CenterX = centerX;
@@ -107,7 +107,6 @@ namespace engine.Common
             CameraX = cameraX;
             CameraY = cameraY;
             CameraZ = cameraZ;
-            Zoom = zoom;
             Horizon = horizon;
         }
 
@@ -224,7 +223,6 @@ namespace engine.Common
         private float Yaw;
         private float Pitch;
         private float Roll;
-        private float Zoom;
         private float Horizon;
 
         // 3D support
@@ -262,12 +260,16 @@ namespace engine.Common
         {
             if (!Is3D)
             {
-                float zoom = ((options & TranslationOptions.Scaling) != 0) ? Zoom : 1;
+                // get pov point
+                var pov = CenterZ + CameraZ;
 
                 // determine scaling factor
-                float scale = (1 / zoom);
+                var zoom = ((options & TranslationOptions.Scaling) != 0) && pov > 0.001f ? 1f / pov : 1f;
+
+                // scale
                 width *= zoom;
                 height *= zoom;
+                other *= zoom;
 
                 // Surface.Width & Surface.Height are the current windows width & height
                 float windowHWidth = Graphics.Width / 2.0f;
@@ -276,10 +278,9 @@ namespace engine.Common
                 // now translate to the window
                 x = ((x - CenterX) * zoom) + windowHWidth;
                 y = ((y - CenterY) * zoom) + windowHHeight;
-                other *= zoom;
             }
 
-            // if (Config.Is3D)
+            // if (Is3D)
             else
             {
                 // translate to 0,0,0 (origin)

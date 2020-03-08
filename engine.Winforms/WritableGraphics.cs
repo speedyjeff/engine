@@ -131,7 +131,7 @@ namespace engine.Winforms
         }
 
         // no-op
-        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float zoom, float horizon) { }
+        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon) { }
         public void EnableTranslation() { }
         public void DisableTranslation(TranslationOptions options) {}
 
