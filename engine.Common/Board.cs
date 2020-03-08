@@ -89,7 +89,8 @@ namespace engine.Common
         public int Columns { get { return Config.Columns; } }
 
         public RGBA BackgroundColor { get { return Config.Background; } }
-        public string BackgroundImage { get { return Config.BackgroundImage; } }
+        public IImage BackgroundImage { get; private set; }
+        public string BackgroundPath { get { return Config.BackgroundImage; } }
 
         public event CellDelegate OnCellClicked;
         public event CellDelegate OnCellOver;
@@ -98,6 +99,11 @@ namespace engine.Common
         {
             Surface = surface;
             Sounds = sounds;
+
+            if (!string.IsNullOrWhiteSpace(Config.BackgroundImage))
+            {
+                BackgroundImage = Surface.CreateImage(Config.BackgroundImage);
+            }
 
             // set the background color
             Clear();
@@ -272,7 +278,6 @@ namespace engine.Common
         private ISounds Sounds;
         private BoardConfiguration Config;
         private CellDetails Overlay;
-        private IImage Image;
 
         // used for non-rectangluar shapes
         private int EdgeWidth;
@@ -289,10 +294,9 @@ namespace engine.Common
         private void Clear()
         {
             Surface.Clear(Config.Background);
-            if (!string.IsNullOrWhiteSpace(Config.BackgroundImage))
+            if (BackgroundImage != null)
             {
-                if (Image == null) Image = Surface.CreateImage(Config.BackgroundImage);
-                Surface.Image(Image, 0, 0, Surface.Width, Surface.Height);
+                Surface.Image(BackgroundImage, 0, 0, Surface.Width, Surface.Height);
             }
         }
 
