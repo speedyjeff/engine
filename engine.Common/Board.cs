@@ -272,6 +272,7 @@ namespace engine.Common
         private ISounds Sounds;
         private BoardConfiguration Config;
         private CellDetails Overlay;
+        private IImage Image;
 
         // used for non-rectangluar shapes
         private int EdgeWidth;
@@ -290,7 +291,8 @@ namespace engine.Common
             Surface.Clear(Config.Background);
             if (!string.IsNullOrWhiteSpace(Config.BackgroundImage))
             {
-                Surface.Image(Config.BackgroundImage, 0, 0, Surface.Width, Surface.Height);
+                if (Image == null) Image = Surface.CreateImage(Config.BackgroundImage);
+                Surface.Image(Image, 0, 0, Surface.Width, Surface.Height);
             }
         }
 

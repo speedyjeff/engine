@@ -99,9 +99,7 @@ namespace engine.Common
         void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill = true, bool border = false, float thickness = 5f); 
         void Text(RGBA color, float x, float y, string text, float fontsize = 16);
         void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness);
-        void Image(string path, float x, float y, float width = 0, float height = 0);
         void Image(IImage img, float x, float y, float width = 0, float height = 0);
-        void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0);
 
         // support to project to screen coordinates
         void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0f);
@@ -110,6 +108,7 @@ namespace engine.Common
 
         // 3D support
         void Polygon(RGBA color, Point[] points, bool fill = true, bool border = false, float thickness = 5f);
+        void Image(IImage img, Point[] points);
 
         // details
         int Height { get; }
@@ -117,5 +116,7 @@ namespace engine.Common
 
         // helper
         IImage CreateImage(int width, int height);
+        IImage CreateImage(Stream stream);
+        IImage CreateImage(string path);
     }
 }

@@ -21,6 +21,13 @@ namespace engine.Winforms
             Graphics = new WritableGraphics(null, g, height, width);
         }
 
+        public BitmapImage(System.Drawing.Bitmap bitmap)
+        {
+            UnderlyingImage = bitmap;
+            var g = System.Drawing.Graphics.FromImage(UnderlyingImage);
+            Graphics = new WritableGraphics(null, g, bitmap.Height, bitmap.Width);
+        }
+
         public IGraphics Graphics { get; private set; }
 
         public int Height { get; private set; }

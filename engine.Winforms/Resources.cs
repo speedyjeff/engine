@@ -29,12 +29,8 @@ namespace engine.Winforms
                     // save to stream
                     bitmap.Save(mem, System.Drawing.Imaging.ImageFormat.Bmp);
 
-                    // return to the begining
-                    mem.Seek(0, SeekOrigin.Begin);
-
                     // create an IImage
-                    var img = g.CreateImage(bitmap.Width, bitmap.Height);
-                    img.Graphics.Image(name, mem, 0, 0, bitmap.Width, bitmap.Height);
+                    var img = new BitmapImage(bitmap);
 
                     // add to collection
                     images.Add(name, img);

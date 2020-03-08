@@ -18,7 +18,6 @@ namespace engine.Winforms
             Graphics = g;
             Width = width;
             Height = height;
-            ImageCache = new Dictionary<string, Image>();
             SolidBrushCache = new Dictionary<int, SolidBrush>();
             PenCache = new Dictionary<long, Pen>();
             ArialFontCache = new Dictionary<float, Font>();
@@ -109,25 +108,12 @@ namespace engine.Winforms
             Graphics.DrawLine(GetCachedPen(color, thickness), x1, y1, x2, y2);
         }
 
-        public void Image(string path, float x, float y, float width = 0, float height = 0)
-        {
-            Image img = GetCachedImage(path);
-            Graphics.DrawImage(img, x, y, width, height);
-        }
-
         public void Image(IImage img, float x, float y, float width = 0, float height = 0)
         {
             var bitmap = img as BitmapImage;
             if (bitmap == null
                 || bitmap.UnderlyingImage == null) throw new Exception("Image(IImage) must be used with a BitmapImage");
             Graphics.DrawImage(bitmap.UnderlyingImage, x, y, width, height);
-        }
-
-        public void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0)
-        {
-            Image img = GetCachedImage(name, stream);
-
-            Graphics.DrawImage(img, x, y, width, height);
         }
 
         // no-op
@@ -157,6 +143,22 @@ namespace engine.Winforms
             }
         }
 
+        public void Image(IImage img, Common.Point[] points)
+        {
+            var bitmap = img as BitmapImage;
+            if (bitmap == null
+                || bitmap.UnderlyingImage == null) throw new Exception("Image(IImage) must be used with a BitmapImage");
+
+            // convert points into PointF
+            var edges = new System.Drawing.PointF[points.Length];
+            for (int i = 0; i < points.Length; i++)
+            {
+                edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
+            }
+
+            Graphics.DrawImage(bitmap.UnderlyingImage, edges);
+        }
+
         public int Height { get; private set; }
         public int Width { get; private set; }
 
@@ -165,30 +167,37 @@ namespace engine.Winforms
             return new BitmapImage(width, height);
         }
 
+        public IImage CreateImage(Stream stream)
+        {
+            var img = LoadImage(path: "", stream);
+            return new BitmapImage(img);
+        }
+
+        public IImage CreateImage(string path)
+        {
+            var img = LoadImage(path, stream: null);
+            return new BitmapImage(img);
+        }
+
         #region private
         private Graphics Graphics;
         private BufferedGraphics Surface;
         private BufferedGraphicsContext Context;
 
         // caches
-        private Dictionary<string, Image> ImageCache;
         private Dictionary<int, SolidBrush> SolidBrushCache;
         private Dictionary<long, Pen> PenCache;
         private Dictionary<float, Font> ArialFontCache;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Image GetCachedImage(string path, Stream stream = null)
+        private System.Drawing.Bitmap LoadImage(string path, Stream stream = null)
         {
             System.Drawing.Image img = null;
-            if (!ImageCache.TryGetValue(path, out img))
-            {
-                if (stream != null) img = System.Drawing.Image.FromStream(stream);
-                else img = System.Drawing.Image.FromFile(path);
-                var bitmap = new Bitmap(img);
-                bitmap.MakeTransparent(bitmap.GetPixel(0, 0));
-                ImageCache.Add(path, bitmap);
-            }
-            return img;
+            if (stream != null) img = System.Drawing.Image.FromStream(stream);
+            else img = System.Drawing.Image.FromFile(path);
+            var bitmap = new Bitmap(img);
+            bitmap.MakeTransparent(bitmap.GetPixel(0, 0));
+            return bitmap;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

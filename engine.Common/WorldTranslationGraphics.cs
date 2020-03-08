@@ -71,28 +71,12 @@ namespace engine.Common
             Graphics.Line(color, x1, y1, x2, y2, thickness);
         }
 
-        public void Image(string path, float x, float y, float width = 0, float height = 0)
-        {
-            float z = Constants.Ground;
-            float o3 = 0f;
-            if (DoTranslation) TranslateCoordinates(Options, ref x, ref y, ref z, ref width, ref height, ref o3);
-            Graphics.Image(path, x, y, width, height);
-        }
-
         public void Image(IImage img, float x, float y, float width = 0, float height = 0)
         {
             float z = Constants.Ground;
             float o3 = 0f;
             if (DoTranslation) TranslateCoordinates(Options, ref x, ref y, ref z, ref width, ref height, ref o3);
             Graphics.Image(img, x, y, width, height);
-        }
-
-        public void Image(string name, Stream stream, float x, float y, float width = 0, float height = 0)
-        {
-            float z = Constants.Ground;
-            float o3 = 0f;
-            if (DoTranslation) TranslateCoordinates(Options, ref x, ref y, ref z, ref width, ref height, ref o3);
-            Graphics.Image(name: name, stream, x, y, width, height);
         }
 
         public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon)
@@ -166,6 +150,42 @@ namespace engine.Common
             else Graphics.Polygon(color, points, fill, border, thickness);
         }
 
+        public void Image(IImage img, Common.Point[] points)
+        {
+            if (points == null || points.Length <= 1) throw new Exception("Must provide a valid number of points");
+
+            // translate the points
+            float minz = Single.MaxValue;
+            float miny = Single.MaxValue;
+            float other = 0f;
+            if (DoTranslation)
+            {
+                float o1 = 0f, o2 = 0f;
+                for (int i = 0; i < points.Length; i++)
+                {
+                    TranslateCoordinates(Options, ref points[i].X, ref points[i].Y, ref points[i].Z, ref o1, ref o2, ref other);
+
+                    // track the furthestZ for sorting
+                    if (points[i].Z < minz) minz = points[i].Z;
+                    if (points[i].Y < miny) miny = points[i].Y;
+                }
+            }
+
+            // defer rending for later
+            if (_CapturePolygons)
+            {
+                Poloygons.Add(new PolygonDetails()
+                {
+                    Points = points,
+                    MinZ = minz,
+                    MinY = miny,
+                    Image = img
+                });
+            }
+            // draw the polygon
+            else Graphics.Image(img, points);
+        }
+
         public void CapturePolygons()
         {
             if (Poloygons == null) Poloygons = new List<PolygonDetails>();
@@ -186,7 +206,9 @@ namespace engine.Common
             // draw them directly
             foreach (var polygon in Poloygons)
             {
-                Graphics.Polygon(polygon.Color, polygon.Points, polygon.Fill, polygon.Border, polygon.Thickness);
+                // draw the image or polygon
+                if (polygon.Image != null) Graphics.Image(polygon.Image, polygon.Points);
+                else Graphics.Polygon(polygon.Color, polygon.Points, polygon.Fill, polygon.Border, polygon.Thickness);
             }
 
             // clear
@@ -205,6 +227,16 @@ namespace engine.Common
         public IImage CreateImage(int width, int height)
         {
             return Graphics.CreateImage(width, height);
+        }
+
+        public IImage CreateImage(string path)
+        {
+            return Graphics.CreateImage(path);
+        }
+
+        public IImage CreateImage(Stream stream)
+        {
+            return Graphics.CreateImage(stream);
         }
 
         #region private
@@ -235,6 +267,7 @@ namespace engine.Common
             public float Thickness;
             public float MinZ;
             public float MinY;
+            public IImage Image;
         }
         private bool _CapturePolygons;
         private List<PolygonDetails> Poloygons;
