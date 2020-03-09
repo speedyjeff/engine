@@ -181,7 +181,7 @@ namespace engine.Common
             var visiblePlayers = new List<Player>();
 
             var ratio = (Human.Z + Config.CameraZ);
-            if (ratio < 1f) ratio = 1f;
+            if (Config.Is3D || ratio < 1f) ratio = 1f;
             foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z, 
                 Surface.Width * ratio + Config.HorizonX, Surface.Height * ratio + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
             {
