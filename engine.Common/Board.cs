@@ -32,6 +32,12 @@ namespace engine.Common
             // ensure the angle is not too steep
             if (config.EdgeAngle < 0 || config.EdgeAngle > 89) throw new Exception("Invalid Edge Angle - must be between 0 and 89");
 
+            // setup background image
+            if (!string.IsNullOrWhiteSpace(config.BackgroundImage))
+            {
+                BackgroundImage = new ImageSource(path: config.BackgroundImage);
+            }
+
             // init
             Config = config;
             Overlay = new CellDetails() { IsDirty = false, Image = null };
@@ -89,8 +95,7 @@ namespace engine.Common
         public int Columns { get { return Config.Columns; } }
 
         public RGBA BackgroundColor { get { return Config.Background; } }
-        public IImage BackgroundImage { get; private set; }
-        public string BackgroundPath { get { return Config.BackgroundImage; } }
+        public ImageSource BackgroundImage { get; private set; }
 
         public event CellDelegate OnCellClicked;
         public event CellDelegate OnCellOver;
@@ -99,11 +104,6 @@ namespace engine.Common
         {
             Surface = surface;
             Sounds = sounds;
-
-            if (!string.IsNullOrWhiteSpace(Config.BackgroundImage))
-            {
-                BackgroundImage = Surface.CreateImage(Config.BackgroundImage);
-            }
 
             // set the background color
             Clear();
@@ -296,7 +296,7 @@ namespace engine.Common
             Surface.Clear(Config.Background);
             if (BackgroundImage != null)
             {
-                Surface.Image(BackgroundImage, 0, 0, Surface.Width, Surface.Height);
+                Surface.Image(BackgroundImage.Image, 0, 0, Surface.Width, Surface.Height);
             }
         }
 

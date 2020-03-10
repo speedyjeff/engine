@@ -34,7 +34,7 @@ namespace engine.Common
 
         public bool IsDead { get; protected set; } = false;
 
-        public virtual string ImagePath => "";
+        public virtual ImageSource Image { get; set; }
 
         public Element()
         {

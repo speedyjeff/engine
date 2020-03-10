@@ -26,11 +26,8 @@ namespace engine.Common.Entities
 
         public override void Draw(IGraphics g)
         {
-            // initialize
-            if (Image == null && !string.IsNullOrWhiteSpace(ImagePath)) Image = g.CreateImage(ImagePath);
-
             // draw
-            if (Image != null) g.Image(Image, X - Width / 2, Y - Height / 2, Width, Height);
+            if (Image != null) g.Image(Image.Image, X - Width / 2, Y - Height / 2, Width, Height);
             base.Draw(g);
         }
 
@@ -100,7 +97,6 @@ namespace engine.Common.Entities
 
         #region private
         private Stopwatch Shotdelay;
-        private IImage Image;
 
         private void ResetShotdelay()
         {
