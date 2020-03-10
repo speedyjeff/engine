@@ -1,6 +1,7 @@
 ﻿using engine.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -10,6 +11,8 @@ namespace engine.Common.Entities3D
 {
     public class Element3D : Element
     {
+        // array of Images for each polygon
+        public ImageSource[] ImageSources { get; set; }
         // array of colors for each polygon
         public RGBA[] Colors { get; set; }
         // list of polygons
@@ -47,10 +50,14 @@ namespace engine.Common.Entities3D
             // display the polygons
             for (int i = 0; i < Polygons.Length; i++)
             {
+                // transform
                 var color = IndexToColor(i);
                 var points = new Point[Polygons[i].Length];
                 for (int j = 0; j < Polygons[i].Length; j++) points[j] = new Point() { X = (Polygons[i][j].X * Width) + X, Y = (Polygons[i][j].Y *Height) + Y, Z = (Polygons[i][j].Z * Depth) + Z };
-                g.Polygon(color, points, fill: !Wireframe, border: false, thickness: 1f);
+
+                // draw
+                if (ImageSources != null && ImageSources[i] != null) g.Image(ImageSources[i].Image, points);
+                else g.Polygon(color, points, fill: !Wireframe, border: false, thickness: 1f);
             }
 
             base.Draw(g);

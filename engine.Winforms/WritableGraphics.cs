@@ -156,7 +156,16 @@ namespace engine.Winforms
                 edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
             }
 
-            Graphics.DrawImage(bitmap.UnderlyingImage, edges);
+            // draw
+            try
+            {
+                Graphics.DrawImage(bitmap.UnderlyingImage, edges);
+            }
+            catch (OutOfMemoryException)
+            {
+                // these errors happen from time to time and are ignorable
+                System.Diagnostics.Debug.WriteLine("OOM in Image");
+            }
         }
 
         public int Height { get; private set; }

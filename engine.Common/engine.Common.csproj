@@ -63,6 +63,7 @@
     <Compile Include="Entities3D\Tree.cs" />
     <Compile Include="Entities3D\Utilities3D.cs" />
     <Compile Include="Entities3D\Wedge.cs" />
+    <Compile Include="ImageSource.cs" />
     <Compile Include="RegionCollection.cs" />
     <Compile Include="Entities\AI\AI.cs" />
     <Compile Include="Entities\Ammo.cs" />

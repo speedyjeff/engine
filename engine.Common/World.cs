@@ -58,6 +58,9 @@ namespace engine.Common
             EphemerialLock = new ReaderWriterLockSlim();
             DetailsLock = new ReaderWriterLockSlim();
 
+            // 3D shaders
+            Element3D.SetShader(Element3DShader);
+
             // setup map
             if (config.Is3D) Map = new Map3D(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
             else Map = new Map(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
@@ -99,8 +102,8 @@ namespace engine.Common
             // graphics
             Surface = new WorldTranslationGraphics(surface);
 
-            // 3D shaders
-            Element3D.SetShader(Element3DShader);
+            // setup ImageSource
+            ImageSource.SetGraphics(Surface);
 
             // sounds
             Sounds = sounds;
