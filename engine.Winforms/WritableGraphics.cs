@@ -21,6 +21,8 @@ namespace engine.Winforms
             SolidBrushCache = new Dictionary<int, SolidBrush>();
             PenCache = new Dictionary<long, Pen>();
             ArialFontCache = new Dictionary<float, Font>();
+            // 3 pointf's is the most common type, so use one as a cache (to avoid the allocation)
+            TriPoints = new PointF[3];
 
             // get graphics ready
             if (Context != null) RawResize(g, height, width);
@@ -81,20 +83,17 @@ namespace engine.Winforms
         public void Triangle(RGBA color, float x1, float y1, float x2, float y2, float x3, float y3, bool fill, bool border, float thickness)
         {
             // use screen coordinates
-            var edges = new PointF[]
-            {
-                new PointF(x1, y1),
-                new PointF(x2, y2),
-                new PointF(x3, y3)
-            };
+            TriPoints[0].X = x1; TriPoints[0].Y = y1;
+            TriPoints[1].X = x2; TriPoints[1].Y = y2;
+            TriPoints[2].X = x3; TriPoints[2].Y = y3;
             if (fill)
             {
-                Graphics.FillPolygon(GetCachedSolidBrush(color), edges);
-                if (border) Graphics.DrawPolygon(GetCachedPen(RGBA.Black, thickness), edges);
+                Graphics.FillPolygon(GetCachedSolidBrush(color), TriPoints);
+                if (border) Graphics.DrawPolygon(GetCachedPen(RGBA.Black, thickness), TriPoints);
             }
             else
             {
-                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, thickness), edges);
+                Graphics.DrawPolygon(GetCachedPen(RGBA.Black, thickness), TriPoints);
             }
         }
 
@@ -126,10 +125,22 @@ namespace engine.Winforms
             if (points == null || points.Length <= 1) throw new Exception("Must provide a valid number of points");
 
             // convert points into PointF
-            var edges = new System.Drawing.PointF[points.Length];
-            for (int i = 0; i < points.Length; i++)
+            PointF[] edges = null;
+            if (points.Length == 3)
             {
-                edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
+                TriPoints[0].X = points[0].X; TriPoints[0].Y = points[0].Y;
+                TriPoints[1].X = points[1].X; TriPoints[1].Y = points[1].Y;
+                TriPoints[2].X = points[2].X; TriPoints[2].Y = points[2].Y;
+
+                edges = TriPoints;
+            }
+            else
+            {
+                edges = new System.Drawing.PointF[points.Length];
+                for (int i = 0; i < points.Length; i++)
+                {
+                    edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
+                }
             }
 
             if (fill)
@@ -150,10 +161,22 @@ namespace engine.Winforms
                 || bitmap.UnderlyingImage == null) throw new Exception("Image(IImage) must be used with a BitmapImage");
 
             // convert points into PointF
-            var edges = new System.Drawing.PointF[points.Length];
-            for (int i = 0; i < points.Length; i++)
+            PointF[] edges = null;
+            if (points.Length == 3)
             {
-                edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
+                TriPoints[0].X = points[0].X; TriPoints[0].Y = points[0].Y;
+                TriPoints[1].X = points[1].X; TriPoints[1].Y = points[1].Y;
+                TriPoints[2].X = points[2].X; TriPoints[2].Y = points[2].Y;
+
+                edges = TriPoints;
+            }
+            else
+            {
+                edges = new System.Drawing.PointF[points.Length];
+                for (int i = 0; i < points.Length; i++)
+                {
+                    edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
+                }
             }
 
             // draw
@@ -192,6 +215,7 @@ namespace engine.Winforms
         private Graphics Graphics;
         private BufferedGraphics Surface;
         private BufferedGraphicsContext Context;
+        private PointF[] TriPoints;
 
         // caches
         private Dictionary<int, SolidBrush> SolidBrushCache;

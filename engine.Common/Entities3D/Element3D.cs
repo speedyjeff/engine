@@ -52,8 +52,20 @@ namespace engine.Common.Entities3D
             {
                 // transform
                 var color = IndexToColor(i);
-                var points = new Point[Polygons[i].Length];
-                for (int j = 0; j < Polygons[i].Length; j++) points[j] = new Point() { X = (Polygons[i][j].X * Width) + X, Y = (Polygons[i][j].Y *Height) + Y, Z = (Polygons[i][j].Z * Depth) + Z };
+                Point[] points = null;
+                if (Polygons[i].Length == 3)
+                {
+                    TriPoints[0].X = (Polygons[i][0].X * Width) + X; TriPoints[0].Y = (Polygons[i][0].Y * Height) + Y; TriPoints[0].Z = (Polygons[i][0].Z * Depth) + Z;
+                    TriPoints[1].X = (Polygons[i][1].X * Width) + X; TriPoints[1].Y = (Polygons[i][1].Y * Height) + Y; TriPoints[1].Z = (Polygons[i][1].Z * Depth) + Z;
+                    TriPoints[2].X = (Polygons[i][2].X * Width) + X; TriPoints[2].Y = (Polygons[i][2].Y * Height) + Y; TriPoints[2].Z = (Polygons[i][2].Z * Depth) + Z;
+
+                    points = TriPoints;
+                }
+                else
+                {
+                    points = new Point[Polygons[i].Length];
+                    for (int j = 0; j < Polygons[i].Length; j++) points[j] = new Point() { X = (Polygons[i][j].X * Width) + X, Y = (Polygons[i][j].Y * Height) + Y, Z = (Polygons[i][j].Z * Depth) + Z };
+                }
 
                 // draw
                 if (ImageSources != null && ImageSources[i] != null) g.Image(ImageSources[i].Image, points);
@@ -93,6 +105,7 @@ namespace engine.Common.Entities3D
         // global shader support
         private static Func<Element3D, Point[], RGBA, RGBA> OnShader;
         private static volatile int GlobalShaderLevel = 1;
+        private static Point[] TriPoints = new Point[3];
 
         // per Element3D shading
         private volatile int ShaderLevel = 0;

@@ -133,19 +133,7 @@ namespace engine.Common
             }
 
             // defer rending for later
-            if (_CapturePolygons)
-            {
-                Poloygons.Add(new PolygonDetails()
-                {
-                    Color = color,
-                    Points = points,
-                    Fill = fill,
-                    Border = border,
-                    Thickness = translatedThickness,
-                    MinZ = minz,
-                    MinY = miny
-                });
-            }
+            if (_CapturePolygons) AddPolygonDetail(color, points, fill, border, translatedThickness, minz, miny, img: null);
             // draw the polygon
             else Graphics.Polygon(color, points, fill, border, thickness);
         }
@@ -172,26 +160,17 @@ namespace engine.Common
             }
 
             // defer rending for later
-            if (_CapturePolygons)
-            {
-                Poloygons.Add(new PolygonDetails()
-                {
-                    Points = points,
-                    MinZ = minz,
-                    MinY = miny,
-                    Image = img
-                });
-            }
+            if (_CapturePolygons) AddPolygonDetail(RGBA.Black, points, fill: false, border: false, thickness: 0f, minz, miny, img);
             // draw the polygon
             else Graphics.Image(img, points);
         }
 
         public void CapturePolygons()
         {
-            if (Poloygons == null) Poloygons = new List<PolygonDetails>();
-            else Poloygons.Clear();
+            if (Polygons == null) Polygons = new List<PolygonDetails>();
 
             // start capturing
+            index = 0;
             _CapturePolygons = true;
         }
 
@@ -201,18 +180,18 @@ namespace engine.Common
             _CapturePolygons = false;
 
             // sort the Z's from back to front
-            Poloygons.Sort(SortPolygonsByZ);
+            Polygons.Sort(0, index, SortPolygonsByZ);
 
             // draw them directly
-            foreach (var polygon in Poloygons)
+            for(int i=0; i<index; i++)
             {
                 // draw the image or polygon
-                if (polygon.Image != null) Graphics.Image(polygon.Image, polygon.Points);
-                else Graphics.Polygon(polygon.Color, polygon.Points, polygon.Fill, polygon.Border, polygon.Thickness);
+                if (Polygons[i].Image != null) Graphics.Image(Polygons[i].Image, Polygons[i].Points);
+                else Graphics.Polygon(Polygons[i].Color, Polygons[i].Points, Polygons[i].Fill, Polygons[i].Border, Polygons[i].Thickness);
             }
 
             // clear
-            Poloygons.Clear();
+            index = 0;
         }
 
         public int Height 
@@ -270,7 +249,8 @@ namespace engine.Common
             public IImage Image;
         }
         private bool _CapturePolygons;
-        private List<PolygonDetails> Poloygons;
+        private int index;
+        private List<PolygonDetails> Polygons;
         private static PolygonComparer SortPolygonsByZ = new PolygonComparer();
 
         class PolygonComparer : IComparer<PolygonDetails>
@@ -285,6 +265,50 @@ namespace engine.Common
                 else if (y.MinY < x.MinY) return 1;
                 // equal
                 else return 0;
+            }
+        }
+
+        private void AddPolygonDetail(RGBA color, Point[] points, bool fill, bool border, float thickness, float minz, float miny, IImage img = null)
+        {
+            PolygonDetails details = null;
+
+            // check if we need to 'expand'
+            if (index >= Polygons.Count)
+            {
+                details = new PolygonDetails() { Points = new Point[points.Length] };
+                Polygons.Add(details);
+            }
+            else
+            {
+                details = Polygons[index];
+
+                // reuse but wrong points length
+                if (details.Points.Length != points.Length)
+                {
+                    details.Points = new Point[points.Length];
+                }
+
+                // reuse
+            }
+
+            // increment
+            index++;
+
+            // set
+            details.Color = color;
+            details.Fill = fill;
+            details.Border = border;
+            details.Thickness = thickness;
+            details.MinZ = minz;
+            details.MinY = miny;
+            details.Image = img;
+
+            // must make a copy of the points
+            for(int i=0; i<points.Length; i++)
+            {
+                details.Points[i].X = points[i].X;
+                details.Points[i].Y = points[i].Y;
+                details.Points[i].Z = points[i].Z;
             }
         }
 

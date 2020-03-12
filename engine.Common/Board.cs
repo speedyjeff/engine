@@ -105,6 +105,9 @@ namespace engine.Common
             Surface = surface;
             Sounds = sounds;
 
+            // init imagesource
+            ImageSource.SetGraphics(Surface);
+
             // set the background color
             Clear();
         }
