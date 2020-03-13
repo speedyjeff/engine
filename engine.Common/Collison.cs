@@ -117,29 +117,12 @@ namespace engine.Common
             float distance = Single.MaxValue;
 
             // return the minimum point of intersection
-            var found = false;
-            var lines = new Tuple<float, float, float, float>[]
-            {
-                new Tuple<float,float,float,float>(x - (width/2f), y - (height/2f), x + (width/2), y - (height/2f)) ,
-                new Tuple<float,float,float,float>(x - (width/2f), y - (height/2f), x - (width/2), y + (height/2f)) ,
-                new Tuple<float,float,float,float>(x + (width/2f), y + (height/2f), x + (width/2), y - (height/2f)) ,
-                new Tuple<float,float,float,float>(x + (width/2f), y + (height/2f), x - (width/2), y + (height/2f)) ,
-            };
-            foreach(var line in lines)
-            {
-                if (PointOfLineSegmentIntersection(x1, y1, x2, y2, line.Item1, line.Item2, line.Item3, line.Item4, out float tix, out float tiy))
-                {
-                    // check if this point is closer
-                    var dist = DistanceBetweenPoints(x1, y1, tix, tiy);
-                    if (dist < distance)
-                    {
-                        distance = dist;
-                        found = true;
-                    }
-                }
-            }
+            distance = Math.Min(distance, DistanceOfLineSegmentIntersection(x1, y1, x2, y2, x - (width / 2f), y - (height / 2f), x + (width / 2), y - (height / 2f)) );
+            distance = Math.Min(distance, DistanceOfLineSegmentIntersection(x1, y1, x2, y2, x - (width / 2f), y - (height / 2f), x - (width / 2), y + (height / 2f)) );
+            distance = Math.Min(distance, DistanceOfLineSegmentIntersection(x1, y1, x2, y2, x + (width / 2f), y + (height / 2f), x + (width / 2), y - (height / 2f)) );
+            distance = Math.Min(distance, DistanceOfLineSegmentIntersection(x1, y1, x2, y2, x + (width / 2f), y + (height / 2f), x - (width / 2), y + (height / 2f)) );
 
-            return found ? distance : 0f;
+            return distance != Single.MaxValue ? distance : 0f;
         }
 
         public static bool IntersectingLine(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
@@ -174,6 +157,19 @@ namespace engine.Common
         private static bool CalcCcw(float x1, float y1, float x2, float y2, float x3, float y3)
         {
             return (y3 - y1) * (x2 - x1) > (y2 - y1) * (x3 - x1);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static float DistanceOfLineSegmentIntersection(float lx1, float ly1, float lx2, float ly2,
+            float x1, float y1, float x2, float y2)
+        {
+            if (PointOfLineSegmentIntersection(lx1, ly1, lx2, ly2, x1, y1, x2, y2, out float tix, out float tiy))
+            {
+                // return distance between the two points
+                return DistanceBetweenPoints(lx1, ly1, tix, tiy);
+            }
+
+            return Single.MaxValue;
         }
 
         private static bool PointOfLineSegmentIntersection(
