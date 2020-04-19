@@ -20,7 +20,7 @@ namespace engine.Winforms
             Height = height;
             SolidBrushCache = new Dictionary<int, SolidBrush>();
             PenCache = new Dictionary<long, Pen>();
-            ArialFontCache = new Dictionary<float, Font>();
+            FontCache = new Dictionary<string, Dictionary<float, Font>>();
             // 3 pointf's is the most common type, so use one as a cache (to avoid the allocation)
             TriPoints = new PointF[3];
 
@@ -39,12 +39,12 @@ namespace engine.Winforms
             Width = width;
             Height = height;
             Context.MaximumBuffer = new Size(width + 1, height + 1);
-            if (Surface != null)
-            {
-                Surface.Dispose();
-            }
-            Surface = Context.Allocate(g,
-                new Rectangle(0, 0, width, height));
+
+            // cleanup
+            if (Surface != null) Surface.Dispose();
+
+            // recreate
+            Surface = Context.Allocate(g, new Rectangle(0, 0, width, height));
             Graphics = Surface.Graphics;
         }
 
@@ -97,9 +97,9 @@ namespace engine.Winforms
             }
         }
 
-        public void Text(RGBA color, float x, float y, string text, float fontsize = 16)
+        public void Text(RGBA color, float x, float y, string text, float fontsize = 16, string fontname = "Arial")
         {
-            Graphics.DrawString(text, GetCachedArialFont(fontsize), GetCachedSolidBrush(color), x, y);
+            Graphics.DrawString(text, GetCachedFont(fontname, fontsize), GetCachedSolidBrush(color), x, y);
         }
 
         public void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness)
@@ -217,10 +217,20 @@ namespace engine.Winforms
         private BufferedGraphicsContext Context;
         private PointF[] TriPoints;
 
+        internal void Release()
+        {
+            if (Graphics != null) Graphics.Dispose();
+            if (Surface != null) Surface.Dispose();
+            if (Context != null) Context.Dispose();
+            Graphics = null;
+            Surface = null;
+            Context = null;
+        }
+
         // caches
         private Dictionary<int, SolidBrush> SolidBrushCache;
         private Dictionary<long, Pen> PenCache;
-        private Dictionary<float, Font> ArialFontCache;
+        private Dictionary<string, Dictionary<float, Font>> FontCache;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private System.Drawing.Bitmap LoadImage(string path, Stream stream = null)
@@ -260,14 +270,21 @@ namespace engine.Winforms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Font GetCachedArialFont(float size)
+        private Font GetCachedFont(string name, float size)
         {
+            Dictionary<float, Font> fonts = null;
+            if (!FontCache.TryGetValue(name, out fonts))
+            {
+                fonts = new Dictionary<float, Font>();
+                FontCache.Add(name, fonts);
+            }
+
             var key = (float)Math.Round(size, 2);
             Font font = null;
-            if (!ArialFontCache.TryGetValue(key, out font))
+            if (!fonts.TryGetValue(key, out font))
             {
-                font = new Font("Arial", key);
-                ArialFontCache.Add(key, font);
+                font = new Font(name, key);
+                fonts.Add(key, font);
             }
             return font;
         }

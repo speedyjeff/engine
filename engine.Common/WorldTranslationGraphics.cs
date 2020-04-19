@@ -50,12 +50,12 @@ namespace engine.Common
             Graphics.Triangle(color, x1, y1, x2, y2, x3, y3, fill, border, thickness);
         }
 
-        public void Text(RGBA color, float x, float y, string text, float fontsize = 16)
+        public void Text(RGBA color, float x, float y, string text, float fontsize = 16, string fontname = "Arial")
         {
             float z = Constants.Ground;
             float width = 0f, height = 0f;
             if (DoTranslation) TranslateCoordinates(Options, ref x, ref y, ref z, ref width, ref height, ref fontsize);
-            Graphics.Text(color, x, y, text, fontsize);
+            Graphics.Text(color, x, y, text, fontsize, fontname);
         }
 
         public void Line(RGBA color, float x1, float y1, float x2, float y2, float thickness)

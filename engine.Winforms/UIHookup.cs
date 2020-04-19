@@ -44,7 +44,6 @@ namespace engine.Winforms
             else if (keyData == Keys.Right) Logic.KeyPress(Common.Constants.RightArrow);
             else if (keyData == Keys.Up) Logic.KeyPress(Common.Constants.UpArrow);
             else if (keyData == Keys.Down) Logic.KeyPress(Common.Constants.DownArrow);
-            else if (keyData == Keys.Space) Logic.KeyPress(Common.Constants.Space);
             else if (keyData == Keys.Escape) Logic.KeyPress(Common.Constants.Esc);
         }
 

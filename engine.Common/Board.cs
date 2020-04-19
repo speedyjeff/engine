@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace engine.Common
@@ -39,6 +41,9 @@ namespace engine.Common
             }
 
             // init
+            Height = config.Height;
+            Width = config.Width;
+            OverlayLock = new object();
             Config = config;
             Overlay = new CellDetails() { IsDirty = false, Image = null };
             IsDirty = false;
@@ -70,10 +75,10 @@ namespace engine.Common
             }
 
             // create the cells
-            Cells = new CellDetails[config.Height][];
+            Cells = new CellDetails[config.Rows][];
             for(int row = 0; row < Cells.Length; row++)
             {
-                Cells[row] = new CellDetails[config.Width];
+                Cells[row] = new CellDetails[config.Columns];
                 for(int col = 0; col < Cells[row].Length; col++)
                 {
                     Cells[row][col] = new CellDetails()
@@ -83,10 +88,13 @@ namespace engine.Common
                     };
                 }
             }
+
+            // setup the background update timer
+            TickTimer = new Timer(TickUpdate, null, 0, Constants.GlobalClock);
         }
 
-        public int Width { get { return Config.Width; } }
-        public int Height { get { return Config.Height; } }
+        public int Width { get; private set; }
+        public int Height { get; private set; }
 
         public int CellWidth { get; private set; }
         public int CellHeight { get; private set; }
@@ -99,11 +107,16 @@ namespace engine.Common
 
         public event CellDelegate OnCellClicked;
         public event CellDelegate OnCellOver;
+        public event Action<char> OnKeyPressed;
+        public event Action OnTick;
+        public event Action OnResize;
 
         public void InitializeGraphics(IGraphics surface, ISounds sounds)
         {
             Surface = surface;
             Sounds = sounds;
+            Height = Surface.Height;
+            Width = Surface.Width;
 
             // init imagesource
             ImageSource.SetGraphics(Surface);
@@ -127,6 +140,9 @@ namespace engine.Common
         //
         public void KeyPress(char key)
         {
+            // fixup some of the special keys
+            if (key == Constants.Space) key = ' ';
+            if (OnKeyPressed != null) OnKeyPressed(key);
         }
 
         public void Mousemove(float x, float y, float angle)
@@ -201,10 +217,13 @@ namespace engine.Common
                 // mark the overlay as no longer dirty
                 Overlay.IsDirty = false;
 
-                // update the overlay (everytime)
-                if (Overlay.Image != null)
+                lock (OverlayLock)
                 {
-                    Surface.Image(Overlay.Image, 0, 0, Surface.Width, Surface.Height);
+                    // update the overlay (everytime)
+                    if (Overlay.Image != null)
+                    {
+                        Surface.Image(Overlay.Image, 0, 0, Overlay.Image.Width, Overlay.Image.Height);
+                    }
                 }
             } // if (IsDirty)
         }
@@ -224,7 +243,13 @@ namespace engine.Common
                     }
                 }
                 if (Overlay.Image != null) Overlay.IsDirty = true;
+
+                // reset the dimensions
+                Height = Surface.Height;
+                Width = Surface.Width;
             }
+
+            if (OnResize != null) OnResize();
         }
 
         // 
@@ -233,8 +258,8 @@ namespace engine.Common
 
         public void UpdateCell(int row, int col, UpdateImageDelegate update)
         {
-            if (row < 0 || row > Rows
-                || col < 0 || col > Columns) throw new Exception("Invalid row x col : " + row + "," + col);
+            if (row < 0 || row >= Rows
+                || col < 0 || col >= Columns) throw new Exception("Invalid row x col : " + row + "," + col);
             if (update == null) throw new Exception("Must pass in a valid delegate to use for updates");
 
             lock (Cells)
@@ -262,18 +287,23 @@ namespace engine.Common
 
         public void UpdateOverlay(UpdateImageDelegate update)
         {
-            if (Overlay.Image == null)
+            if (Surface == null) return;
+
+            lock (OverlayLock)
             {
-                // initialize
-                Overlay.Image = Surface.CreateImage(Surface.Width, Surface.Height);
+                if (Overlay.Image == null)
+                {
+                    // initialize
+                    Overlay.Image = Surface.CreateImage(Surface.Width, Surface.Height);
+                }
+
+                // pass to the user to update
+                update(Overlay.Image);
+
+                // mark as dirty
+                Overlay.IsDirty = true;
+                IsDirty = true;
             }
-
-            // pass to the user to update
-            update(Overlay.Image);
-
-            // mark as dirty
-            Overlay.IsDirty = true;
-            IsDirty = true;
         }
 
         #region private
@@ -281,6 +311,11 @@ namespace engine.Common
         private ISounds Sounds;
         private BoardConfiguration Config;
         private CellDetails Overlay;
+        private object OverlayLock;
+
+        // tick
+        private Timer TickTimer;
+        private int TickLock;
 
         // used for non-rectangluar shapes
         private int EdgeWidth;
@@ -430,6 +465,27 @@ namespace engine.Common
             // substract the difference to get the local x,y
             lx = x - cx;
             ly = y - cy;
+        }
+
+        private void TickUpdate(object state)
+        {
+            if (OnTick == null) return;
+
+            // the timer is reentrant, so only allow one instance to run
+            if (System.Threading.Interlocked.CompareExchange(ref TickLock, 1, 0) != 0) return;
+
+            var timer = new Stopwatch();
+            timer.Start();
+            {
+                // make callback
+                OnTick();
+            }
+            timer.Stop();
+
+            // set state back to not running
+            System.Threading.Volatile.Write(ref TickLock, 0);
+
+            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**TickUpdate Duration {0} ms", timer.ElapsedMilliseconds);
         }
 
         #endregion

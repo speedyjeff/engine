@@ -38,6 +38,9 @@ namespace engine.Winforms
         {
             UnderlyingImage.MakeTransparent(Color.FromArgb(color.A, color.R, color.G, color.B));
 
+            // explicitly releae the underlying graphics
+            (Graphics as WritableGraphics).Release();
+
             // recreate the graphics after making transparent
             // marking an image transparent has a material impact to the bitmap such that we need 
             // a new graphics instance

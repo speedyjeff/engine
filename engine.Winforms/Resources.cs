@@ -12,7 +12,7 @@ namespace engine.Winforms
 {
     public static class Resources
     {
-        public static Dictionary<string, IImage> LoadImages(Assembly assembly, IGraphics g)
+        public static Dictionary<string, IImage> LoadImages(Assembly assembly)
         {
             // load resources
             var resources = engine.Common.Embedded.LoadResource<Bitmap>(assembly);
@@ -38,6 +38,24 @@ namespace engine.Winforms
             }
 
             return images;
+        }
+
+        public static Dictionary<string, string> LoadText(Assembly assembly)
+        {
+            // load resources
+            var resources = engine.Common.Embedded.LoadResource<byte[]>(assembly);
+
+            // convert to images
+            var files = new Dictionary<string, string>();
+            foreach (var kvp in resources)
+            {
+                var bytes = kvp.Value;
+                var name = kvp.Key;
+
+                files.Add(name, System.Text.UTF8Encoding.UTF8.GetString(bytes));
+            }
+
+            return files;
         }
     }
 }
