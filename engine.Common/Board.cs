@@ -470,6 +470,7 @@ namespace engine.Common
         private void TickUpdate(object state)
         {
             if (OnTick == null) return;
+            if (Surface == null) return;
 
             // the timer is reentrant, so only allow one instance to run
             if (System.Threading.Interlocked.CompareExchange(ref TickLock, 1, 0) != 0) return;

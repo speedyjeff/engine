@@ -13,7 +13,31 @@ namespace engine.Common
         public ImageSource(string path)
         {
             Name = path;
-            Path = path;
+
+            // add this content for later processing
+            if (File.Exists(path))
+            {
+                lock (Images)
+                {
+                    if (!Content.ContainsKey(Name) && !Images.ContainsKey(Name))
+                    {
+                        Content.Add(Name, File.ReadAllBytes(path));
+                    }
+                }
+            }
+        }
+
+        public ImageSource(string name, byte[] bytes)
+        {
+            Name = name;
+            // add this content for later processing
+            lock (Images)
+            {
+                if (!Content.ContainsKey(Name) && !Images.ContainsKey(Name))
+                {
+                    Content.Add(Name, bytes);
+                }
+            }
         }
 
         public ImageSource(string name, IImage image)
@@ -40,7 +64,16 @@ namespace engine.Common
                 {
                     if (!Images.TryGetValue(Name, out _Image))
                     {
-                        _Image = Graphics.CreateImage(Path);
+                        if (!Content.TryGetValue(Name, out byte[] content)) throw new Exception("No content to load for image");
+
+                        // load from bytes
+                        using (var mem = new MemoryStream(content))
+                        {
+                            _Image = Graphics.CreateImage(mem);
+                        }
+
+                        // store for later
+                        Content.Remove(Name);
                         Images.Add(Name, _Image);
                     }
                     return _Image;
@@ -50,9 +83,9 @@ namespace engine.Common
 
         #region private
         private static Dictionary<string, IImage> Images = new Dictionary<string, IImage>();
+        private static Dictionary<string, byte[]> Content = new Dictionary<string, byte[]>();
 
         private static IGraphics Graphics;
-        private readonly string Path;
         private IImage _Image;
 
         internal static void SetGraphics(IGraphics g)
