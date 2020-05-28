@@ -21,8 +21,6 @@ Check out [sample controls](/Samples) for examples on how to get started.
 
 ### Create a Winforms project
 
-### Add engine initialization
-
 #### 2d Platformer (top down)
 ```C#
 private UIHookup UI;
@@ -102,9 +100,9 @@ protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
 } // ProcessCmdKey
 ```
 
-#### World
+### Engine Configurations
 
-<tbd>
+#### World
 
 ```C#
 public struct WorldConfiguration
@@ -198,6 +196,8 @@ public struct BoardConfiguration
 
 public delegate void CellClickedDelegate(int row, int col, float x, float y);
 public delegate void UpdateImageDelegate(IImage img);
+public delegate bool CellPaintDelegate(IGraphics g, int row, int col);
+public delegate bool OverlayPaintDelegate(IGraphics g);
 
 public int Width { get; }
 public int Height { get; }
@@ -206,8 +206,12 @@ public int Rows { get; }
 public int Columns { get; }
 
 public event CellClickedDelegate OnCellClicked;
+// These are 'push' updates to the UI, updates only occur when called
 public void UpdateCell(int row, int col, UpdateImageDelegate update);
 public void UpdateOverlay(UpdateImageDelegate update);
+// These are 'pull' updates to the UI, updates occur every Paint cycle
+public event CellPaintDelegate OnCellPaint;
+public event OverlayPaintDelegate OnOverlayPaint;
 ```
 
 #### Backgrounds
@@ -385,3 +389,74 @@ private void InitializeComponent()
 
 Additional objects can be created via the engine.ConvertObj tool using output from Microsoft 3D Builder https://www.microsoft.com/en-us/p/3d-builder/9wzdncrfj3t6.
 
+### Blazor (Web Assembly)
+Check out [TypeOrDie](https://github.com/speedyjeff/typeordie) as an example of how to get started.
+
+#### Project Setup
+
+1. Create new Blazor Client Application
+
+2. Add reference to nuget package [Blazor.Extensions.Canvas ](https://www.nuget.org/packages/Blazor.Extensions.Canvas)
+
+3. Update `_Imports.razor` by adding `@using Blazor.Extensions.Canvas`.
+
+4. Update the relevant razor file with the 2dCanvas control.
+
+```
+@page "/"
+@using engine 
+@using engine.Common
+@inherits engine.Blazor.Canvas2DComponent
+@inject IJSRuntime JSRuntime
+
+<div id="canvas" tabindex="0" @onkeypress="e => KeyPress(e)" @onkeydown="e => KeyDown(e)" @onmousedown="e => MouseDown(e)" @onmousemove="e => MouseMove(e)" @onmouseup="e => MouseUp(e)" @onwheel="e => MouseWheel(e)">
+    <BECanvas Width="300" Height="400" @ref="CanvasReference"></BECanvas>
+</div>
+
+@functions
+{
+    protected override void OnInitialized()
+    {
+        // add initialization specific to your game here
+        var board = new Board(...);
+
+        // finish configuration of the canvas
+        ConfigureCanvas(board);
+    }
+}
+```
+
+5. Update `index.html` with common javascript helpers.
+
+```
+    <script src="_content/Blazor.Extensions.Canvas/blazor.extensions.canvas.js"></script>
+    <script>
+        function createImage(canvas, id) {
+            return new Promise(function (resolve) {
+                var img = document.createElement("img");
+                img.setAttribute('id', id);
+                canvas.appendChild(img);
+                resolve();
+            });
+        }
+
+        function updateImage(id, base64) {
+            return new Promise(function (resolve) {
+                var img = document.getElementById(id);
+                img.onload = function () {
+                    resolve();
+                }
+                img.src = base64;
+            });
+        }
+
+        function drawImage(canvas, id, dx, dy, dw, dh) {
+            return new Promise(function (resolve) {
+                var img = document.getElementById(id);
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, dx, dy, dw, dh);
+                resolve();
+            });
+        } 
+    </script>
+```

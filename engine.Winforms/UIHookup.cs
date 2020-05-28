@@ -69,6 +69,12 @@ namespace engine.Winforms
         private Timer OnPaintTimer;
         private Timer OnMoveTimer;
 
+        static UIHookup()
+        {
+            // set that this is a Winforms type
+            Platform.SetType(PlatformType.Winforms);
+        }
+
         private void Initialize()
         {
 

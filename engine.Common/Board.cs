@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,13 +22,15 @@ namespace engine.Common
 
     public delegate void CellDelegate(int row, int col, float x, float y);
     public delegate void UpdateImageDelegate(IImage img);
+    public delegate bool CellPaintDelegate(IGraphics g, int row, int col);
+    public delegate bool OverlayPaintDelegate(IGraphics g);
 
     public class Board : IUserInteraction
     {
         public Board(BoardConfiguration config)
         {
             // config validation
-            if (config.Width < 0 || config.Height < 0
+            if (config.Width <= 0 || config.Height <= 0
                 || config.Rows == 0 || config.Columns == 0
                 || config.Width < config.Columns || config.Height < config.Rows) throw new Exception("Invalid Board dimensions");
 
@@ -46,7 +49,6 @@ namespace engine.Common
             OverlayLock = new object();
             Config = config;
             Overlay = new CellDetails() { IsDirty = false, Image = null };
-            IsDirty = false;
             if (Config.EdgeAngle == 0)
             {
                 // rectangle
@@ -110,6 +112,8 @@ namespace engine.Common
         public event Action<char> OnKeyPressed;
         public event Action OnTick;
         public event Action OnResize;
+        public event CellPaintDelegate OnCellPaint;
+        public event OverlayPaintDelegate OnOverlayPaint;
 
         public void InitializeGraphics(IGraphics surface, ISounds sounds)
         {
@@ -120,6 +124,9 @@ namespace engine.Common
 
             // init imagesource
             ImageSource.SetGraphics(Surface);
+
+            // create the translation graphics
+            SubsetOfBoardGraphics = new BoardTranslationGraphics(Surface);
 
             // set the background color
             Clear();
@@ -187,45 +194,53 @@ namespace engine.Common
         // 
         public void Paint()
         {
-            // check if the input is dirty
-            if (IsDirty)
+            lock (Cells)
             {
-                IsDirty = false;
-
-                lock (Cells)
+                // iterate through and update the Surface for the dirty cells
+                for (int row = 0; row < Cells.Length; row++)
                 {
-                    // iterate through and update the Surface for the dirty cells
-                    for (int row = 0; row < Cells.Length; row++)
+                    for (int col = 0; col < Cells[row].Length; col++)
                     {
-                        for (int col = 0; col < Cells[row].Length; col++)
+                        // provide the ability to directly paint into this cell
+                        if (OnCellPaint != null)
                         {
-                            if (Cells[row][col].Image == null) continue;
+                            SubsetOfBoardGraphics.SetScoping(x: col * CellWidth, y: row * CellHeight, CellWidth, CellHeight);
+                            if (OnCellPaint(SubsetOfBoardGraphics, row, col)) continue;
+                        }
 
-                            if (Cells[row][col].IsDirty || Overlay.IsDirty)
-                            {
-                                Cells[row][col].IsDirty = false;
+                        if (Cells[row][col].Image == null) continue;
 
-                                // translate to x,y
-                                Translate(row, col, out float x, out float y);
+                        if (Cells[row][col].IsDirty || Overlay.IsDirty)
+                        {
+                            Cells[row][col].IsDirty = false;
 
-                                Surface.Image(Cells[row][col].Image, x, y, CellWidth, CellHeight);
-                            } // if (Cells.IsDirty)
-                        } // for
+                            // translate to x,y
+                            Translate(row, col, out float x, out float y);
+
+                            Surface.Image(Cells[row][col].Image, x, y, CellWidth, CellHeight);
+                        } // if (Cells.IsDirty)
                     } // for
-                } // lock(Cells)
+                } // for
+            } // lock(Cells)
 
-                // mark the overlay as no longer dirty
-                Overlay.IsDirty = false;
+            // mark the overlay as no longer dirty
+            Overlay.IsDirty = false;
 
-                lock (OverlayLock)
+            lock (OverlayLock)
+            {
+                var useOverlayImage = true;
+                if (OnOverlayPaint != null)
                 {
-                    // update the overlay (everytime)
-                    if (Overlay.Image != null)
-                    {
-                        Surface.Image(Overlay.Image, 0, 0, Overlay.Image.Width, Overlay.Image.Height);
-                    }
+                    SubsetOfBoardGraphics.SetScoping(x: 0, y: 0, Surface.Width, Surface.Height);
+                    if (OnOverlayPaint(Surface)) useOverlayImage = false;
                 }
-            } // if (IsDirty)
+
+                // update the overlay (everytime)
+                if (useOverlayImage && Overlay.Image != null)
+                {
+                    Surface.Image(Overlay.Image, 0, 0, Overlay.Image.Width, Overlay.Image.Height);
+                }
+            }
         }
 
         public void Resize()
@@ -233,7 +248,6 @@ namespace engine.Common
             // invalidate everything so it is painted
             lock (Cells)
             {
-                IsDirty = true;
                 Clear();
                 for (int row = 0; row < Cells.Length; row++)
                 {
@@ -281,7 +295,6 @@ namespace engine.Common
 
                 // mark as dirty
                 Cells[row][col].IsDirty = true;
-                IsDirty = true;
             }
         }
 
@@ -302,7 +315,6 @@ namespace engine.Common
 
                 // mark as dirty
                 Overlay.IsDirty = true;
-                IsDirty = true;
             }
         }
 
@@ -312,6 +324,7 @@ namespace engine.Common
         private BoardConfiguration Config;
         private CellDetails Overlay;
         private object OverlayLock;
+        private BoardTranslationGraphics SubsetOfBoardGraphics;
 
         // tick
         private Timer TickTimer;
@@ -321,7 +334,6 @@ namespace engine.Common
         private int EdgeWidth;
         private int EdgeHeight;
 
-        private bool IsDirty = true;
         private struct CellDetails
         {
             public IImage Image;

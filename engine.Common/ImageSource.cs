@@ -64,10 +64,10 @@ namespace engine.Common
                 {
                     if (!Images.TryGetValue(Name, out _Image))
                     {
-                        if (!Content.TryGetValue(Name, out byte[] content)) throw new Exception("No content to load for image");
+                        if (!Content.TryGetValue(Name, out byte[] content)) throw new Exception("No content to load for image : " + Name);
 
                         // load from bytes
-                        using (var mem = new MemoryStream(content))
+                        using (var mem = new MemoryStream(content, 0, content.Length))
                         {
                             _Image = Graphics.CreateImage(mem);
                         }

@@ -50,7 +50,7 @@ namespace engine.Winforms
 
         public void Save(string path)
         {
-            UnderlyingImage.Save(path);
+            UnderlyingImage.Save(path, System.Drawing.Imaging.ImageFormat.Png);
         }
 
         #region internal
