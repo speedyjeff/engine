@@ -83,7 +83,7 @@ namespace engine.Samples.Winforms
             Cells[4][0] = Cells[4][4] = Resources.Nothing;
 
             // load embedded resources
-            Images = engine.Winforms.Resources.LoadImages(System.Reflection.Assembly.GetExecutingAssembly(), UI.Surface);
+            Images = engine.Winforms.Resources.LoadImages(System.Reflection.Assembly.GetExecutingAssembly());
 
             // set initial board pieces
             for (int row = 0; row < Board.Rows; row++)

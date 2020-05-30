@@ -69,7 +69,7 @@ namespace engine.Samples.Winforms
             UI = new UIHookup(this, Board);
 
             // load embedded resources
-            Images = Resources.LoadImages(System.Reflection.Assembly.GetExecutingAssembly(), UI.Surface);
+            Images = Resources.LoadImages(System.Reflection.Assembly.GetExecutingAssembly());
 
             // make the background transparent
             Images["black"].MakeTransparent(RGBA.White);

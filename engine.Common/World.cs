@@ -38,10 +38,7 @@ namespace engine.Common
 
     public class World : IUserInteraction
     {
-        // Configuration
-        //   Center marker
-        //   HUD
-        //   Zoom
+        // NOTE: DO NOT Cache any content from the Map locally... it may not be the most current 
         public World(WorldConfiguration config, Player[] players, Element[] objects, Background background)
         {
             // sanity check the parameters
@@ -50,13 +47,11 @@ namespace engine.Common
             if (players == null) throw new Exception("Must specify a list of players");
 
             // init
-            Ephemerial = new List<EphemerialElement>();
             Config = config;
             Details = new Dictionary<int, PlayerDetails>();
+            DetailsLock = new ReaderWriterLockSlim();
             Alive = 0;
             UniquePlayers = new HashSet<int>();
-            EphemerialLock = new ReaderWriterLockSlim();
-            DetailsLock = new ReaderWriterLockSlim();
 
             // 3D shaders
             Element3D.SetShader(Element3DShader);
@@ -65,23 +60,26 @@ namespace engine.Common
             if (config.Is3D) Map = new Map3D(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
             else Map = new Map(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
 
+            // todo if network configuration
+
             // hook up map callbacks
-            Map.OnEphemerialEvent += AddEphemerialElement;
             Map.OnElementHit += HitByAttack;
             Map.OnElementDied += PlayerDied;
 
             // setup the human first
+            _Human = null;
+            RequeryForHuman = false;
             foreach (var player in players)
             {
                 // assign human
-                if (Human == null && !(player is AI))
+                if (_Human == null && !(player is AI))
                 {
-                    Human = player;
+                    _Human = player;
                     break;
                 }
             }
 
-            if (Human == null) throw new Exception("Must add at least 1 player (as human)");
+            if (_Human == null) throw new Exception("Must add at least 1 player (as human)");
 
             // add all the players
             foreach (var player in players) AddItem(player);
@@ -92,9 +90,6 @@ namespace engine.Common
                 Menu = Config.StartMenu;
                 Map.IsPaused = true;
             }
-
-            // setup the background update timer
-            BackgroundTimer = new Timer(BackgroundUpdate, null, 0, Constants.GlobalClock);
         }
 
         public void InitializeGraphics(IGraphics surface, ISounds sounds)
@@ -127,7 +122,26 @@ namespace engine.Common
         public int Width { get { return Map.Width;  } }
         public int Height {  get { return Map.Height;  } }
 
-        public Player Human { get; private set; }
+        public Player Human 
+        { 
+            get
+            {
+                // the cached version should only be considered for certain values
+                // need to get it from the server to get the latest version from time to time
+                if (RequeryForHuman)
+                {
+                    var thuman = Map.GetPlayer(_Human.Id);
+                    // when the human player dies, they are removed and this API returns null
+                    if (thuman != null) _Human = thuman;
+                    RequeryForHuman = false;
+                }
+                return _Human;
+            }
+            private set
+            {
+                _Human = value;
+            }
+        }
         public int Alive { get; private set; }
         public int Players { get { return UniquePlayers.Count; } }
 
@@ -185,7 +199,7 @@ namespace engine.Common
 
             var ratio = (Human.Z + Config.CameraZ);
             if (Config.Is3D || ratio < 1f) ratio = 1f;
-            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z, 
+            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z,
                 Surface.Width * ratio + Config.HorizonX, Surface.Height * ratio + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
             {
                 if (elem.IsDead) continue;
@@ -198,32 +212,9 @@ namespace engine.Common
                 {
                     // if the player is intersecting with this item, then do not display it
                     if (Map.IsTouching(Human, elem)) continue;
-
-                    try
-                    {
-                        DetailsLock.EnterReadLock();
-                        // check if one of the bots is hidden by this object
-                        foreach (var detail in Details.Values)
-                        {
-                            // don't care about dead players
-                            if (detail.Player.IsDead) continue;
-                            // already hidden, do not need to recheck
-                            if (hidden.Contains(detail.Player.Id)) continue;
-                            // check
-                            if (detail.Player is AI)
-                            {
-                                if (Map.IsTouching(detail.Player, elem))
-                                {
-                                    // this player is hidden
-                                    hidden.Add(detail.Player.Id);
-                                }
-                            }
-                        }
-                    } 
-                    finally
-                    {
-                        DetailsLock.ExitReadLock();
-                    }
+                    // get players that are touching
+                    var players = Map.WhatPlayersAreTouching(elem);
+                    foreach (var player in players) hidden.Add(player.Id);
                 }
 
                 // draw
@@ -237,44 +228,31 @@ namespace engine.Common
                 player.Draw(Surface);
             }
 
+            // get ephemerials
+            var ephemerials = Map.GetEphemerials();
+
             // add any ephemerial elements (non-text)
-            try
+            foreach (var b in ephemerials)
             {
-                EphemerialLock.EnterReadLock();
-                foreach (var b in Ephemerial)
-                {
-                    // skip all the messages
-                    if (b is OnScreenText) continue;
-                    // draw
-                    b.Draw(Surface);
-                }
-            }
-            finally
-            {
-                EphemerialLock.ExitReadLock();
+                // skip all the messages
+                if (b is OnScreenText) continue;
+                // draw
+                b.Draw(Surface);
             }
 
             // if 3d, then render all the polygons (in order)
             if (Config.Is3D) Surface.RenderPolygons();
 
             // add any ephemerial elements (text only)
-            try
+            foreach (var b in ephemerials)
             {
-                EphemerialLock.EnterReadLock();
-                foreach (var b in Ephemerial)
+                // show only 1 message at a time
+                if (b is OnScreenText)
                 {
-                    // show only 1 message at a time
-                    if (b is OnScreenText)
-                    {
-                        // draw
-                        b.Draw(Surface);
-                        break;
-                    }
+                    // draw
+                    b.Draw(Surface);
+                    break;
                 }
-            }
-            finally
-            {
-                EphemerialLock.ExitReadLock();
             }
 
             // display the player counts
@@ -464,7 +442,7 @@ namespace engine.Common
                 case ActionEnum.SwitchPrimary:
                     result = SwitchPrimary(Human, out item);
                     Human.Feedback(action, item, result);
-                    break;
+                    break; 
 
                 case ActionEnum.Pickup:
                     result = Pickup(Human, out item);
@@ -604,7 +582,7 @@ namespace engine.Common
                     {
                         DetailsLock.EnterWriteLock();
                         // add it
-                        detail = new PlayerDetails() { Player = (item as Player) };
+                        detail = new PlayerDetails() { Id = (item as Player).Id };
                         Details.Add(item.Id, detail);
                         UniquePlayers.Add(item.Id);
                     }
@@ -633,33 +611,6 @@ namespace engine.Common
             }
         }
 
-        public void RemoveAllItems(Type type)
-        {
-            // iterate through players and remove all of this type
-            var toRemove = new List<Player>();
-
-            try
-            {
-                DetailsLock.EnterReadLock();
-                foreach (var detail in Details.Values)
-                {
-                    if (detail.Player != null && detail.Player.GetType() == type)
-                    {
-                        toRemove.Add(detail.Player);
-                    }
-                }
-            }
-            finally
-            {
-                DetailsLock.ExitReadLock();
-            }
-
-            foreach (var player in toRemove)
-            {
-                RemoveItem(player);
-            }
-        }
-
         public void RemoveItem(Element item)
         {
             if (item is Player)
@@ -682,9 +633,6 @@ namespace engine.Common
                         Drop(player, out type);
                     }
                 }
-
-                // set the players current ranking
-                Human.Ranking = Alive;
 
                 // clean up the dead players
                 if (player.IsDead)
@@ -773,9 +721,10 @@ namespace engine.Common
         }
 
         #region private
+        // NOTE: DO NOT Cache any contnet from the Map locally... it may not be the most current 
         class PlayerDetails
         {
-            public Player Player;
+            public int Id;
             public Timer UpdatePlayerTimer;
             public int UpdatePlayerLock; // to avoid reentrancy in the timer
 
@@ -801,17 +750,15 @@ namespace engine.Common
         private enum TimeAxis { X = 0, Y = 1, Z = 2};
 
         private WorldTranslationGraphics Surface;
-        private List<EphemerialElement> Ephemerial;
         private ISounds Sounds;
         private Map Map;
         private Dictionary<int, PlayerDetails> Details;
         private Menu Menu;
         private WorldConfiguration Config;
-        private Timer BackgroundTimer;
-        private int BackgroundLock;
         private HashSet<int> UniquePlayers;
-        private ReaderWriterLockSlim EphemerialLock;
         private ReaderWriterLockSlim DetailsLock;
+        private Player _Human;
+        private bool RequeryForHuman;
 
         private const string NothingSoundPath = "nothing";
         private const string PickupSoundPath = "pickup";
@@ -866,11 +813,13 @@ namespace engine.Common
             // the timer is reentrant, so only allow one instance to run
             if (System.Threading.Interlocked.CompareExchange(ref detail.UpdatePlayerLock, 1, 0) != 0) return;
 
+            Player player = Map.GetPlayer(detail.Id);
+
             timer.Start();
             // if AI, then query for movement
-            if (detail.Player is AI)
+            if (player is AI)
             {
-                AI ai = detail.Player as AI;
+                AI ai = player as AI;
                 float xdelta = 0;
                 float ydelta = 0;
                 float zdelta = 0;
@@ -957,12 +906,12 @@ namespace engine.Common
             }
 
             // apply forces, if necessary
-            if (Config.ForcesApplied > 0 && detail.Player.CanMove)
+            if (Config.ForcesApplied > 0 && player.CanMove)
             {
                 // apply 'jump' force
                 if ((Config.ForcesApplied & (int)Forces.Y) > 0)
                 {
-                    var result = ApplyForce(detail, TimeAxis.Y, force: detail.Forces[(int)TimeAxis.Y], opposingForce: Constants.Gravity);
+                    var result = ApplyForce(detail, player, TimeAxis.Y, force: detail.Forces[(int)TimeAxis.Y], opposingForce: Constants.Gravity);
                     // we are in the air if the force was successfully applied OR if we were heading up (negative) and were unsuccessful
                     detail.ForceInMotion[(int)TimeAxis.Y] = (result & ForceState.Success) != 0 || ((result & ForceState.Failed) != 0 && (result & ForceState.Negative) != 0);
                 }
@@ -972,7 +921,7 @@ namespace engine.Common
                 {
                     if (detail.ForceInMotion[(int)TimeAxis.Y] && detail.Forces[(int)TimeAxis.X] != 0)
                     {
-                        var result = ApplyForce(detail, TimeAxis.X, force: detail.Forces[(int)TimeAxis.X], opposingForce: 0f);
+                        var result = ApplyForce(detail, player, TimeAxis.X, force: detail.Forces[(int)TimeAxis.X], opposingForce: 0f);
                         detail.ForceInMotion[(int)TimeAxis.X] = (result & ForceState.Success) != 0;
                     }
                 }
@@ -983,12 +932,12 @@ namespace engine.Common
                     if (detail.Forces[(int)TimeAxis.Z] != 0)
                     {
                         // decend
-                        var result = ApplyForce(detail, TimeAxis.Z, force: 0f, opposingForce: -0.03f * Constants.Gravity);
-                        if (detail.Player.Z <= Constants.IsTouchingDistance || 
+                        var result = ApplyForce(detail, player, TimeAxis.Z, force: 0f, opposingForce: -0.03f * Constants.Gravity);
+                        if (player.Z <= Constants.IsTouchingDistance || 
                             ((int)result & (int)ForceState.Failed) != 0)
                         {
                             // ensure the player is on the ground
-                            Teleport(detail.Player, x: detail.Player.X, detail.Player.Y, z: Constants.Ground);
+                            Teleport(player, x: player.X, player.Y, z: Constants.Ground);
 
                             // remove the force
                             RemoveForce(detail, TimeAxis.Z);
@@ -997,7 +946,7 @@ namespace engine.Common
                             int count = 100;
                             float xstep = 0.01f;
                             float xmove = 10f;
-                            if (detail.Player.X > Map.Width / 2)
+                            if (player.X > Map.Width / 2)
                             {
                                 // move the other way
                                 xstep *= -1;
@@ -1010,13 +959,13 @@ namespace engine.Common
                                 float xdelta = xstep;
                                 float ydelta = 0;
                                 float zdelta = 0;
-                                if (Move(detail.Player, xdelta, ydelta, zdelta, Constants.DefaultPace))
+                                if (Move(player, xdelta, ydelta, zdelta, Constants.DefaultPace))
                                 {
                                     break;
                                 }
 
                                 // move over
-                                Teleport(detail.Player, detail.Player.X + xmove, detail.Player.Y, detail.Player.Z);
+                                Teleport(player, player.X + xmove, player.Y, player.Z);
                             }
                             while (count-- > 0);
 
@@ -1034,113 +983,6 @@ namespace engine.Common
             System.Threading.Volatile.Write(ref detail.UpdatePlayerLock, 0);
 
             if (timer.ElapsedMilliseconds > 100) System.Diagnostics.Debug.WriteLine("**UpdatePlayer Duration {0} ms", timer.ElapsedMilliseconds);
-        }
-
-        private void BackgroundUpdate(object state)
-        {
-            if (Map.IsPaused) return;
-
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-
-            // the timer is reentrant, so only allow one instance to run
-            if (System.Threading.Interlocked.CompareExchange(ref BackgroundLock, 1, 0) != 0) return;
-
-            // update the map
-            Map.Background.Update();
-
-            // update the ephemerial items
-            var toremove = new List<EphemerialElement>();
-            try
-            {
-                EphemerialLock.EnterReadLock();
-                foreach (var b in Ephemerial)
-                {
-                    // advance
-                    if (!b.IsDead && b.Action(out float xdelta, out float ydelta, out float zdelta))
-                    {
-                        if (Map.WhatWouldPlayerTouch(b, ref xdelta, ref ydelta, ref zdelta, out Element touching, b.BasePace))
-                        {
-                            if (touching == null)
-                            {
-                                // would not hit anything, ok to move
-                                b.Move(xdelta, ydelta, zdelta);
-                                b.Feedback(result: true);
-                            }
-                            else
-                            {
-                                // would hit something, notify that an attack occured
-                                HitByAttack(b, touching);
-                                b.Feedback(result: false);
-                            }
-                        }
-                    }
-
-                    // advance and remove when it hits the end
-                    if (++b.CurrentDuration >= b.Duration) toremove.Add(b);
-                }
-            }
-            finally
-            {
-                EphemerialLock.ExitReadLock();
-            }
-
-            try
-            {
-                EphemerialLock.EnterWriteLock();
-                // remove any as necessary
-                foreach (var b in toremove)
-                {
-                    Ephemerial.Remove(b);
-                }
-            }
-            finally
-            {
-                EphemerialLock.ExitWriteLock();
-            }
-
-            // apply any necessary damage to the players
-            var deceased = new List<Element>();
-            try
-            {
-                DetailsLock.EnterReadLock();
-                foreach (var detail in Details.Values)
-                {
-                    if (detail.Player == null || detail.Player.IsDead) continue;
-                    var damage = Map.Background.Damage(detail.Player.X, detail.Player.Y);
-                    if (damage > 0)
-                    {
-                        detail.Player.ReduceHealth(damage);
-
-                        if (detail.Player.IsDead)
-                        {
-                            deceased.Add(detail.Player);
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                DetailsLock.ExitReadLock();
-            }
-
-            // notify the deceased
-            foreach (var elem in deceased)
-            {
-                // this player has died as a result of taking damage from the zone
-                PlayerDied(elem);
-                AddEphemerialElement(new OnScreenText()
-                    {
-                        Text = string.Format("Player {0} died in the zone", elem.Name)
-                    });
-            }
-
-            // set state back to not running
-            System.Threading.Volatile.Write(ref BackgroundLock, 0);
-
-            timer.Stop();
-
-            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**BackgroundUpdate Duration {0} ms", timer.ElapsedMilliseconds);
         }
 
         // support
@@ -1179,7 +1021,7 @@ namespace engine.Common
         }
 
         private enum ForceState { None = 0, Success = 1, Failed = 2, Negative = 4, Positive = 8 };
-        private ForceState ApplyForce(PlayerDetails detail, TimeAxis axis, float force, float opposingForce)
+        private ForceState ApplyForce(PlayerDetails detail, Player player, TimeAxis axis, float force, float opposingForce)
         {
             lock (detail.ForceLock)
             {
@@ -1211,7 +1053,7 @@ namespace engine.Common
                 do
                 {
                     // apply movement equivalent to the force
-                    if (Move(detail.Player,
+                    if (Move(player,
                         xdelta: (axis == TimeAxis.X) ? direction : 0f,
                         ydelta: (axis == TimeAxis.Y) ? direction : 0f,
                         zdelta: (axis == TimeAxis.Z) ? direction : 0f,
@@ -1265,22 +1107,11 @@ namespace engine.Common
             y /= sum;
         }
 
-        private void AddEphemerialElement(EphemerialElement element)
-        {
-            try
-            {
-                EphemerialLock.EnterWriteLock();
-                Ephemerial.Add(element);
-            }
-            finally
-            {
-                EphemerialLock.ExitWriteLock();
-            }
-        }
-
         // human movements
         private bool SwitchPrimary(Player player, out Type type)
         {
+            if (player.Id == _Human.Id) RequeryForHuman = true;
+
             // no indication of what was switched
             type = null;
 
@@ -1290,6 +1121,8 @@ namespace engine.Common
 
         private bool Pickup(Player player, out Type type)
         {
+            if (player.Id == _Human.Id) RequeryForHuman = true;
+
             // indicate what was picked up
             type = null;
 
@@ -1305,6 +1138,8 @@ namespace engine.Common
 
         private bool Drop(Player player, out Type type)
         {
+            if (player.Id == _Human.Id) RequeryForHuman = true;
+
             // indicidate what was dropped
             type = Map.Drop(player);
             return (type != null);
@@ -1312,6 +1147,8 @@ namespace engine.Common
 
         private bool Reload(Player player, out AttackStateEnum reloaded)
         {
+            if (player.Id == _Human.Id) RequeryForHuman = true;
+
             // return the state
             reloaded = AttackStateEnum.None;
 
@@ -1342,6 +1179,8 @@ namespace engine.Common
 
         private bool Attack(Player player, out AttackStateEnum attack)
         {
+            if (player.Id == _Human.Id) RequeryForHuman = true;
+
             // return the attack state
             attack = AttackStateEnum.None;
 
@@ -1390,6 +1229,8 @@ namespace engine.Common
         {
             if (player.IsDead) return false;
 
+            if (player.Id == _Human.Id) RequeryForHuman = true;
+
             Element touching;
             if (Map.Move(player, ref xdelta, ref ydelta, ref zdelta, out touching, pace))
             {
@@ -1412,6 +1253,8 @@ namespace engine.Common
         {
             if (player.IsDead) return false;
             if ((Config.ForcesApplied & (int)Forces.Y) == 0) return false;
+
+            if (player.Id == _Human.Id) RequeryForHuman = true;
 
             // check that the player is touching something below them
             var xdelta = 0f;
@@ -1437,6 +1280,7 @@ namespace engine.Common
             // play sound if the human is hit
             if (element is Player && element.Id == Human.Id)
             {
+                RequeryForHuman = true;
                 Play(Human.HurtSoundPath);
             }
 
@@ -1453,27 +1297,10 @@ namespace engine.Common
                 RemoveItem(element);
 
                 // track how many players are alive
-                try
-                {
-                    DetailsLock.EnterReadLock();
-                    var alive = 0;
-                    foreach (var elem in Details.Values)
-                    {
-                        if (elem.Player.IsDead) continue;
-                        alive++;
-                    }
-                    Alive = alive;
-                }
-                finally
-                {
-                    DetailsLock.ExitReadLock();
-                }
+                Alive = Map.GetStats().PlayersAlive;
 
                 // callback
-                if (OnDeath != null)
-                {
-                    OnDeath(element);
-                }
+                if (OnDeath != null) OnDeath(element);
             }
         }
         #endregion

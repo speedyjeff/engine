@@ -23,7 +23,7 @@ namespace engine.Samples.Winforms
             if (Images == null)
             {
                 // load
-                var images = Resources.LoadImages(System.Reflection.Assembly.GetExecutingAssembly(), g);
+                var images = Resources.LoadImages(System.Reflection.Assembly.GetExecutingAssembly());
                 Images = new IImage[images.Values.Count() ];
                 var count = 0;
                 foreach(var img in images.Values)
