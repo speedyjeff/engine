@@ -149,9 +149,49 @@ namespace engine.Common
             return IsTriangleIntersection(p1, q1, r1, p2, q2, r2);
         }
 
-#region private
+        public static bool PointWithinPolygon(
+            float x, float y,
+            Point[] objectPoints)
+        {
+            // calculate the center
+            var center = Center(objectPoints);
 
-#region lines
+            // assert - points must be sorted clockwise/counterclockwise for this to work
+
+            // check that the line point to center line never touches any of the sides
+            for(int i=0; i<objectPoints.Length; i++)
+            {
+                if (IntersectingLine(
+                    x, y, center.X, center.Y, // point to center line
+                    objectPoints[i].X, objectPoints[i].Y, objectPoints[(i + 1) % objectPoints.Length].X, objectPoints[(i + 1) % objectPoints.Length].Y // edge
+                    )) return false;
+            }
+
+            // there is no line that intersects, therefore within the polygon
+            return true;
+        }
+
+        public static void OrderPoints(Point[] points, bool clockwise = true)
+        {
+            // https://gamedev.stackexchange.com/questions/13229/sorting-array-of-points-in-clockwise-order
+            var center = Center(points);
+
+            // compute the angles
+            var angles = new float[points.Length];
+            for (int i = 0; i < points.Length; i++) angles[i] = (float)Math.Atan2(points[i].Y - center.Y, points[i].X - center.X);
+
+            // sort by angle
+            Array.Sort(angles, points);
+
+            if (clockwise) return;
+
+            // reverse for counter clockwise (should use a custom sort comparer)
+            Array.Reverse(angles);
+        }
+
+        #region private
+
+        #region lines
         // https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool CalcCcw(float x1, float y1, float x2, float y2, float x3, float y3)
@@ -170,6 +210,23 @@ namespace engine.Common
             }
 
             return Single.MaxValue;
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Point Center(Point[] points)
+        {
+            var center = new Point();
+            for(int i=0; i<points.Length; i++)
+            {
+                center.X += points[i].X;
+                center.Y += points[i].Y;
+                center.Z += points[i].Z;
+            }
+            center.X /= (float)points.Length;
+            center.Y /= (float)points.Length;
+            center.Z /= (float)points.Length;
+
+            return center;
         }
 
         private static bool PointOfLineSegmentIntersection(

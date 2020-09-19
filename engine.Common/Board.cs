@@ -17,6 +17,7 @@ namespace engine.Common
         public int Rows;
         public int Columns;
         public int EdgeAngle; // 0 = rectangle, 1..89 = hexagon
+        public BoardCell[][] Cells; // all cells are unique shapes (EdgeAngle does not apply)
     }
 
     public delegate void CellDelegate(int row, int col, float x, float y);
@@ -27,9 +28,7 @@ namespace engine.Common
         public Board(BoardConfiguration config)
         {
             // config validation
-            if (config.Width < 0 || config.Height < 0
-                || config.Rows == 0 || config.Columns == 0
-                || config.Width < config.Columns || config.Height < config.Rows) throw new Exception("Invalid Board dimensions");
+            if (config.Width <= 0 || config.Height <= 0) throw new Exception("Invalid Board dimensions");
 
             // ensure the angle is not too steep
             if (config.EdgeAngle < 0 || config.EdgeAngle > 89) throw new Exception("Invalid Edge Angle - must be between 0 and 89");
@@ -47,47 +46,114 @@ namespace engine.Common
             Config = config;
             Overlay = new CellDetails() { IsDirty = false, Image = null };
             IsDirty = false;
-            if (Config.EdgeAngle == 0)
+
+            // create cells
+
+            // unique cell shapes
+            if (Config.Cells != null && Config.Cells.Length > 0)
             {
-                // rectangle
-                CellWidth = config.Width / config.Columns;
-                CellHeight = config.Height / config.Rows;
-            }
-            else
-            {
-                // hexagon
+                // init
+                CellWidth = CellHeight = 0;
 
-                // the angle starts at the mid point of the width
-                // calculate how far down the height the edge will go
-                // tan(angle) = opposite / adjacent
-                EdgeWidth = ((Config.Width / Config.Columns) / 2);
-                EdgeHeight = (int)Math.Floor(Math.Tan((Math.PI / 180) * Config.EdgeAngle) * EdgeWidth);
-
-                // add later
-                if ((2 * EdgeHeight * Config.Rows) > Config.Height) throw new Exception("The EdgeAngle is too steep");
-
-                // need to adjust to an additional EdgeWidth and EdgeHeight (given the shift)
-                CellWidth = ((config.Width - EdgeWidth) / config.Columns);
-                CellHeight = ((config.Height - EdgeHeight + (Config.Rows * EdgeHeight) ) / config.Rows);
-
-                // update EdgeWidth
-                EdgeWidth = CellWidth / 2;
-            }
-
-            // create the cells
-            Cells = new CellDetails[config.Rows][];
-            for(int row = 0; row < Cells.Length; row++)
-            {
-                Cells[row] = new CellDetails[config.Columns];
-                for(int col = 0; col < Cells[row].Length; col++)
+                // calculate the rows and columns
+                Config.Rows = Config.Cells.Length;
+                Config.Columns = 0;
+                for(int row=0; row<Config.Cells.Length; row++)
                 {
-                    Cells[row][col] = new CellDetails()
+                    if (Config.Cells[row].Length > Config.Columns) Config.Columns = Config.Cells[row].Length;
+                }
+                // moving from index to length
+                Config.Columns++;
+
+                // add all the points
+                Cells = new CellDetails[Config.Rows][];
+                for (int row = 0; row < Config.Cells.Length; row++)
+                {
+                    Cells[row] = new CellDetails[Config.Cells[row].Length];
+
+                    for (int col = 0; col < Config.Cells[row].Length; col++)
                     {
-                        IsDirty = false,
-                        Image = null
-                    };
+                        // create cell
+                        Cells[row][col] = new CellDetails()
+                        {
+                            IsDirty = false,
+                            Image = null,
+                            Width = (int)Math.Ceiling(Config.Cells[row][col].Width),
+                            Height = (int)Math.Ceiling(Config.Cells[row][col].Height),
+                            Cells = Config.Cells[row][col].Points,
+                            Top = Config.Cells[row][col].Top,
+                            Left = Config.Cells[row][col].Left
+                        };
+                    }
                 }
             }
+
+            // regular shaped
+            else
+            {
+                if (Config.Rows == 0 || Config.Columns == 0 || Config.Width < Config.Columns || Config.Height < Config.Rows) throw new Exception("Invalid Board dimensions");
+
+                // rectangle
+                if (Config.EdgeAngle == 0)
+                {
+                    CellWidth = Config.Width / Config.Columns;
+                    CellHeight = Config.Height / Config.Rows;
+                }
+
+                // hexagon
+                else
+                {
+                    // the angle starts at the mid point of the width
+                    // calculate how far down the height the edge will go
+                    // tan(angle) = opposite / adjacent
+                    EdgeWidth = ((Config.Width / Config.Columns) / 2);
+                    EdgeHeight = (int)Math.Floor(Math.Tan((Math.PI / 180) * Config.EdgeAngle) * EdgeWidth);
+
+                    // add later
+                    if ((2 * EdgeHeight * Config.Rows) > Config.Height) throw new Exception("The EdgeAngle is too steep");
+
+                    // need to adjust to an additional EdgeWidth and EdgeHeight (given the shift)
+                    CellWidth = ((Config.Width - EdgeWidth) / Config.Columns);
+                    CellHeight = ((Config.Height - EdgeHeight + (Config.Rows * EdgeHeight)) / Config.Rows);
+
+                    // update EdgeWidth
+                    EdgeWidth = CellWidth / 2;
+                }
+
+                // create the cells
+                Cells = new CellDetails[Config.Rows][];
+                for (int row = 0; row < Cells.Length; row++)
+                {
+                    Cells[row] = new CellDetails[Config.Columns];
+                    for (int col = 0; col < Cells[row].Length; col++)
+                    {
+                        // rectangle
+                        var left = col * CellWidth;
+                        var top = row * CellHeight;
+
+                        if (Config.EdgeAngle != 0)
+                        {
+                            // adjust for hexagon shape
+                            if (row % 2 != 0)
+                            {
+                                // odd
+                                left += EdgeWidth;
+                            }
+                            top -= (EdgeHeight * row);
+                        }
+
+                        Cells[row][col] = new CellDetails()
+                        {
+                            IsDirty = false,
+                            Image = null,
+                            Width = CellWidth,
+                            Height = CellHeight,
+                            Left = left,
+                            Top = top
+                        };
+                    } // for col
+                } // for row
+            } // if regular
 
             // setup the background update timer
             TickTimer = new Timer(TickUpdate, null, 0, Constants.GlobalClock);
@@ -129,6 +195,7 @@ namespace engine.Common
         // to enable a template for images
         public void SaveCellTemplate(string path)
         {
+            if (CellWidth <= 0 || CellHeight <= 0) return;
             var img = Surface.CreateImage(CellWidth, CellHeight);
             img.Graphics.Clear(RGBA.Black);
             MarkEdgesTransparent(img);
@@ -151,9 +218,9 @@ namespace engine.Common
             if (OnCellOver != null)
             {
                 // translate the x,y to row,col 
-                Translate(x, y, out int row, out int col);
+                if (!Translate(x, y, out int row, out int col)) return;
                 // then get local x,y
-                Translate(x, y, row, col, out float lx, out float ly);
+                if (!Translate(x, y, row, col, out float lx, out float ly)) throw new Exception("failed to get local x,y");
 
                 OnCellOver(row, col, lx, ly);
             }
@@ -169,9 +236,9 @@ namespace engine.Common
             if (OnCellClicked != null)
             {
                 // translate the x,y to row,col 
-                Translate(x, y, out int row, out int col);
+                if (!Translate(x, y, out int row, out int col)) return;
                 // then get local x,y
-                Translate(x, y, row, col, out float lx, out float ly);
+                if (!Translate(x, y, row, col, out float lx, out float ly)) throw new Exception("failed to get local x,y");
 
                 OnCellClicked(row, col, lx, ly);
             }
@@ -197,6 +264,8 @@ namespace engine.Common
                     // iterate through and update the Surface for the dirty cells
                     for (int row = 0; row < Cells.Length; row++)
                     {
+                        if (Cells[row] == null) continue;
+
                         for (int col = 0; col < Cells[row].Length; col++)
                         {
                             if (Cells[row][col].Image == null) continue;
@@ -204,11 +273,7 @@ namespace engine.Common
                             if (Cells[row][col].IsDirty || Overlay.IsDirty)
                             {
                                 Cells[row][col].IsDirty = false;
-
-                                // translate to x,y
-                                Translate(row, col, out float x, out float y);
-
-                                Surface.Image(Cells[row][col].Image, x, y, CellWidth, CellHeight);
+                                Surface.Image(Cells[row][col].Image, Cells[row][col].Left, Cells[row][col].Top, Cells[row][col].Width, Cells[row][col].Height);
                             } // if (Cells.IsDirty)
                         } // for
                     } // for
@@ -237,6 +302,7 @@ namespace engine.Common
                 Clear();
                 for (int row = 0; row < Cells.Length; row++)
                 {
+                    if (Cells[row] == null) continue;
                     for (int col = 0; col < Cells[row].Length; col++)
                     {
                         if (Cells[row][col].Image != null) Cells[row][col].IsDirty = true;
@@ -259,7 +325,9 @@ namespace engine.Common
         public void UpdateCell(int row, int col, UpdateImageDelegate update)
         {
             if (row < 0 || row >= Rows
-                || col < 0 || col >= Columns) throw new Exception("Invalid row x col : " + row + "," + col);
+                || col < 0
+                || Cells[row] == null
+                || col >= Cells[row].Length) throw new Exception("Invalid row x col : " + row + "," + col);
             if (update == null) throw new Exception("Must pass in a valid delegate to use for updates");
 
             lock (Cells)
@@ -267,7 +335,7 @@ namespace engine.Common
                 if (Cells[row][col].Image == null)
                 {
                     // initialize
-                    Cells[row][col].Image = Surface.CreateImage(CellWidth, CellHeight);
+                    Cells[row][col].Image = Surface.CreateImage(Cells[row][col].Width, Cells[row][col].Height);
                 }
 
                 // pass to the user for an update
@@ -326,6 +394,13 @@ namespace engine.Common
         {
             public IImage Image;
             public bool IsDirty;
+            public int Width;
+            public int Height;
+            public float Top;
+            public float Left;
+
+            // used for unique shape layout
+            public Point[] Cells;
         }
         private CellDetails[][] Cells;
 
@@ -340,6 +415,8 @@ namespace engine.Common
 
         private void MarkEdgesTransparent(IImage img)
         {
+            if (CellWidth == 0 || CellHeight == 0 || EdgeHeight == 0 || EdgeWidth == 0) return;
+
             // make edges transparent
             var clear = new RGBA() { R = 0x12, G = 0x34, B = 0x56, A = 255 };
 
@@ -355,46 +432,45 @@ namespace engine.Common
             img.MakeTransparent(clear);
         }
 
-        // row,col to screen x,y
-        private void Translate(int row, int col, out float x, out float y)
-        {
-            if (col < 0) col = 0;
-            if (col >= Columns) col = Columns - 1;
-            if (row < 0) row = 0;
-            if (row >= Rows) row = Rows - 1;
-
-            x = col * CellWidth;
-            y = row * CellHeight;
-
-            if (Config.EdgeAngle != 0)
-            {
-                if (row % 2 != 0)
-                {
-                    // odd
-                    x += EdgeWidth;
-                }
-                y -= (EdgeHeight * row);
-            }
-
-        }
-
         // screen x,y into row,col
-        private void Translate(float x, float y, out int row, out int col)
+        private bool Translate(float x, float y, out int row, out int col)
         {
+            // clean up edges
             if (x < 0) x = 0;
             if (x >= Width) x = Width - 1;
             if (y < 0) y = 0;
             if (y >= Height) y = Height - 1;
 
-            if (Config.EdgeAngle == 0)
+            // unique cell shapes
+            if (Config.Cells != null && Config.Cells.Length > 0)
+            {
+                // iterate through the shapes looking for a match
+                for(row=0; row<Cells.Length; row++)
+                {
+                    if (Cells[row] == null) continue;
+                    for(col=0; col<Cells[row].Length; col++)
+                    {
+                        // check if this point resides within this region
+                        if (Collision.PointWithinPolygon(x,y, Cells[row][col].Cells)) return true;
+                    }
+                }
+
+                // no match found
+                row = col = -1;
+                return false;
+            }
+
+            // rectangle
+            else if (Config.EdgeAngle == 0)
             {
                 col = (int)Math.Floor(x / (float)CellWidth);
                 row = (int)Math.Floor(y / (float)CellHeight);
+                return true;
             }
-            else
-            {
-                // hexagon
 
+            // hexagon
+            else if (Config.EdgeAngle != 0)
+            {
                 // get row (could be either row or row+1)
                 if (y < EdgeHeight) row = 0;
                 else
@@ -414,7 +490,7 @@ namespace engine.Common
                 }
 
                 // get the local coordinates 
-                Translate(x, y, row, col, out float lx, out float ly);
+                if (!Translate(x, y, row, col, out float lx, out float ly)) throw new Exception("failed to get local x,y");
 
                 // we are in the lower hexagon portion of the shape
                 // compare this point with the two hypotenuse' to see
@@ -453,18 +529,27 @@ namespace engine.Common
                 if (row >= Config.Rows) row = Config.Rows - 1;
                 if (col < 0) col = 0;
                 if (col >= Config.Columns) col = Config.Columns - 1;
-            } // if (rectangle)
+
+                return true;
+            } // else if (hexagon)
+
+            else
+            {
+                throw new Exception("Unknow cell configuration");
+            }
         }
 
         // screen x,y to cell local x,y
-        private void Translate(float x, float y, int row, int col, out float lx, out float ly)
+        private bool Translate(float x, float y, int row, int col, out float lx, out float ly)
         {
-            // get the starting point of this cell
-            Translate(row, col, out float cx, out float cy);
+            // init
+            lx = ly = 0f;
 
             // substract the difference to get the local x,y
-            lx = x - cx;
-            ly = y - cy;
+            lx = x - Cells[row][col].Left;
+            ly = y - Cells[row][col].Top;
+
+            return true;
         }
 
         private void TickUpdate(object state)
