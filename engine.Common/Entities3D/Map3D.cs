@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace engine.Common.Entities3D
 {
-    class Map3D : Map
+    public class Map3D : Map
     {
-        public Map3D(int width, int height, int depth, Element[] objects, Background background)
+        public Map3D(int width, int height, int depth, Player[] players, Element[] objects, Background background)
         {
-            Initialize(width: width, height: height, depth: depth, objects: objects, background: background);
+            Initialize(width: width, height: height, depth: depth, players: players, objects: objects, background: background);
         }
 
         public override bool IsTouching(Element elem1, Element elem2, float x1delta = 0, float y1delta = 0, float z1delta = 0)

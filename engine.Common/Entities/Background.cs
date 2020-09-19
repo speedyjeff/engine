@@ -6,6 +6,10 @@ namespace engine.Common.Entities
 {
     public class Background : Element
     {
+        public Background() : base()
+        {
+        }
+
         public Background(int width, int height) : base()
         {
             CanMove = false;

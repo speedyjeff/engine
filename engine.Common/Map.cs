@@ -8,19 +8,13 @@ using engine.Common.Entities;
 
 namespace engine.Common
 {
-    struct MapStats
-    {
-        public int PlayersAlive;
-        public int PlayerCount;
-    }
-
-    class Map
+    public class Map : IMap
     {
         public Map() { }
 
-        public Map(int width, int height, int depth, Element[] objects, Background background)
+        public Map(int width, int height, int depth, Player[] players, Element[] objects, Background background)
         {
-            Initialize(width: width, height: height, depth: depth, objects: objects, background: background);
+            Initialize(width: width, height: height, depth: depth, players: players, objects: objects, background: background);
         }
 
         public int Width { get; private set; }
@@ -472,12 +466,13 @@ namespace engine.Common
         private List<EphemerialElement> Ephemerial = new List<EphemerialElement>();
         private ReaderWriterLockSlim EphemerialLock = new ReaderWriterLockSlim();
 
-        protected void Initialize(int width, int height, int depth, Element[] objects, Background background)
+        protected void Initialize(int width, int height, int depth, Player[] players, Element[] objects, Background background)
         {
             if (width <= 0 || height <= 0 || depth <= 0) throw new Exception("Must specific a valid Width, Height, and Depth");
             if (background == null) throw new Exception("Must create a background");
 
             // init
+            IsPaused = true;
             Width = width;
             Height = height;
             Depth = depth;
@@ -495,7 +490,14 @@ namespace engine.Common
             // add all things to the map
             Obstacles = new RegionCollection(obstacles, Width, Height, Depth);
             Items = new RegionCollection(items, Width, Height, Depth);
+
+            // add all the players
             Players = new Dictionary<int, Player>();
+            foreach(var player in players)
+            {
+                Obstacles.Add(player.Id, player);
+                Players.Add(player.Id, player);
+            }
 
             // setup the background update timer
             BackgroundTimer = new Timer(BackgroundUpdate, null, 0, Constants.GlobalClock);

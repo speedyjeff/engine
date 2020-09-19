@@ -10,28 +10,30 @@ using System.Threading.Tasks;
 using engine.Common.Entities;
 using engine.Common.Entities.AI;
 using engine.Common.Entities3D;
+using engine.Common.Networking;
 
 namespace engine.Common
 {
     public struct WorldConfiguration
     {
-        public int Width;
-        public int Height;
-        public bool CenterIndicator;
-        public Menu StartMenu;
-        public Menu EndMenu;
-        public Menu HUD;
-        public bool EnableZoom;
-        public bool DisplayStats;
-        public bool ShowCoordinates;
-        public int ForcesApplied;
-        public float HorizonX;
-        public float HorizonY;
-        public float HorizonZ;
-        public bool Is3D;
-        public float CameraX;
-        public float CameraY;
-        public float CameraZ;
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public bool CenterIndicator { get; set; }
+        public Menu StartMenu { get; set; }
+        public Menu EndMenu { get; set; }
+        public Menu HUD { get; set; }
+        public bool EnableZoom { get; set; }
+        public bool DisplayStats { get; set; }
+        public bool ShowCoordinates { get; set; }
+        public int ForcesApplied { get; set; }
+        public float HorizonX { get; set; }
+        public float HorizonY { get; set; }
+        public float HorizonZ { get; set; }
+        public bool Is3D { get; set; }
+        public float CameraX { get; set; }
+        public float CameraY { get; set; }
+        public float CameraZ { get; set; }
+        public string ServerUrl { get; set; }
     }
 
     public enum Forces { None = 0, X = 1, Y = 2, Z = 4};
@@ -46,50 +48,45 @@ namespace engine.Common
             if (background == null) throw new Exception("Must specify a background");
             if (players == null) throw new Exception("Must specify a list of players");
 
-            // init
-            Config = config;
-            Details = new Dictionary<int, PlayerDetails>();
-            DetailsLock = new ReaderWriterLockSlim();
-            Alive = 0;
-            UniquePlayers = new HashSet<int>();
-
-            // 3D shaders
-            Element3D.SetShader(Element3DShader);
-
             // setup map
-            if (config.Is3D) Map = new Map3D(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
-            else Map = new Map(Config.Width, Config.Height, (int)Constants.ProximityViewDepth, objects, background);
-
-            // todo if network configuration
-
-            // hook up map callbacks
-            Map.OnElementHit += HitByAttack;
-            Map.OnElementDied += PlayerDied;
+            IMap map = null;
+            if (!string.IsNullOrWhiteSpace(config.ServerUrl)) map = new RemoteMap(isHost: true, config, players, objects, background);
+            else if (config.Is3D) map = new Map3D(config.Width, config.Height, (int)Constants.ProximityViewDepth, players, objects, background);
+            else map = new Map(config.Width, config.Height, (int)Constants.ProximityViewDepth, players, objects, background);
 
             // setup the human first
-            _Human = null;
-            RequeryForHuman = false;
+            HumanId = -1;
             foreach (var player in players)
             {
                 // assign human
-                if (_Human == null && !(player is AI))
+                if (HumanId < 0 && !(player is AI))
                 {
-                    _Human = player;
+                    HumanId = player.Id;
                     break;
                 }
             }
 
-            if (_Human == null) throw new Exception("Must add at least 1 player (as human)");
+            if (HumanId < 0) throw new Exception("Must add at least 1 player (as human)");
 
-            // add all the players
-            foreach (var player in players) AddItem(player);
+            Initialize(config, map, players);
 
-            // start paused
             if (Config.StartMenu != null)
             {
                 Menu = Config.StartMenu;
-                Map.IsPaused = true;
             }
+        }
+
+        public World(WorldConfiguration config, IMap map, Player[] players)
+        {
+            // sanity check the parameters
+            if (config.Width <= 0 || config.Width <= 0) throw new Exception("Must specify a Width and Height for the world");
+            if (players == null) throw new Exception("Must specify a list of players");
+
+            // there is no the human
+            HumanId = -1;
+
+            // the map is already setup
+            Initialize(config, map, players);
         }
 
         public void InitializeGraphics(IGraphics surface, ISounds sounds)
@@ -122,26 +119,7 @@ namespace engine.Common
         public int Width { get { return Map.Width;  } }
         public int Height {  get { return Map.Height;  } }
 
-        public Player Human 
-        { 
-            get
-            {
-                // the cached version should only be considered for certain values
-                // need to get it from the server to get the latest version from time to time
-                if (RequeryForHuman)
-                {
-                    var thuman = Map.GetPlayer(_Human.Id);
-                    // when the human player dies, they are removed and this API returns null
-                    if (thuman != null) _Human = thuman;
-                    RequeryForHuman = false;
-                }
-                return _Human;
-            }
-            private set
-            {
-                _Human = value;
-            }
-        }
+        public Player Human { get { return HumanId >= 0 ? Map.GetPlayer(HumanId) : null; } }
         public int Alive { get; private set; }
         public int Players { get { return UniquePlayers.Count; } }
 
@@ -150,10 +128,13 @@ namespace engine.Common
             // exit early if there is no Surface to draw too
             if (Surface == null) return;
 
+            // get the human player for reference
+            var human = Map.GetPlayer(HumanId);
+
             // set graphics the perspective
             Surface.SetPerspective(is3D: Config.Is3D,
-                centerX: Human.X, centerY: Human.Y, centerZ: Human.Z,
-                yaw: Human.Angle, pitch: Human.PitchAngle, roll: 0f,
+                centerX: human.X, centerY: human.Y, centerZ: human.Z,
+                yaw: human.Angle, pitch: human.PitchAngle, roll: 0f,
                 cameraX: Config.CameraX, cameraY: Config.CameraY, cameraZ: Config.CameraZ,
                 horizon: Config.HorizonZ * 2);
 
@@ -161,9 +142,9 @@ namespace engine.Common
             Map.Background.Draw(Surface);
 
             // add center indicator
-            if (Config.CenterIndicator && !Config.Is3D && Human.Z == Constants.Ground)
+            if (Config.CenterIndicator && !Config.Is3D && human.Z == Constants.Ground)
             {
-                var centerAngle = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Map.Width / 2, Map.Height / 2);
+                var centerAngle = Collision.CalculateAngleFromPoint(human.X, human.Y, Map.Width / 2, Map.Height / 2);
                 float x1, y1, x2, y2;
                 var distance = Math.Min(Surface.Width, Surface.Height) * 0.9f;
                 Collision.CalculateLineByAngle(Surface.Width / 2, Surface.Height / 2, centerAngle, (distance / 2), out x1, out y1, out x2, out y2);
@@ -197,9 +178,9 @@ namespace engine.Common
             var hidden = new HashSet<int>();
             var visiblePlayers = new List<Player>();
 
-            var ratio = (Human.Z + Config.CameraZ);
+            var ratio = (human.Z + Config.CameraZ);
             if (Config.Is3D || ratio < 1f) ratio = 1f;
-            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z,
+            foreach (var elem in Map.WithinWindow(human.X, human.Y, human.Z,
                 Surface.Width * ratio + Config.HorizonX, Surface.Height * ratio + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
             {
                 if (elem.IsDead) continue;
@@ -211,7 +192,7 @@ namespace engine.Common
                 else if (elem.IsTransparent)
                 {
                     // if the player is intersecting with this item, then do not display it
-                    if (Map.IsTouching(Human, elem)) continue;
+                    if (Map.IsTouching(human, elem)) continue;
                     // get players that are touching
                     var players = Map.WhatPlayersAreTouching(elem);
                     foreach (var player in players) hidden.Add(player.Id);
@@ -271,7 +252,7 @@ namespace engine.Common
                 Surface.DisableTranslation();
                 {
                     Surface.Text(RGBA.Black, Surface.Width - 200, 10, string.Format("Alive {0} of {1}", Alive, Players));
-                    Surface.Text(RGBA.Black, Surface.Width - 200, 30, string.Format("Kills {0}", Human.Kills));
+                    Surface.Text(RGBA.Black, Surface.Width - 200, 30, string.Format("Kills {0}", human.Kills));
                 }
                 Surface.EnableTranslation();
             }
@@ -280,11 +261,11 @@ namespace engine.Common
             {
                 Surface.DisableTranslation();
                 {
-                    Surface.Text(RGBA.Black, 200, 10, string.Format("X {0}", Human.X));
-                    Surface.Text(RGBA.Black, 200, 30, string.Format("Y {0}", Human.Y));
-                    Surface.Text(RGBA.Black, 200, 50, string.Format("Z {0}", Human.Z));
-                    Surface.Text(RGBA.Black, 200, 70, string.Format("A {0}", Human.Angle));
-                    Surface.Text(RGBA.Black, 200, 90, string.Format("P {0}", Human.PitchAngle));
+                    Surface.Text(RGBA.Black, 200, 10, string.Format("X {0}", human.X));
+                    Surface.Text(RGBA.Black, 200, 30, string.Format("Y {0}", human.Y));
+                    Surface.Text(RGBA.Black, 200, 50, string.Format("Z {0}", human.Z));
+                    Surface.Text(RGBA.Black, 200, 70, string.Format("A {0}", human.Angle));
+                    Surface.Text(RGBA.Black, 200, 90, string.Format("P {0}", human.PitchAngle));
                 }
                 Surface.EnableTranslation();
             }
@@ -324,6 +305,10 @@ namespace engine.Common
                 return;
             }
 
+            // must have a human player for input
+            if (HumanId < 0) return;
+            var human = Map.GetPlayer(HumanId);
+
             // handle the user input
             bool result = false;
             Type item = null;
@@ -335,7 +320,7 @@ namespace engine.Common
             // do in this case
             if (OnBeforeKeyPressed != null)
             {
-                if (OnBeforeKeyPressed(Human, ref key)) return;
+                if (OnBeforeKeyPressed(human, ref key)) return;
             }
 
             // movement determination
@@ -346,25 +331,25 @@ namespace engine.Common
                 case Constants.Down2:
                 case Constants.DownArrow:
                     if (!Config.Is3D) ydelta = 1;
-                    else DirectionByAngle(Human.Angle + 180, out xdelta, out zdelta);
+                    else DirectionByAngle(human.Angle + 180, out xdelta, out zdelta);
                     break;
                 case Constants.Left:
                 case Constants.Left2:
                 case Constants.LeftArrow:
                     if (!Config.Is3D) xdelta = -1;
-                    else DirectionByAngle(Human.Angle - 90, out xdelta, out zdelta);
+                    else DirectionByAngle(human.Angle - 90, out xdelta, out zdelta);
                     break;
                 case Constants.Right:
                 case Constants.Right2:
                 case Constants.RightArrow:
                     if (!Config.Is3D) xdelta = 1;
-                    else DirectionByAngle(Human.Angle + 90, out xdelta, out zdelta);
+                    else DirectionByAngle(human.Angle + 90, out xdelta, out zdelta);
                     break;
                 case Constants.Up:
                 case Constants.Up2:
                 case Constants.UpArrow:
                     if (!Config.Is3D) ydelta = -1;
-                    else DirectionByAngle(Human.Angle, out xdelta, out zdelta);
+                    else DirectionByAngle(human.Angle, out xdelta, out zdelta);
                     break;
                 case Constants.Forward:
                 case Constants.Forward2:
@@ -376,19 +361,19 @@ namespace engine.Common
                     break;
                 case Constants.RightMouse:
                     // use the mouse to move in the direction of the angle
-                    if (!Config.Is3D) DirectionByAngle(Human.Angle, out xdelta, out ydelta);
-                    else DirectionByAngle(Human.Angle, out xdelta, out zdelta);
+                    if (!Config.Is3D) DirectionByAngle(human.Angle, out xdelta, out ydelta);
+                    else DirectionByAngle(human.Angle, out xdelta, out zdelta);
                     break;
             }
 
             if (OnBeforeAction != null)
             {
-                List<Element> elements = Map.WithinWindow(Human.X, Human.Y, Human.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
-                var angleToCenter = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Config.Width / 2, Config.Height / 2);
-                var inZone = Map.Background.Damage(Human.X, Human.Y) > 0;
+                List<Element> elements = Map.WithinWindow(human.X, human.Y, human.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
+                var angleToCenter = Collision.CalculateAngleFromPoint(human.X, human.Y, Config.Width / 2, Config.Height / 2);
+                var inZone = Map.Background.Damage(human.X, human.Y) > 0;
 
                 // provide details for telemetry
-                OnBeforeAction(Human, new ActionDetails()
+                OnBeforeAction(human, new ActionDetails()
                 {
                     Elements = elements,
                     AngleToCenter = angleToCenter,
@@ -396,7 +381,7 @@ namespace engine.Common
                     XDelta = xdelta,
                     YDelta = ydelta,
                     ZDelta = zdelta,
-                    Angle = Human.Angle
+                    Angle = human.Angle
                 });
             }
 
@@ -440,53 +425,53 @@ namespace engine.Common
             switch (action)
             {
                 case ActionEnum.SwitchPrimary:
-                    result = SwitchPrimary(Human, out item);
-                    Human.Feedback(action, item, result);
+                    result = SwitchPrimary(human, out item);
+                    human.Feedback(action, item, result);
                     break; 
 
                 case ActionEnum.Pickup:
-                    result = Pickup(Human, out item);
-                    Human.Feedback(action, item, result);
+                    result = Pickup(human, out item);
+                    human.Feedback(action, item, result);
                     break;
 
                 case ActionEnum.Drop:
-                    result = Drop(Human, out item);
-                    Human.Feedback(action, item, result);
+                    result = Drop(human, out item);
+                    human.Feedback(action, item, result);
                     break;
 
                 case ActionEnum.Reload:
-                    result = Reload(Human, out AttackStateEnum reloaded);
-                    Human.Feedback(action, reloaded, result);
+                    result = Reload(human, out AttackStateEnum reloaded);
+                    human.Feedback(action, reloaded, result);
                     break;
 
                 case ActionEnum.Attack:
-                    result = Attack(Human, out AttackStateEnum attack);
-                    Human.Feedback(action, attack, result);
+                    result = Attack(human, out AttackStateEnum attack);
+                    human.Feedback(action, attack, result);
                     break;
 
                 case ActionEnum.Jump:
-                    result = Jump(Human);
-                    Human.Feedback(action, null, result);
+                    result = Jump(human);
+                    human.Feedback(action, null, result);
                     break;
             }
 
             // send after telemetry
-            if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(Human, action, result);
+            if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(human, action, result);
 
             // pass the key off to the caller to see if they know what to 
             // do in this case
             if (OnAfterKeyPressed != null)
             {
-                if (OnAfterKeyPressed(Human, key)) return;
+                if (OnAfterKeyPressed(human, key)) return;
             }
 
             // if a move command, then move
             if (xdelta != 0 || ydelta != 0 || zdelta != 0)
             {
                 // ActionEnum.Move;
-                result = Move(Human, xdelta, ydelta, zdelta, Constants.DefaultPace);
-                Human.Feedback(ActionEnum.Move, null, result);
-                if (OnAfterAction != null) OnAfterAction(Human, ActionEnum.Move, result);
+                result = Move(human, xdelta, ydelta, zdelta, Constants.DefaultPace);
+                human.Feedback(ActionEnum.Move, null, result);
+                if (OnAfterAction != null) OnAfterAction(human, ActionEnum.Move, result);
             }
         }
 
@@ -499,8 +484,12 @@ namespace engine.Common
             // block usage if a menu is being displayed
             if (Map.IsPaused) return;
 
+            // must have a human player for input
+            if (HumanId < 0) return;
+            var human = Map.GetPlayer(HumanId);
+
             // only if on the ground
-            if (Human.Z != Constants.Ground) return;
+            if (human.Z != Constants.Ground) return;
 
             // adjust the zoom
             if (delta > 0) Config.CameraZ -= 1f;
@@ -515,13 +504,18 @@ namespace engine.Common
         {
             // block usage if a menu is being displayed
             if (Map.IsPaused) return;
-            if (Human.IsDead) return;
+
+            // must have a human player for input
+            if (HumanId < 0) return;
+            var human = Map.GetPlayer(HumanId);
+
+            if (human.IsDead) return;
 
             // use the angle to turn the human player
             if (!Config.Is3D)
             {
                 // rotate based on unit circle
-                Human.Angle = angle;
+                human.Angle = angle;
             }
 
             // if (Config.Is3D)
@@ -538,14 +532,14 @@ namespace engine.Common
                 // horiztonal (angle)
                 var hwidth = Surface.Width / 2f;
                 if (x >= hwidth) x -= hwidth;
-                Human.Angle = (x / hwidth) * 360;
+                human.Angle = (x / hwidth) * 360;
 
                 // vertical (pitchAngle)
                 var hheight = Surface.Height / 2f;
                 var foundation = 0f;
                 if (y >= hheight) y -= hheight;
                 else foundation = 315f;
-                Human.PitchAngle = ((y / hheight) * 45) + foundation;
+                human.PitchAngle = ((y / hheight) * 45) + foundation;
             }
         }
 
@@ -568,46 +562,7 @@ namespace engine.Common
 
             if (item is Player)
             {
-                // add another alive player
-                Alive++;
-
-                PlayerDetails detail = null;
-                try
-                {
-                    DetailsLock.EnterUpgradeableReadLock();
-                    // try to get this player
-                    if (Details.ContainsKey(item.Id)) return;
-
-                    try
-                    {
-                        DetailsLock.EnterWriteLock();
-                        // add it
-                        detail = new PlayerDetails() { Id = (item as Player).Id };
-                        Details.Add(item.Id, detail);
-                        UniquePlayers.Add(item.Id);
-                    }
-                    finally
-                    {
-                        DetailsLock.ExitWriteLock();
-                    }
-                }
-                finally
-                {
-                    DetailsLock.ExitUpgradeableReadLock();
-                }
-
-                // finish configuration (if this is the first time)
-                if ((Config.ForcesApplied & (int)Forces.Z) > 0)
-                {
-                    // apply an initial Z force
-                    AddForce(detail, TimeAxis.Z, percentage: 1f);
-                }
-
-                // setup humans and AI
-                if (item is AI || Config.ForcesApplied > 0)
-                {
-                    detail.UpdatePlayerTimer = new Timer(UpdatePlayer, item.Id, 0, Constants.GlobalClock);
-                }
+                AddPlayer(item as Player);
             }
         }
 
@@ -751,17 +706,51 @@ namespace engine.Common
 
         private WorldTranslationGraphics Surface;
         private ISounds Sounds;
-        private Map Map;
+        private IMap Map;
         private Dictionary<int, PlayerDetails> Details;
         private Menu Menu;
         private WorldConfiguration Config;
         private HashSet<int> UniquePlayers;
         private ReaderWriterLockSlim DetailsLock;
-        private Player _Human;
-        private bool RequeryForHuman;
+        private int HumanId;
 
         private const string NothingSoundPath = "nothing";
         private const string PickupSoundPath = "pickup";
+
+        private void Initialize(WorldConfiguration config, IMap map, Player[] players)
+        {
+            Map = map;
+
+            // init
+            Config = config;
+            Details = new Dictionary<int, PlayerDetails>();
+            DetailsLock = new ReaderWriterLockSlim();
+            Alive = 0;
+            UniquePlayers = new HashSet<int>();
+
+            // 3D shaders
+            Element3D.SetShader(Element3DShader);
+
+            // start paused
+            if (Config.StartMenu != null) Menu = Config.StartMenu;
+
+            // add all the players
+            if (string.IsNullOrWhiteSpace(Config.ServerUrl))
+            {
+                // add all the players (including the AI)
+                foreach (var player in players) AddPlayer(player);
+            }
+            else
+            {
+                // TODO!
+                // only add the human player
+                //AddPlayer(Human);
+            }
+
+            // hook up map callbacks
+            Map.OnElementHit += HitByAttack;
+            Map.OnElementDied += PlayerDied;
+        }
 
         // menu items
         private void ShowMenu()
@@ -986,6 +975,50 @@ namespace engine.Common
         }
 
         // support
+        private void AddPlayer(Player player)
+        {
+            // add another alive player
+            Alive++;
+
+            PlayerDetails detail = null;
+            try
+            {
+                DetailsLock.EnterUpgradeableReadLock();
+                // try to get this player
+                if (Details.ContainsKey(player.Id)) return;
+
+                try
+                {
+                    DetailsLock.EnterWriteLock();
+                    // add it
+                    detail = new PlayerDetails() { Id = (player as Player).Id };
+                    Details.Add(player.Id, detail);
+                    UniquePlayers.Add(player.Id);
+                }
+                finally
+                {
+                    DetailsLock.ExitWriteLock();
+                }
+            }
+            finally
+            {
+                DetailsLock.ExitUpgradeableReadLock();
+            }
+
+            // finish configuration (if this is the first time)
+            if ((Config.ForcesApplied & (int)Forces.Z) > 0)
+            {
+                // apply an initial Z force
+                AddForce(detail, TimeAxis.Z, percentage: 1f);
+            }
+
+            // setup humans and AI
+            if (player is AI || Config.ForcesApplied > 0)
+            {
+                detail.UpdatePlayerTimer = new Timer(UpdatePlayer, player.Id, 0, Constants.GlobalClock);
+            }
+        }
+
         private void AddForce(PlayerDetails detail, TimeAxis axis, float percentage)
         {
             lock (detail.ForceLock)
@@ -1110,8 +1143,6 @@ namespace engine.Common
         // human movements
         private bool SwitchPrimary(Player player, out Type type)
         {
-            if (player.Id == _Human.Id) RequeryForHuman = true;
-
             // no indication of what was switched
             type = null;
 
@@ -1121,14 +1152,12 @@ namespace engine.Common
 
         private bool Pickup(Player player, out Type type)
         {
-            if (player.Id == _Human.Id) RequeryForHuman = true;
-
             // indicate what was picked up
             type = null;
 
             if (player.IsDead) return false;
             type = Map.Pickup(player);
-            if (type != null && player.Id == Human.Id)
+            if (type != null && player.Id == HumanId)
             {
                 // play sound
                 Play(PickupSoundPath);
@@ -1138,8 +1167,6 @@ namespace engine.Common
 
         private bool Drop(Player player, out Type type)
         {
-            if (player.Id == _Human.Id) RequeryForHuman = true;
-
             // indicidate what was dropped
             type = Map.Drop(player);
             return (type != null);
@@ -1147,15 +1174,13 @@ namespace engine.Common
 
         private bool Reload(Player player, out AttackStateEnum reloaded)
         {
-            if (player.Id == _Human.Id) RequeryForHuman = true;
-
             // return the state
             reloaded = AttackStateEnum.None;
 
             if (player.IsDead) return false;
             reloaded = player.Reload();
 
-            if (player.Id == Human.Id)
+            if (player.Id == HumanId)
             {
                 switch (reloaded)
                 {
@@ -1179,8 +1204,6 @@ namespace engine.Common
 
         private bool Attack(Player player, out AttackStateEnum attack)
         {
-            if (player.Id == _Human.Id) RequeryForHuman = true;
-
             // return the attack state
             attack = AttackStateEnum.None;
 
@@ -1190,7 +1213,7 @@ namespace engine.Common
 
             attack = Map.Attack(player);
 
-            if (player.Id == Human.Id)
+            if (player.Id == HumanId)
             {
                 // play sounds
                 switch (attack)
@@ -1229,8 +1252,6 @@ namespace engine.Common
         {
             if (player.IsDead) return false;
 
-            if (player.Id == _Human.Id) RequeryForHuman = true;
-
             Element touching;
             if (Map.Move(player, ref xdelta, ref ydelta, ref zdelta, out touching, pace))
             {
@@ -1254,8 +1275,6 @@ namespace engine.Common
             if (player.IsDead) return false;
             if ((Config.ForcesApplied & (int)Forces.Y) == 0) return false;
 
-            if (player.Id == _Human.Id) RequeryForHuman = true;
-
             // check that the player is touching something below them
             var xdelta = 0f;
             var ydelta = Constants.IsTouchingDistance;
@@ -1278,10 +1297,11 @@ namespace engine.Common
         private void HitByAttack(Element primaryElement, Element element)
         {
             // play sound if the human is hit
-            if (element is Player && element.Id == Human.Id)
+            if (element is Player && element.Id == HumanId)
             {
-                RequeryForHuman = true;
-                Play(Human.HurtSoundPath);
+                // get the human player so we can play the sound
+                var human = Map.GetPlayer(HumanId);
+                Play(human.HurtSoundPath);
             }
 
             // notify the outside world that we hit something

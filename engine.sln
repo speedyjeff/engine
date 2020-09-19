@@ -27,9 +27,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flyover3D", "Samples\Winfor
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.ConvertObj", "engine.ConvertObj\engine.ConvertObj.csproj", "{EF5C698A-0AE2-4EC1-A063-8624E607A6DD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.XPlatform", "engine.XPlatform\engine.XPlatform.csproj", "{C3806F39-54B4-4362-ABC3-CDC969F425CD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.XPlatform", "engine.XPlatform\engine.XPlatform.csproj", "{C3806F39-54B4-4362-ABC3-CDC969F425CD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.Blazor", "engine.Blazor\engine.Blazor.csproj", "{99135D03-0415-46BA-AD56-306B5C8C5B05}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.Blazor", "engine.Blazor\engine.Blazor.csproj", "{99135D03-0415-46BA-AD56-306B5C8C5B05}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.Server", "engine.Server\engine.Server.csproj", "{3439A12C-E736-4A14-B723-C0B91E0760F5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -85,6 +87,10 @@ Global
 		{99135D03-0415-46BA-AD56-306B5C8C5B05}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{99135D03-0415-46BA-AD56-306B5C8C5B05}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{99135D03-0415-46BA-AD56-306B5C8C5B05}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3439A12C-E736-4A14-B723-C0B91E0760F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3439A12C-E736-4A14-B723-C0B91E0760F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3439A12C-E736-4A14-B723-C0B91E0760F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3439A12C-E736-4A14-B723-C0B91E0760F5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
