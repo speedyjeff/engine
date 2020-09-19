@@ -48,6 +48,7 @@
     <Compile Include="BoardTranslationGraphics.cs" />
     <Compile Include="Collison.cs" />
     <Compile Include="Constants.cs" />
+    <Compile Include="BoardCell.cs" />
     <Compile Include="Entities3D\Cone.cs" />
     <Compile Include="Entities3D\Cube.cs" />
     <Compile Include="Entities3D\Cylinder.cs" />
