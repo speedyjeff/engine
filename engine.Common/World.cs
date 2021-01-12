@@ -50,23 +50,22 @@ namespace engine.Common
 
             // setup map
             IMap map = null;
-            if (!string.IsNullOrWhiteSpace(config.ServerUrl)) map = new RemoteMap(isHost: true, config, players, objects, background);
+            if (!string.IsNullOrWhiteSpace(config.ServerUrl)) map = new RemoteMap(config, (int)Constants.ProximityViewDepth, players, objects, background);
             else if (config.Is3D) map = new Map3D(config.Width, config.Height, (int)Constants.ProximityViewDepth, players, objects, background);
             else map = new Map(config.Width, config.Height, (int)Constants.ProximityViewDepth, players, objects, background);
 
             // setup the human first
-            HumanId = -1;
             foreach (var player in players)
             {
                 // assign human
-                if (HumanId < 0 && !(player is AI))
+                if (Human == null && !(player is AI))
                 {
-                    HumanId = player.Id;
+                    Human = player;
                     break;
                 }
             }
 
-            if (HumanId < 0) throw new Exception("Must add at least 1 player (as human)");
+            if (Human == null) throw new Exception("Must add at least 1 player (as human)");
 
             Initialize(config, map, players);
 
@@ -83,7 +82,7 @@ namespace engine.Common
             if (players == null) throw new Exception("Must specify a list of players");
 
             // there is no the human
-            HumanId = -1;
+            Human = null;
 
             // the map is already setup
             Initialize(config, map, players);
@@ -119,7 +118,7 @@ namespace engine.Common
         public int Width { get { return Map.Width;  } }
         public int Height {  get { return Map.Height;  } }
 
-        public Player Human { get { return HumanId >= 0 ? Map.GetPlayer(HumanId) : null; } }
+        public Player Human { get; private set; }
         public int Alive { get; private set; }
         public int Players { get { return UniquePlayers.Count; } }
 
@@ -128,13 +127,10 @@ namespace engine.Common
             // exit early if there is no Surface to draw too
             if (Surface == null) return;
 
-            // get the human player for reference
-            var human = Map.GetPlayer(HumanId);
-
             // set graphics the perspective
             Surface.SetPerspective(is3D: Config.Is3D,
-                centerX: human.X, centerY: human.Y, centerZ: human.Z,
-                yaw: human.Angle, pitch: human.PitchAngle, roll: 0f,
+                centerX: Human.X, centerY: Human.Y, centerZ: Human.Z,
+                yaw: Human.Angle, pitch: Human.PitchAngle, roll: 0f,
                 cameraX: Config.CameraX, cameraY: Config.CameraY, cameraZ: Config.CameraZ,
                 horizon: Config.HorizonZ * 2);
 
@@ -142,9 +138,9 @@ namespace engine.Common
             Map.Background.Draw(Surface);
 
             // add center indicator
-            if (Config.CenterIndicator && !Config.Is3D && human.Z == Constants.Ground)
+            if (Config.CenterIndicator && !Config.Is3D && Human.Z == Constants.Ground)
             {
-                var centerAngle = Collision.CalculateAngleFromPoint(human.X, human.Y, Map.Width / 2, Map.Height / 2);
+                var centerAngle = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Map.Width / 2, Map.Height / 2);
                 float x1, y1, x2, y2;
                 var distance = Math.Min(Surface.Width, Surface.Height) * 0.9f;
                 Collision.CalculateLineByAngle(Surface.Width / 2, Surface.Height / 2, centerAngle, (distance / 2), out x1, out y1, out x2, out y2);
@@ -178,9 +174,9 @@ namespace engine.Common
             var hidden = new HashSet<int>();
             var visiblePlayers = new List<Player>();
 
-            var ratio = (human.Z + Config.CameraZ);
+            var ratio = (Human.Z + Config.CameraZ);
             if (Config.Is3D || ratio < 1f) ratio = 1f;
-            foreach (var elem in Map.WithinWindow(human.X, human.Y, human.Z,
+            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z,
                 Surface.Width * ratio + Config.HorizonX, Surface.Height * ratio + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
             {
                 if (elem.IsDead) continue;
@@ -192,7 +188,7 @@ namespace engine.Common
                 else if (elem.IsTransparent)
                 {
                     // if the player is intersecting with this item, then do not display it
-                    if (Map.IsTouching(human, elem)) continue;
+                    if (Map.IsTouching(Human, elem)) continue;
                     // get players that are touching
                     var players = Map.WhatPlayersAreTouching(elem);
                     foreach (var player in players) hidden.Add(player.Id);
@@ -210,30 +206,46 @@ namespace engine.Common
             }
 
             // get ephemerials
-            var ephemerials = Map.GetEphemerials();
-
-            // add any ephemerial elements (non-text)
-            foreach (var b in ephemerials)
+            try
             {
-                // skip all the messages
-                if (b is OnScreenText) continue;
-                // draw
-                b.Draw(Surface);
+                EphemerialLock.EnterReadLock();
+
+                // add any ephemerial elements (non-text)
+                foreach (var b in Ephemerial)
+                {
+                    // skip all the messages
+                    if (b is OnScreenText) continue;
+                    // draw
+                    b.Draw(Surface);
+                }
+            }
+            finally
+            {
+                EphemerialLock.ExitReadLock();
             }
 
             // if 3d, then render all the polygons (in order)
             if (Config.Is3D) Surface.RenderPolygons();
 
-            // add any ephemerial elements (text only)
-            foreach (var b in ephemerials)
+            try
             {
-                // show only 1 message at a time
-                if (b is OnScreenText)
+                EphemerialLock.EnterReadLock();
+
+                // add any ephemerial elements (text only)
+                foreach (var b in Ephemerial)
                 {
-                    // draw
-                    b.Draw(Surface);
-                    break;
+                    // show only 1 message at a time
+                    if (b is OnScreenText)
+                    {
+                        // draw
+                        b.Draw(Surface);
+                        break;
+                    }
                 }
+            }
+            finally
+            {
+                EphemerialLock.ExitReadLock();
             }
 
             // display the player counts
@@ -252,7 +264,7 @@ namespace engine.Common
                 Surface.DisableTranslation();
                 {
                     Surface.Text(RGBA.Black, Surface.Width - 200, 10, string.Format("Alive {0} of {1}", Alive, Players));
-                    Surface.Text(RGBA.Black, Surface.Width - 200, 30, string.Format("Kills {0}", human.Kills));
+                    Surface.Text(RGBA.Black, Surface.Width - 200, 30, string.Format("Kills {0}", Human.Kills));
                 }
                 Surface.EnableTranslation();
             }
@@ -261,11 +273,11 @@ namespace engine.Common
             {
                 Surface.DisableTranslation();
                 {
-                    Surface.Text(RGBA.Black, 200, 10, string.Format("X {0}", human.X));
-                    Surface.Text(RGBA.Black, 200, 30, string.Format("Y {0}", human.Y));
-                    Surface.Text(RGBA.Black, 200, 50, string.Format("Z {0}", human.Z));
-                    Surface.Text(RGBA.Black, 200, 70, string.Format("A {0}", human.Angle));
-                    Surface.Text(RGBA.Black, 200, 90, string.Format("P {0}", human.PitchAngle));
+                    Surface.Text(RGBA.Black, 200, 10, string.Format("X {0}", Human.X));
+                    Surface.Text(RGBA.Black, 200, 30, string.Format("Y {0}", Human.Y));
+                    Surface.Text(RGBA.Black, 200, 50, string.Format("Z {0}", Human.Z));
+                    Surface.Text(RGBA.Black, 200, 70, string.Format("A {0}", Human.Angle));
+                    Surface.Text(RGBA.Black, 200, 90, string.Format("P {0}", Human.PitchAngle));
                 }
                 Surface.EnableTranslation();
             }
@@ -306,173 +318,176 @@ namespace engine.Common
             }
 
             // must have a human player for input
-            if (HumanId < 0) return;
-            var human = Map.GetPlayer(HumanId);
+            if (Human == null) return;
 
-            // handle the user input
-            bool result = false;
-            Type item = null;
-            float xdelta = 0;
-            float ydelta = 0;
-            float zdelta = 0;
-
-            // pass the key off to the caller to see if they know what to 
-            // do in this case
-            if (OnBeforeKeyPressed != null)
+            // move this logic off the ui thread
+            Task.Run(() =>
             {
-                if (OnBeforeKeyPressed(human, ref key)) return;
-            }
+                // handle the user input
+                bool result = false;
+                Type item = null;
+                float xdelta = 0;
+                float ydelta = 0;
+                float zdelta = 0;
 
-            // movement determination
-            switch (key)
-            {
-                // move
-                case Constants.Down:
-                case Constants.Down2:
-                case Constants.DownArrow:
-                    if (!Config.Is3D) ydelta = 1;
-                    else DirectionByAngle(human.Angle + 180, out xdelta, out zdelta);
-                    break;
-                case Constants.Left:
-                case Constants.Left2:
-                case Constants.LeftArrow:
-                    if (!Config.Is3D) xdelta = -1;
-                    else DirectionByAngle(human.Angle - 90, out xdelta, out zdelta);
-                    break;
-                case Constants.Right:
-                case Constants.Right2:
-                case Constants.RightArrow:
-                    if (!Config.Is3D) xdelta = 1;
-                    else DirectionByAngle(human.Angle + 90, out xdelta, out zdelta);
-                    break;
-                case Constants.Up:
-                case Constants.Up2:
-                case Constants.UpArrow:
-                    if (!Config.Is3D) ydelta = -1;
-                    else DirectionByAngle(human.Angle, out xdelta, out zdelta);
-                    break;
-                case Constants.Forward:
-                case Constants.Forward2:
-                    zdelta -= 1;
-                    break;
-                case Constants.Back:
-                case Constants.Back2:
-                    zdelta += 1;
-                    break;
-                case Constants.RightMouse:
-                    // use the mouse to move in the direction of the angle
-                    if (!Config.Is3D) DirectionByAngle(human.Angle, out xdelta, out ydelta);
-                    else DirectionByAngle(human.Angle, out xdelta, out zdelta);
-                    break;
-            }
-
-            if (OnBeforeAction != null)
-            {
-                List<Element> elements = Map.WithinWindow(human.X, human.Y, human.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
-                var angleToCenter = Collision.CalculateAngleFromPoint(human.X, human.Y, Config.Width / 2, Config.Height / 2);
-                var inZone = Map.Background.Damage(human.X, human.Y) > 0;
-
-                // provide details for telemetry
-                OnBeforeAction(human, new ActionDetails()
+                // pass the key off to the caller to see if they know what to 
+                // do in this case
+                if (OnBeforeKeyPressed != null)
                 {
-                    Elements = elements,
-                    AngleToCenter = angleToCenter,
-                    InZone = inZone,
-                    XDelta = xdelta,
-                    YDelta = ydelta,
-                    ZDelta = zdelta,
-                    Angle = human.Angle
-                });
-            }
+                    if (OnBeforeKeyPressed(Human, ref key)) return;
+                }
 
-            // determine action
-            var action = ActionEnum.Move;
-            switch (key)
-            {
-                case Constants.Switch:
-                    action = ActionEnum.SwitchPrimary;
-                    break;
+                // movement determination
+                switch (key)
+                {
+                    // move
+                    case Constants.Down:
+                    case Constants.Down2:
+                    case Constants.DownArrow:
+                        if (!Config.Is3D) ydelta = 1;
+                        else DirectionByAngle(Human.Angle + 180, out xdelta, out zdelta);
+                        break;
+                    case Constants.Left:
+                    case Constants.Left2:
+                    case Constants.LeftArrow:
+                        if (!Config.Is3D) xdelta = -1;
+                        else DirectionByAngle(Human.Angle - 90, out xdelta, out zdelta);
+                        break;
+                    case Constants.Right:
+                    case Constants.Right2:
+                    case Constants.RightArrow:
+                        if (!Config.Is3D) xdelta = 1;
+                        else DirectionByAngle(Human.Angle + 90, out xdelta, out zdelta);
+                        break;
+                    case Constants.Up:
+                    case Constants.Up2:
+                    case Constants.UpArrow:
+                        if (!Config.Is3D) ydelta = -1;
+                        else DirectionByAngle(Human.Angle, out xdelta, out zdelta);
+                        break;
+                    case Constants.Forward:
+                    case Constants.Forward2:
+                        zdelta -= 1;
+                        break;
+                    case Constants.Back:
+                    case Constants.Back2:
+                        zdelta += 1;
+                        break;
+                    case Constants.RightMouse:
+                        // use the mouse to move in the direction of the angle
+                        if (!Config.Is3D) DirectionByAngle(Human.Angle, out xdelta, out ydelta);
+                        else DirectionByAngle(Human.Angle, out xdelta, out zdelta);
+                        break;
+                }
 
-                case Constants.Pickup:
-                case Constants.Pickup2:
-                    action = ActionEnum.Pickup;
-                    break;
+                if (OnBeforeAction != null)
+                {
+                    List<Element> elements = Map.WithinWindow(Human.X, Human.Y, Human.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
+                    var angleToCenter = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Config.Width / 2, Config.Height / 2);
+                    var inZone = Map.Background.Damage(Human.X, Human.Y) > 0;
 
-                case Constants.Drop3:
-                case Constants.Drop2:
-                case Constants.Drop4:
-                case Constants.Drop:
-                    action = ActionEnum.Drop;
-                    break;
+                    // provide details for telemetry
+                    OnBeforeAction(Human, new ActionDetails()
+                    {
+                        Elements = elements,
+                        AngleToCenter = angleToCenter,
+                        InZone = inZone,
+                        XDelta = xdelta,
+                        YDelta = ydelta,
+                        ZDelta = zdelta,
+                        Angle = Human.Angle
+                    });
+                }
 
-                case Constants.Reload:
-                case Constants.MiddleMouse:
-                    action = ActionEnum.Reload;
-                    break;
+                // determine action
+                var action = ActionEnum.Move;
+                switch (key)
+                {
+                    case Constants.Switch:
+                        action = ActionEnum.SwitchPrimary;
+                        break;
 
-                case Constants.Space:
-                case Constants.LeftMouse:
-                    action = ActionEnum.Attack;
-                    break;
+                    case Constants.Pickup:
+                    case Constants.Pickup2:
+                        action = ActionEnum.Pickup;
+                        break;
 
-                case Constants.Jump:
-                case Constants.Jump2:
-                    action = ActionEnum.Jump;
-                    break;
-            }
+                    case Constants.Drop3:
+                    case Constants.Drop2:
+                    case Constants.Drop4:
+                    case Constants.Drop:
+                        action = ActionEnum.Drop;
+                        break;
 
-            // take action
-            switch (action)
-            {
-                case ActionEnum.SwitchPrimary:
-                    result = SwitchPrimary(human, out item);
-                    human.Feedback(action, item, result);
-                    break; 
+                    case Constants.Reload:
+                    case Constants.MiddleMouse:
+                        action = ActionEnum.Reload;
+                        break;
 
-                case ActionEnum.Pickup:
-                    result = Pickup(human, out item);
-                    human.Feedback(action, item, result);
-                    break;
+                    case Constants.Space:
+                    case Constants.LeftMouse:
+                        action = ActionEnum.Attack;
+                        break;
 
-                case ActionEnum.Drop:
-                    result = Drop(human, out item);
-                    human.Feedback(action, item, result);
-                    break;
+                    case Constants.Jump:
+                    case Constants.Jump2:
+                        action = ActionEnum.Jump;
+                        break;
+                }
 
-                case ActionEnum.Reload:
-                    result = Reload(human, out AttackStateEnum reloaded);
-                    human.Feedback(action, reloaded, result);
-                    break;
+                // take action
+                switch (action)
+                {
+                    case ActionEnum.SwitchPrimary:
+                        result = SwitchPrimary(Human, out item);
+                        Human.Feedback(action, item, result);
+                        break;
 
-                case ActionEnum.Attack:
-                    result = Attack(human, out AttackStateEnum attack);
-                    human.Feedback(action, attack, result);
-                    break;
+                    case ActionEnum.Pickup:
+                        result = Pickup(Human, out item);
+                        Human.Feedback(action, item, result);
+                        break;
 
-                case ActionEnum.Jump:
-                    result = Jump(human);
-                    human.Feedback(action, null, result);
-                    break;
-            }
+                    case ActionEnum.Drop:
+                        result = Drop(Human, out item);
+                        Human.Feedback(action, item, result);
+                        break;
 
-            // send after telemetry
-            if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(human, action, result);
+                    case ActionEnum.Reload:
+                        result = Reload(Human, out AttackStateEnum reloaded);
+                        Human.Feedback(action, reloaded, result);
+                        break;
 
-            // pass the key off to the caller to see if they know what to 
-            // do in this case
-            if (OnAfterKeyPressed != null)
-            {
-                if (OnAfterKeyPressed(human, key)) return;
-            }
+                    case ActionEnum.Attack:
+                        result = Attack(Human, out AttackStateEnum attack);
+                        Human.Feedback(action, attack, result);
+                        break;
 
-            // if a move command, then move
-            if (xdelta != 0 || ydelta != 0 || zdelta != 0)
-            {
-                // ActionEnum.Move;
-                result = Move(human, xdelta, ydelta, zdelta, Constants.DefaultPace);
-                human.Feedback(ActionEnum.Move, null, result);
-                if (OnAfterAction != null) OnAfterAction(human, ActionEnum.Move, result);
-            }
+                    case ActionEnum.Jump:
+                        result = Jump(Human);
+                        Human.Feedback(action, null, result);
+                        break;
+                }
+
+                // send after telemetry
+                if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(Human, action, result);
+
+                // pass the key off to the caller to see if they know what to 
+                // do in this case
+                if (OnAfterKeyPressed != null)
+                {
+                    if (OnAfterKeyPressed(Human, key)) return;
+                }
+
+                // if a move command, then move
+                if (xdelta != 0 || ydelta != 0 || zdelta != 0)
+                {
+                    // ActionEnum.Move;
+                    result = Move(Human, xdelta, ydelta, zdelta, Constants.DefaultPace);
+                    Human.Feedback(ActionEnum.Move, null, result);
+                    if (OnAfterAction != null) OnAfterAction(Human, ActionEnum.Move, result);
+                }
+            });
         }
 
         public void Mousewheel(float delta)
@@ -485,11 +500,10 @@ namespace engine.Common
             if (Map.IsPaused) return;
 
             // must have a human player for input
-            if (HumanId < 0) return;
-            var human = Map.GetPlayer(HumanId);
+            if (this.Human == null) return;
 
             // only if on the ground
-            if (human.Z != Constants.Ground) return;
+            if (Human.Z != Constants.Ground) return;
 
             // adjust the zoom
             if (delta > 0) Config.CameraZ -= 1f;
@@ -506,16 +520,15 @@ namespace engine.Common
             if (Map.IsPaused) return;
 
             // must have a human player for input
-            if (HumanId < 0) return;
-            var human = Map.GetPlayer(HumanId);
+            if (this.Human == null) return;
 
-            if (human.IsDead) return;
+            if (Human.IsDead) return;
 
             // use the angle to turn the human player
             if (!Config.Is3D)
             {
                 // rotate based on unit circle
-                human.Angle = angle;
+                Map.Turn(Human, yaw: angle, pitch: 0f, roll: 0f);
             }
 
             // if (Config.Is3D)
@@ -532,14 +545,16 @@ namespace engine.Common
                 // horiztonal (angle)
                 var hwidth = Surface.Width / 2f;
                 if (x >= hwidth) x -= hwidth;
-                human.Angle = (x / hwidth) * 360;
+                var yaw = (x / hwidth) * 360;
 
                 // vertical (pitchAngle)
                 var hheight = Surface.Height / 2f;
                 var foundation = 0f;
                 if (y >= hheight) y -= hheight;
                 else foundation = 315f;
-                human.PitchAngle = ((y / hheight) * 45) + foundation;
+                var pitch = ((y / hheight) * 45) + foundation;
+
+                Map.Turn(Human, yaw, pitch, roll: 0f);
             }
         }
 
@@ -641,16 +656,7 @@ namespace engine.Common
         {
             if (player == null) throw new Exception("Cannot teleport an invalid player");
 
-            // remove the player
-            RemoveItem(player);
-
-            // move
-            player.X = x;
-            player.Y = y;
-            player.Z = z;
-
-            // add them back
-            AddItem(player);
+            Map.MoveAbsolute(player, x, y, z);
         }
 
         public void ApplyForce(Player player, Forces axis, float percentage)
@@ -712,7 +718,12 @@ namespace engine.Common
         private WorldConfiguration Config;
         private HashSet<int> UniquePlayers;
         private ReaderWriterLockSlim DetailsLock;
-        private int HumanId;
+
+        private Timer BackgroundTimer;
+        private int BackgroundLock;
+
+        private List<EphemerialElement> Ephemerial;
+        private ReaderWriterLockSlim EphemerialLock;
 
         private const string NothingSoundPath = "nothing";
         private const string PickupSoundPath = "pickup";
@@ -727,6 +738,8 @@ namespace engine.Common
             DetailsLock = new ReaderWriterLockSlim();
             Alive = 0;
             UniquePlayers = new HashSet<int>();
+            Ephemerial = new List<EphemerialElement>();
+            EphemerialLock = new ReaderWriterLockSlim();
 
             // 3D shaders
             Element3D.SetShader(Element3DShader);
@@ -737,19 +750,26 @@ namespace engine.Common
             // add all the players
             if (string.IsNullOrWhiteSpace(Config.ServerUrl))
             {
+                // this happens in the local (non-remote server) case AND the server of the client-SERVER configuration
+
                 // add all the players (including the AI)
-                foreach (var player in players) AddPlayer(player);
+                foreach (var player in players) AddPlayer(player, setupUpdatePlayer: true);
             }
             else
             {
-                // TODO!
-                // only add the human player
-                //AddPlayer(Human);
+                // this happens when for the remote clients of the CLIENT-server configuration
+
+                // add all the players (but do not apply any forces)
+                foreach (var player in players) AddPlayer(player, setupUpdatePlayer: false);
             }
 
             // hook up map callbacks
             Map.OnElementHit += HitByAttack;
             Map.OnElementDied += PlayerDied;
+            Map.OnAddEphemerial += EphemerialAdded;
+
+            // setup the background update timer
+            BackgroundTimer = new Timer(BackgroundUpdate, null, 0, Constants.GlobalClock);
         }
 
         // menu items
@@ -848,7 +868,7 @@ namespace engine.Common
                 }
 
                 // turn
-                ai.Angle = angle;
+                Map.Turn(ai, yaw: angle, pitch: 0f, roll: 0f);
 
                 // perform action
                 bool result = false;
@@ -974,8 +994,87 @@ namespace engine.Common
             if (timer.ElapsedMilliseconds > 100) System.Diagnostics.Debug.WriteLine("**UpdatePlayer Duration {0} ms", timer.ElapsedMilliseconds);
         }
 
+        // backgroup callback
+        private void BackgroundUpdate(object state)
+        {
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            // no updates while paused
+            if (Map.IsPaused) return;
+
+            // the timer is reentrant, so only allow one instance to run
+            if (System.Threading.Interlocked.CompareExchange(ref BackgroundLock, 1, 0) != 0) return;
+
+            // update the ephemerial items
+            var toremove = new List<EphemerialElement>();
+            try
+            {
+                EphemerialLock.EnterReadLock();
+                foreach (var b in Ephemerial)
+                {
+                    // advance
+                    if (!b.IsDead && b.Action(out float xdelta, out float ydelta, out float zdelta))
+                    {
+                        if (Map.WhatWouldPlayerTouch(b, ref xdelta, ref ydelta, ref zdelta, out Element touching, b.BasePace))
+                        {
+                            if (touching == null)
+                            {
+                                // would not hit anything, ok to move
+                                b.Move(xdelta, ydelta, zdelta);
+                                b.Feedback(result: true);
+                            }
+                            else
+                            {
+                                // would hit something, notify that an attack occured
+                                if (string.IsNullOrWhiteSpace(Config.ServerUrl))
+                                {
+                                    // this happens in the local (non-remote server) case AND the server of the client-SERVER configuration
+
+                                    // only notify if not within a server context
+                                    HitByAttack(b, touching);
+                                }
+                                b.Feedback(result: false);
+                            }
+                        }
+                    }
+
+                    // advance and remove when it hits the end
+                    if (++b.CurrentDuration >= b.Duration) toremove.Add(b);
+                }
+            }
+            finally
+            {
+                EphemerialLock.ExitReadLock();
+            }
+
+            try
+            {
+                EphemerialLock.EnterWriteLock();
+                // remove any as necessary
+                foreach (var b in toremove)
+                {
+                    Ephemerial.Remove(b);
+                }
+            }
+            finally
+            {
+                EphemerialLock.ExitWriteLock();
+            }
+
+            // apply any necessary damage to the players
+            Map.UpdateBackground(applydamage: string.IsNullOrWhiteSpace(Config.ServerUrl));
+
+            // set state back to not running
+            System.Threading.Volatile.Write(ref BackgroundLock, 0);
+
+            timer.Stop();
+
+            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**BackgroundUpdate Duration {0} ms", timer.ElapsedMilliseconds);
+        }
+
         // support
-        private void AddPlayer(Player player)
+        private void AddPlayer(Player player, bool setupUpdatePlayer = false)
         {
             // add another alive player
             Alive++;
@@ -1012,10 +1111,13 @@ namespace engine.Common
                 AddForce(detail, TimeAxis.Z, percentage: 1f);
             }
 
-            // setup humans and AI
-            if (player is AI || Config.ForcesApplied > 0)
+            // setup humans and AI with an Update loop
+            if (setupUpdatePlayer)
             {
-                detail.UpdatePlayerTimer = new Timer(UpdatePlayer, player.Id, 0, Constants.GlobalClock);
+                if (player is AI || Config.ForcesApplied > 0)
+                {
+                    detail.UpdatePlayerTimer = new Timer(UpdatePlayer, player.Id, 0, Constants.GlobalClock);
+                }
             }
         }
 
@@ -1147,7 +1249,7 @@ namespace engine.Common
             type = null;
 
             if (player.IsDead) return false;
-            return player.SwitchPrimary();
+            return Map.SwitchPrimary(player);
         }
 
         private bool Pickup(Player player, out Type type)
@@ -1157,7 +1259,7 @@ namespace engine.Common
 
             if (player.IsDead) return false;
             type = Map.Pickup(player);
-            if (type != null && player.Id == HumanId)
+            if (type != null && Human != null && player.Id == Human.Id)
             {
                 // play sound
                 Play(PickupSoundPath);
@@ -1178,9 +1280,9 @@ namespace engine.Common
             reloaded = AttackStateEnum.None;
 
             if (player.IsDead) return false;
-            reloaded = player.Reload();
+            reloaded = Map.Reload(player);
 
-            if (player.Id == HumanId)
+            if (Human != null && player.Id == Human.Id)
             {
                 switch (reloaded)
                 {
@@ -1213,7 +1315,7 @@ namespace engine.Common
 
             attack = Map.Attack(player);
 
-            if (player.Id == HumanId)
+            if (Human != null && player.Id == Human.Id)
             {
                 // play sounds
                 switch (attack)
@@ -1297,11 +1399,10 @@ namespace engine.Common
         private void HitByAttack(Element primaryElement, Element element)
         {
             // play sound if the human is hit
-            if (element is Player && element.Id == HumanId)
+            if (element is Player && Human != null && element.Id == Human.Id)
             {
                 // get the human player so we can play the sound
-                var human = Map.GetPlayer(HumanId);
-                Play(human.HurtSoundPath);
+                Play(Human.HurtSoundPath);
             }
 
             // notify the outside world that we hit something
@@ -1321,6 +1422,19 @@ namespace engine.Common
 
                 // callback
                 if (OnDeath != null) OnDeath(element);
+            }
+        }
+
+        private void EphemerialAdded(EphemerialElement elem)
+        {
+            try
+            {
+                EphemerialLock.EnterWriteLock();
+                Ephemerial.Add(elem);
+            }
+            finally
+            {
+                EphemerialLock.ExitWriteLock();
             }
         }
         #endregion

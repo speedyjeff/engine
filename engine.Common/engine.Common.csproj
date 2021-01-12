@@ -156,6 +156,7 @@
     <Compile Include="Entities3D\Wedge.cs" />
     <Compile Include="ImageSource.cs" />
     <Compile Include="IMap.cs" />
+    <Compile Include="Networking\Common.cs" />
     <Compile Include="Networking\RemoteMap.cs" />
     <Compile Include="Platform.cs" />
     <Compile Include="RegionCollection.cs" />

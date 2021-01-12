@@ -52,7 +52,7 @@ namespace engine.Common.Entities
             {
                 return _angle;
             }
-            set
+            internal set
             {
                 while (value < 0) value += 360;
                 while (value >= 360) value -= 360;
@@ -66,7 +66,7 @@ namespace engine.Common.Entities
             {
                 return _pitchAngle;
             }
-            set
+            internal set
             {
                 while (value < 0) value += 360;
                 while (value >= 360) value -= 360;
@@ -107,7 +107,15 @@ namespace engine.Common.Entities
             base.Draw(g);
         }
 
-        public bool Take(Element item)
+        public virtual void Feedback(ActionEnum action, object item, bool result)
+        {
+        }
+
+        #region private
+        private float _angle;
+        private float _pitchAngle;
+
+        internal bool Take(Element item)
         {
             if (item is Ammo)
             {
@@ -165,7 +173,7 @@ namespace engine.Common.Entities
             return false;
         }
 
-        public AttackStateEnum Attack()
+        internal AttackStateEnum Attack()
         {
             // check if we have a primary weapon
             if (Primary == null) return AttackStateEnum.Melee;
@@ -193,7 +201,7 @@ namespace engine.Common.Entities
             return AttackStateEnum.Melee;
         }
 
-        public AttackStateEnum Reload()
+        internal AttackStateEnum Reload()
         {
             if (Primary == null) return AttackStateEnum.None;
 
@@ -214,14 +222,14 @@ namespace engine.Common.Entities
             return AttackStateEnum.None;
         }
 
-        public bool SwitchPrimary()
+        internal bool SwitchPrimary()
         {
             // push the primary to the end of the secondary hand, and pop off the next
             // from the hand
 
             // shift the secondary hand
             var tmp = Secondary[0];
-            for(int i=1; i<Secondary.Length; i++)
+            for (int i = 1; i < Secondary.Length; i++)
             {
                 // shift
                 Secondary[i - 1] = Secondary[i];
@@ -234,21 +242,13 @@ namespace engine.Common.Entities
             return (Primary != null);
         }
 
-        public Element DropPrimary()
+        internal Element DropPrimary()
         {
             if (Primary == null) return null;
             var tmp = Primary;
             Primary = null;
             return tmp;
         }
-
-        public virtual void Feedback(ActionEnum action, object item, bool result)
-        {
-        }
-
-        #region private
-        private float _angle;
-        private float _pitchAngle;
         #endregion
     }
 }

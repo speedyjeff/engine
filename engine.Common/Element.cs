@@ -7,7 +7,7 @@ namespace engine.Common
     public class Element
     {
         // id
-        public int Id { get; private set; }
+        public int Id { get; set; }
 
         // center
         public float X { get; set; }
@@ -67,6 +67,8 @@ namespace engine.Common
                 g.Text(RGBA.Black, X - Width / 2, Y - Height / 2 - 20, DisplayHealth);
             }
         }
+
+        // todo audit these if they are updating state appropriately
 
         public virtual void Move(float xDelta, float yDelta, float zDelta)
         {

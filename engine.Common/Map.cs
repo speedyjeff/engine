@@ -6,6 +6,9 @@ using System.Threading;
 
 using engine.Common.Entities;
 
+// todo rename WorldState
+// todo move background update out into world
+
 namespace engine.Common
 {
     public class Map : IMap
@@ -27,6 +30,7 @@ namespace engine.Common
 
         public event Action<Element, Element> OnElementHit;
         public event Action<Element> OnElementDied;
+        public event Action<EphemerialElement> OnAddEphemerial;
 
         public IEnumerable<Element> WithinWindow(float x, float y, float z, float width, float height, float depth)
         {
@@ -73,25 +77,35 @@ namespace engine.Common
                     // successfully checked, and there is no object touching
                     if (touching == null)
                     {
-                        // get region before move
-                        var beforeRegion = Obstacles.GetRegion(player);
-
-                        // move the player
-                        player.Move(xdelta, ydelta, zdelta);
-
-                        // get region after move
-                        var afterRegion = Obstacles.GetRegion(player);
-                        if (!beforeRegion.Equals(afterRegion))
-                        {
-                            Obstacles.Move(player.Id, beforeRegion, afterRegion);
-                        }
-
-                        return true;
+                        return MoveAbsolute(player, player.X + xdelta, player.Y + ydelta, player.Z + zdelta);
                     }
                 }
 
                 return false;
             }
+        }
+
+        public bool MoveAbsolute(Player player, float x, float y, float z)
+        {
+            var guard = GetLock(player);
+            lock (guard)
+            {
+                // get region before move
+                var beforeRegion = Obstacles.GetRegion(player);
+
+                // move the player
+                player.X = x;
+                player.Y = y;
+                player.Z = z;
+
+                // get region after move
+                var afterRegion = Obstacles.GetRegion(player);
+                if (!beforeRegion.Equals(afterRegion))
+                {
+                    Obstacles.Move(player.Id, beforeRegion, afterRegion);
+                }
+            }
+            return true;
         }
 
         public bool WhatWouldPlayerTouch(Element elem, ref float xdelta, ref float ydelta, ref float zdelta, out Element touching, float pace = 0)
@@ -241,18 +255,7 @@ namespace engine.Common
 
                             if (OnElementDied != null) OnElementDied(elem);
 
-                            try
-                            {
-                                EphemerialLock.EnterWriteLock();
-                                Ephemerial.Add(new OnScreenText()
-                                {
-                                    Text = string.Format("Player {0} killed {1}", player.Name, elem.Name)
-                                });
-                            }
-                            finally
-                            {
-                                EphemerialLock.ExitWriteLock();
-                            }
+                            if (OnAddEphemerial != null) OnAddEphemerial(new OnScreenText() { Text = string.Format("Player {0} killed {1}", player.Name, elem.Name) });
                         }
                     }
                 }
@@ -260,17 +263,9 @@ namespace engine.Common
                 // add bullet trajectories
                 if (trajectories != null && trajectories.Count > 0)
                 {
-                    try
+                    foreach (var t in trajectories)
                     {
-                        EphemerialLock.EnterWriteLock();
-                        foreach (var t in trajectories)
-                        {
-                            Ephemerial.Add(t);
-                        }
-                    }
-                    finally
-                    {
-                        EphemerialLock.ExitWriteLock();
+                        if (OnAddEphemerial != null) OnAddEphemerial(t);
                     }
                 }
 
@@ -314,6 +309,95 @@ namespace engine.Common
 
                 return null;
             }
+        }
+
+        public bool ReduceHealth(Player player, float damage)
+        {
+            if (IsPaused) return false;
+            var guard = GetLock(player);
+            lock (guard)
+            {
+                player.ReduceHealth(damage);
+                return true;
+            }
+        }
+
+        public AttackStateEnum Reload(Player player)
+        {
+            if (IsPaused) return AttackStateEnum.None;
+            var guard = GetLock(player);
+            lock (guard)
+            {
+                return player.Reload();
+            }
+        }
+
+        public bool SwitchPrimary(Player player)
+        {
+            if (IsPaused) return false;
+            var guard = GetLock(player);
+            lock (guard)
+            {
+                return player.SwitchPrimary();
+            }
+        }
+
+        public bool Turn(Player player, float yaw, float pitch, float roll)
+        {
+            if (IsPaused) return false;
+            var guard = GetLock(player);
+            lock (guard)
+            {
+                player.Angle = yaw;
+                player.PitchAngle = pitch;
+                return true;
+            }
+        }
+
+        public bool UpdateBackground(bool applydamage)
+        {
+            if (IsPaused) return false;
+
+            // update
+            Background.Update();
+
+            // apply damages
+            if (applydamage)
+            {
+                var deceased = new List<Element>();
+                try
+                {
+                    PlayersLock.EnterReadLock();
+                    foreach (var player in Players.Values)
+                    {
+                        if (player == null || player.IsDead) continue;
+                        var damage = Background.Damage(player.X, player.Y);
+                        if (damage > 0)
+                        {
+                            ReduceHealth(player, damage);
+
+                            if (player.IsDead)
+                            {
+                                deceased.Add(player);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    PlayersLock.ExitReadLock();
+                }
+
+                // notify the deceased
+                foreach (var elem in deceased)
+                {
+                    // this player has died as a result of taking damage from the zone
+                    if (OnElementDied != null) OnElementDied(elem);
+                    if (OnAddEphemerial != null) OnAddEphemerial(new OnScreenText() { Text = string.Format("Player {0} died in the zone", elem.Name) });
+                }
+            }
+
+            return true;
         }
 
         public bool AddItem(Element item)
@@ -412,25 +496,6 @@ namespace engine.Common
             return stats;
         }
 
-        public List<EphemerialElement> GetEphemerials()
-        {
-            var ephemerials = new List<EphemerialElement>();
-            try
-            {
-                EphemerialLock.EnterReadLock();
-                foreach(var e in Ephemerial)
-                {
-                    // todo should this be a copy?
-                    ephemerials.Add(e);
-                }
-            }
-            finally
-            {
-                EphemerialLock.ExitReadLock();
-            }
-            return ephemerials;
-        }
-
         public virtual bool IsTouching(Element elem1, Element elem2, float x1delta = 0, float y1delta = 0, float z1delta = 0)
         {
             // check that they intersect on the depth plane
@@ -460,12 +525,6 @@ namespace engine.Common
         private ReaderWriterLockSlim LocksLock;
         private Dictionary<int, object> Locks;
 
-        private Timer BackgroundTimer;
-        private int BackgroundLock;
-
-        private List<EphemerialElement> Ephemerial = new List<EphemerialElement>();
-        private ReaderWriterLockSlim EphemerialLock = new ReaderWriterLockSlim();
-
         protected void Initialize(int width, int height, int depth, Player[] players, Element[] objects, Background background)
         {
             if (width <= 0 || height <= 0 || depth <= 0) throw new Exception("Must specific a valid Width, Height, and Depth");
@@ -480,8 +539,6 @@ namespace engine.Common
             Locks = new Dictionary<int, object>();
             LocksLock = new ReaderWriterLockSlim();
             PlayersLock = new ReaderWriterLockSlim();
-            Ephemerial = new List<EphemerialElement>();
-            EphemerialLock = new ReaderWriterLockSlim();
 
             // seperate the items from the obstacles (used to reduce what is considered, and for ordering)
             var obstacles = (objects != null) ? objects.Where(o => !o.CanAcquire) : new List<Element>();
@@ -498,9 +555,6 @@ namespace engine.Common
                 Obstacles.Add(player.Id, player);
                 Players.Add(player.Id, player);
             }
-
-            // setup the background update timer
-            BackgroundTimer = new Timer(BackgroundUpdate, null, 0, Constants.GlobalClock);
         }
 
         protected virtual bool TrackAttackTrajectory(Player player, Tool weapon, out List<Element> hit, out List<ShotTrajectory> trajectories)
@@ -651,121 +705,6 @@ namespace engine.Common
 
             return obj;
         }
-
-        // backgroup callback
-        private void BackgroundUpdate(object state)
-        {
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-
-            // the timer is reentrant, so only allow one instance to run
-            if (System.Threading.Interlocked.CompareExchange(ref BackgroundLock, 1, 0) != 0) return;
-
-            // update the map
-            Background.Update();
-
-            // update the ephemerial items
-            var toremove = new List<EphemerialElement>();
-            try
-            {
-                EphemerialLock.EnterReadLock();
-                foreach (var b in Ephemerial)
-                {
-                    // advance
-                    if (!b.IsDead && b.Action(out float xdelta, out float ydelta, out float zdelta))
-                    {
-                        if (WhatWouldPlayerTouch(b, ref xdelta, ref ydelta, ref zdelta, out Element touching, b.BasePace))
-                        {
-                            if (touching == null)
-                            {
-                                // would not hit anything, ok to move
-                                b.Move(xdelta, ydelta, zdelta);
-                                b.Feedback(result: true);
-                            }
-                            else
-                            {
-                                // would hit something, notify that an attack occured
-                                if (OnElementHit != null) OnElementHit(b, touching);
-                                b.Feedback(result: false);
-                            }
-                        }
-                    }
-
-                    // advance and remove when it hits the end
-                    if (++b.CurrentDuration >= b.Duration) toremove.Add(b);
-                }
-            }
-            finally
-            {
-                EphemerialLock.ExitReadLock();
-            }
-
-            try
-            {
-                EphemerialLock.EnterWriteLock();
-                // remove any as necessary
-                foreach (var b in toremove)
-                {
-                    Ephemerial.Remove(b);
-                }
-            }
-            finally
-            {
-                EphemerialLock.ExitWriteLock();
-            }
-
-            // apply any necessary damage to the players
-            var deceased = new List<Element>();
-            try
-            {
-                PlayersLock.EnterReadLock();
-                foreach (var player in Players.Values)
-                {
-                    if (player == null || player.IsDead) continue;
-                    var damage = Background.Damage(player.X, player.Y);
-                    if (damage > 0)
-                    {
-                        player.ReduceHealth(damage);
-
-                        if (player.IsDead)
-                        {
-                            deceased.Add(player);
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                PlayersLock.ExitReadLock();
-            }
-
-            // notify the deceased
-            foreach (var elem in deceased)
-            {
-                // this player has died as a result of taking damage from the zone
-                if (OnElementDied != null) OnElementDied(elem);
-                try
-                {
-                    EphemerialLock.EnterWriteLock();
-                    Ephemerial.Add(new OnScreenText()
-                    {
-                        Text = string.Format("Player {0} died in the zone", elem.Name)
-                    });
-                }
-                finally
-                {
-                    EphemerialLock.ExitWriteLock();
-                }
-            }
-
-            // set state back to not running
-            System.Threading.Volatile.Write(ref BackgroundLock, 0);
-
-            timer.Stop();
-
-            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**BackgroundUpdate Duration {0} ms", timer.ElapsedMilliseconds);
-        }
-
         #endregion
     }
 }

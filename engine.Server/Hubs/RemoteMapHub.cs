@@ -6,10 +6,38 @@ using System.Linq;
 using System.Threading.Tasks;
 using engine.Common;
 using engine.Common.Entities;
+using engine.Common.Networking;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Runtime.CompilerServices;
 using engine.Common.Entities3D;
+using System.Threading;
+
+// Overview
+//
+// ---------------------------   ------------------------------------
+// | Client                  |  | Server                            |
+// |                         |  |                                   |
+// | World                   |  |        ------------------> World  |
+// |  |                      |  |        |                       |  |
+// |  --> RemoteMap <--------------> RemoteHub <---> RemoteMap <--  |
+// |       |                 |  |     |               |             |
+// |       --> AcutalMap     |  |     |               --> ActualMap |
+// |                         |  |     |                             |
+// |                         |  |     --> SourceOfTruthMap          |
+// ---------------------------  -------------------------------------
+//
+// Client:
+//  - World - handles all user input, UI, and timer based updates for UI
+//  - RemoteMap - bi-directional connection with server
+//  - ActualMap - the storage for the client World
+//
+// Server
+//  - RemoteHub - server listener and sender
+//  - SourceOfTruthMap - this is the 'source of truth' of data for all games
+//  - World - handles all AI/Player/Background updates
+//  - RemoteMap - bi-directional connection with the local server
+//  - ActualMap - the storage for the server World
 
 namespace engine.Server.Hubs
 {
@@ -20,177 +48,326 @@ namespace engine.Server.Hubs
             return true;
         }
 
-        public void Send_Initialize(WorldConfiguration config, string playersJson, string objectsJson, string backgroundJson)
+        public string Send_Initialize(WorldConfiguration config, int depth, string playersJson, string objectsJson, string backgroundJson)
         {
-            System.Diagnostics.Debug.WriteLine($"[in] Send_Initialization {config.Width}x{config.Height} {playersJson.Length + objectsJson.Length}");
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Initialization {config.Width}x{config.Height} {playersJson.Length + objectsJson.Length}");
 
-            var players = FromJsons<Player>(playersJson).ToArray();
-            var objects = FromJsons<Element>(objectsJson).ToArray();
-            var background = FromJson<Background>(backgroundJson);
+            // generate a group id
+            var group = GenerateUniqueGroup();
 
-            // create the map
-            if (config.Is3D) Map = new Map3D(config.Width, config.Height, (int)Constants.ProximityViewDepth, players, objects, background);
-            else Map = new Map(config.Width, config.Height, (int)Constants.ProximityViewDepth, players, objects, background);
+            // deserialize
+            var players = RemoteMap.FromJsons<Player>(playersJson).ToArray();
+            var objects = RemoteMap.FromJsons<Element>(objectsJson).ToArray();
+            var background = RemoteMap.FromJson<Background>(backgroundJson);
 
-            // create the broadcast map
-            var map = new BroadCastMap(Map, this);
+            // this is a loopback map to this server
+            // todo use the loop back for config.ServerUrl
+            var remoteMap = new RemoteMap(config, depth, players, objects, background, applyBackgroundDamage: true, group);
 
-            // create the world (passing in the broadcast map)
+            // create the world (passing in the remote map)
             config.ServerUrl = "";
-            World = new World(config, Map, players);
+            var world = new World(config, remoteMap, players);
 
-            /*
-            // hook up events
-            Map.OnElementDied += async (elem) =>
-            {
-                Logger.LogError("OnElementDiedPull");
-                await Clients.All.SendAsync("OnElementDiedPull", elem);
-            };
+            // create the source of truth map
+            // make sure to clone the details (so that there is no object sharing with the remotemap above)
+            players = RemoteMap.FromJsons<Player>(playersJson).ToArray();
+            objects = RemoteMap.FromJsons<Element>(objectsJson).ToArray();
+            background = RemoteMap.FromJson<Background>(backgroundJson);
+            IMap sourceOfTruthMap = null;
+            if (config.Is3D) sourceOfTruthMap = new Map3D(config.Width, config.Height, depth, players, objects, background, applyBackgroundDamage: false);
+            else sourceOfTruthMap = new Map(config.Width, config.Height, depth, players, objects, background, applyBackgroundDamage: false);
 
-            Map.OnElementHit += async (elem1, elem2) =>
-            {
-                Logger.LogError("OnElementHitPull");
-                await Clients.All.SendAsync("OnElementHitPull", elem1, elem2);
-            };
-            */
+            // store for access by the groups
+            AddConnection(group, new ConnectionDetails()
+                {
+                    Group = group,
+                    SourceOfTruthMap = sourceOfTruthMap,
+                    World = world
+                });
+
+            return group;
+        }
+
+        public async Task<bool> Send_Join(string group)
+        {
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Join {group}");
+
+            // add this user to this group
+            await Groups.AddToGroupAsync(Context.ConnectionId, group);
+
+            return true;
         }
 
         //
         // Send/Receive
         //
 
-        public async Task<bool> Send_Paused(bool isPaused)
+        public async Task<bool> Send_IsPaused(string group, bool isPaused)
         {
-            System.Diagnostics.Debug.WriteLine($"[in] Send_Paused {isPaused}");
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Paused {isPaused}");
+
+            var map = GetSourceOfTruthMap(group);
+            map.IsPaused = isPaused;
 
             // broadcast this AddItem to all other clients
-            await Clients.Others.SendAsync("Receive_IsPaused", isPaused);
+            await Clients.Group(group).SendAsync("Receive_IsPaused", isPaused);
 
-            return isPaused;
+            return true;
         }
 
-        public async Task<bool> Send_AddItem(Element item)
+        public async Task<bool> Send_ReduceHealth(string group, int playerId, float damage)
         {
-            System.Diagnostics.Debug.WriteLine($"[in] Send_AddItem {item.Id}");
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_ReduceHealth {playerId}");
 
-            var result = Map.AddItem(item);
+            var map = GetSourceOfTruthMap(group);
+            var player = map.GetPlayer(playerId);
+            var result = map.ReduceHealth(player, damage);
 
             // broadcast this AddItem to all other clients
-            await Clients.Others.SendAsync("Receive_AddItem", item, result);
+            if (result) await Clients.OthersInGroup(group).SendAsync("Receive_ReduceHealth", playerId, damage, result);
 
             return result;
         }
 
-        public async Task<bool> Send_RemoveItem(Element item)
+        public async Task<AttackStateEnum> Send_Reload(string group, int playerId)
         {
-            System.Diagnostics.Debug.WriteLine($"[in] Send_RemoveItem {item.Id}");
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Reload {playerId}");
 
-            var result = Map.RemoveItem(item);
+            var map = GetSourceOfTruthMap(group);
+            var player = map.GetPlayer(playerId);
+            var result = map.Reload(player);
+
+            // broadcast this AddItem to all other clients
+            if (result != AttackStateEnum.None) await Clients.OthersInGroup(group).SendAsync("Receive_Reload", playerId, result);
+
+            return result;
+        }
+
+        public async Task<bool> Send_SwitchPrimary(string group, int playerId)
+        {
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_SwitchPrimary {playerId}");
+
+            var map = GetSourceOfTruthMap(group);
+            var player = map.GetPlayer(playerId);
+            var result = map.SwitchPrimary(player);
+
+            // broadcast this AddItem to all other clients
+            if (result) await Clients.OthersInGroup(group).SendAsync("Receive_SwitchPrimary", playerId, result);
+
+            return result;
+        }
+
+        public async Task<bool> Send_Turn(string group, int playerId, float yaw, float pitch, float roll)
+        {
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Turn {playerId}");
+
+            var map = GetSourceOfTruthMap(group);
+            var player = map.GetPlayer(playerId);
+            var result = map.Turn(player, yaw, pitch, roll);
+
+            // broadcast this AddItem to all other clients
+            if (result) await Clients.OthersInGroup(group).SendAsync("Receive_Turn", playerId, yaw, pitch, roll, result);
+
+            return result;
+        }
+
+        public async Task<bool> Send_AddItem(string group, string elementJson)
+        {
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_AddItem");
+
+            // deserialize element
+            var element = RemoteMap.FromJson<Element>(elementJson);
+
+            var map = GetSourceOfTruthMap(group);
+            var result = map.AddItem(element);
+
+            // broadcast this AddItem to all other clients
+            if (result) await Clients.OthersInGroup(group).SendAsync("Receive_AddItem", elementJson, result);
+
+            return result;
+        }
+
+        public async Task<bool> Send_RemoveItem(string group, string elementJson)
+        {
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_RemoveItem");
+
+            // deserialize element
+            var element = RemoteMap.FromJson<Element>(elementJson); 
+
+            var map = GetSourceOfTruthMap(group);
+            var result = map.RemoveItem(element);
 
             // broadcast this RemoveItem to all other clients
-            await Clients.Others.SendAsync("Receive_RemoveItem", item, result);
+            if (result) await Clients.OthersInGroup(group).SendAsync("Receive_RemoveItem", elementJson, result);
 
             return result;
         }
 
-        public async Task<AttackStateEnum> Send_Attack(Player player)
+        public async Task<AttackStateEnum> Send_Attack(string group, int playerId)
         {
-            System.Diagnostics.Debug.WriteLine($"[in] Send_Attack {player.Id}");
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Attack {playerId}");
 
-            var result = Map.Attack(player);
+            var map = GetSourceOfTruthMap(group);
+            var player = map.GetPlayer(playerId);
+            var result = map.Attack(player);
 
             // broadcast this RemoveItem to all other clients
-            await Clients.Others.SendAsync("Receive_Attack", player, result);
+            await Clients.OthersInGroup(group).SendAsync("Receive_Attack", playerId, result);
 
             return result;
         }
 
-        public async Task<Type> Send_Drop(Player player)
+        public async Task<string> Send_Drop(string group, int playerId)
         {
-            System.Diagnostics.Debug.WriteLine($"[in] Send_Drop {player.Id}");
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Drop {playerId}");
 
-            var result = Map.Drop(player);
+            var map = GetSourceOfTruthMap(group);
+            var player = map.GetPlayer(playerId);
+            var result = map.Drop(player);
 
             // broadcast this Drop to all other clients
-            await Clients.Others.SendAsync("Receive_Drop", player, result);
+            var json = "";
+            if (result != null)
+            {     
+                // serialize type
+                json = RemoteMap.ToJson<Type>(result);
+
+                if (string.IsNullOrWhiteSpace(json)) throw new Exception($"Failed to serialize type : {result}");
+
+                await Clients.OthersInGroup(group).SendAsync("Receive_Drop", playerId, json);
+            }
+
+            return json;
+        }
+
+        public async Task<string> Send_Pickup(string group, int playerId)
+        {
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Pickup {playerId}");
+
+            var map = GetSourceOfTruthMap(group);
+            var player = map.GetPlayer(playerId);
+            var result = map.Pickup(player);
+
+            var json = "";
+            if (result != null)
+            {   
+                // serialize type
+                json = RemoteMap.ToJson<Type>(result);
+
+                if (string.IsNullOrWhiteSpace(json)) throw new Exception($"Failed to serialize type : {result}");
+
+                // broadcast this Pickup to all other clients
+                await Clients.OthersInGroup(group).SendAsync("Receive_Pickup", playerId, json);
+            }
+
+            return json;
+        }
+
+        public async Task<MoveResult> Send_Move(string group, int playerId, float xdelta, float ydelta, float zdelta, float pace)
+        {
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_Move {playerId}");
+
+            var map = GetSourceOfTruthMap(group);
+
+            var player = map.GetPlayer(playerId);
+
+            if (player == null) throw new Exception($"Failed to get player : {playerId}");
+
+            // make copies
+            var localxdelta = xdelta;
+            var localydelta = ydelta;
+            var localzdelta = zdelta;
+
+            // apply to actual map
+            var outcome = map.Move(player, ref localxdelta, ref localydelta, ref localzdelta, out Element touching, pace);
+            var result = new MoveResult() { ElementId = touching == null ? -1 : touching.Id, Outcome = outcome };
+
+            // broadcast this Pickup to all other clients
+            if (outcome) await Clients.OthersInGroup(group).SendAsync("Receive_Move", playerId, xdelta, ydelta, zdelta, pace, result);
+
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[out] Send_Move {playerId} {player.X} {player.Y} {player.Z}");
 
             return result;
         }
 
-        public async Task<Type> Send_Pickup(Player player)
+        public async Task<bool> Send_MoveAbsolute(string group, int playerId, float x, float y, float z)
         {
-            System.Diagnostics.Debug.WriteLine($"[in] Send_Pickup {player.Id}");
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[in] Send_MoveAbsolute {playerId}");
 
-            var result = Map.Pickup(player);
+            var map = GetSourceOfTruthMap(group);
 
-            // broadcast this Pickup to all other clients
-            await Clients.Others.SendAsync("Receive_Pickup", player, result);
+            var player = map.GetPlayer(playerId);
+
+            if (player == null) throw new Exception($"Failed to get player : {playerId}");
+
+            // apply to actual map
+            var result = map.MoveAbsolute(player, x, y, z);
+
+            // broadcast this to other clients
+            if (result) await Clients.OthersInGroup(group).SendAsync("Receive_MoveAbsolute", playerId, x, y, z, result);
 
             return result;
-        }
-
-        public async Task<Tuple<Element, float, float, float, bool>> Send_Move(Player player, float xdelta, float ydelta, float zdelta, float pace)
-        {
-            System.Diagnostics.Debug.WriteLine($"[in] Send_Move {player.Id}");
-
-            var orgXdelta = xdelta;
-            var orgYdelta = ydelta;
-            var orgZdelta = zdelta;
-            var result = Map.Move(player, ref xdelta, ref ydelta, ref zdelta, out Element touching, pace);
-
-            var outcome = new Tuple<Element,float,float,float,bool>(touching, xdelta, ydelta, zdelta, result);
-
-            // broadcast this Pickup to all other clients
-            await Clients.Others.SendAsync("Receive_Move", player, orgXdelta, orgYdelta, orgZdelta, pace, outcome);
-
-            return outcome;
         }
 
         #region private
-        private IMap Map;
-        private IUserInteraction World;
-
-        public static string ToJson<T>(T[] items)
+        class ConnectionDetails
         {
-            var allJson = new StringBuilder();
-            foreach (var item in items) allJson.AppendLine(ToJson<T>(item));
-            return allJson.ToString();
+            public string Group;
+            public IMap SourceOfTruthMap;
+            public IUserInteraction World;
         }
+        private static ReaderWriterLockSlim ConnectionsLock = new ReaderWriterLockSlim();
+        private static Dictionary<string /*group*/, ConnectionDetails> Connections = new Dictionary<string, ConnectionDetails>();
+        private const bool DEBUG_TRACING = true;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToJson<T>(T item)
+        private IMap GetSourceOfTruthMap(string group)
         {
-            var type = item.GetType();
-            var assem = type.Assembly;
-            var json = System.Text.Json.JsonSerializer.Serialize(item, type);
-            return $"{type.ToString()}\t{assem.FullName}\t{json}";
-        }
-
-        public static List<T> FromJsons<T>(string allJson)
-        {
-            var items = new List<T>();
-            foreach (var line in allJson.Split('\n'))
+            // get details
+            try
             {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                items.Add(FromJson<T>(line));
+                ConnectionsLock.EnterReadLock();
+                if (!Connections.TryGetValue(group, out ConnectionDetails details)) return null;
+                return details.SourceOfTruthMap;
+            }
+            finally
+            {
+                ConnectionsLock.ExitReadLock();
+            }
+        }
+
+        private string GenerateUniqueGroup()
+        {
+            var group = "";
+            try
+            {
+                ConnectionsLock.EnterReadLock();
+                do
+                {
+                    // todo make linux friendly
+                    group = Guid.NewGuid().ToString();
+                } while (Connections.ContainsKey(group));
+            }
+            finally
+            {
+                ConnectionsLock.ExitReadLock();
+            }
+            return group;
+        }
+
+        private bool AddConnection(string group, ConnectionDetails connection)
+        {
+            try
+            {
+                ConnectionsLock.EnterWriteLock();
+                Connections.Add(group, connection);
+            }
+            finally
+            {
+                ConnectionsLock.ExitWriteLock();
             }
 
-            return items;
+            return true;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T FromJson<T>(string text)
-        {
-            var parts = text.Split(new char[] { '\t' }, 3);
-            if (parts.Length != 3) throw new Exception("Invalid line : " + text);
-            var typename = parts[0];
-            var assemname = parts[1];
-            var json = parts[2];
-            var assem = System.AppDomain.CurrentDomain.Load(assemname);
-            var type = assem.GetType(typename);
-            return (T)System.Text.Json.JsonSerializer.Deserialize(json, type);
-        }
-
         #endregion
     }
 }
