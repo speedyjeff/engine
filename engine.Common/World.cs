@@ -826,7 +826,7 @@ namespace engine.Common
 
             timer.Start();
             // if AI, then query for movement
-            if (player is AI)
+            if (player != null && player is AI)
             {
                 AI ai = player as AI;
                 float xdelta = 0;
@@ -915,7 +915,7 @@ namespace engine.Common
             }
 
             // apply forces, if necessary
-            if (Config.ForcesApplied > 0 && player.CanMove)
+            if (Config.ForcesApplied > 0 && player != null && player.CanMove)
             {
                 // apply 'jump' force
                 if ((Config.ForcesApplied & (int)Forces.Y) > 0)

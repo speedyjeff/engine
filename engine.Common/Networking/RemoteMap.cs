@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 // todo Receive_* messages may be received out of order
+// todo GetPlayer can return null
 
 namespace engine.Common.Networking
 {
@@ -583,9 +584,14 @@ namespace engine.Common.Networking
             return (T)System.Text.Json.JsonSerializer.Deserialize(json, type);
         }
 
-#endregion
+        public bool UpdateBackground(bool applydamage)
+        {
+            throw new NotImplementedException();
+        }
 
-#region private
+        #endregion
+
+        #region private
         private HubConnection Connection;
         private string Group;
         private IMap ActualMap;
