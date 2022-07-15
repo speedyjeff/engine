@@ -1,29 +1,29 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29613.14
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32602.387
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.Common", "engine.Common\engine.Common.csproj", "{A181B9F7-0422-4805-915E-573E13D07312}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.Common", "engine.Common\engine.Common.csproj", "{A181B9F7-0422-4805-915E-573E13D07312}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.Common.Tests", "engine.Common.Tests\engine.Common.Tests.csproj", "{A79C8012-265C-400C-A95B-4AD8125E4204}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.Winforms", "engine.Winforms\engine.Winforms.csproj", "{C031D3FA-2EC9-423A-A04D-3B176C141577}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.Winforms", "engine.Winforms\engine.Winforms.csproj", "{C031D3FA-2EC9-423A-A04D-3B176C141577}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{F910D1E8-CA65-4AC1-A3EF-BB79DF00DB00}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "winforms", "winforms", "{2A6BA02C-4532-4C05-98AE-E483E5E80AF3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Catan", "Samples\Winforms\Catan\Catan.csproj", "{11988C96-B6BC-41AD-B400-144F70CC2509}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Catan", "Samples\Winforms\Catan\Catan.csproj", "{11988C96-B6BC-41AD-B400-144F70CC2509}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Checkers", "Samples\Winforms\Checkers\Checkers.csproj", "{0FBA8E72-9C8B-458C-B9D5-426026DDEDC3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Checkers", "Samples\Winforms\Checkers\Checkers.csproj", "{0FBA8E72-9C8B-458C-B9D5-426026DDEDC3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ControlSamples", "Samples\Winforms\ControlSamples\ControlSamples.csproj", "{10822F01-C219-443C-BB84-BD375C39DE23}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ControlSamples", "Samples\Winforms\ControlSamples\ControlSamples.csproj", "{10822F01-C219-443C-BB84-BD375C39DE23}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Platformer2D", "Samples\Winforms\Platformer2D\Platformer2D.csproj", "{AC1115F5-91BD-49D9-AE88-CE3708B51A2C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Platformer2D", "Samples\Winforms\Platformer2D\Platformer2D.csproj", "{AC1115F5-91BD-49D9-AE88-CE3708B51A2C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TopDownPlatformer", "Samples\Winforms\TopDownPlatformer\TopDownPlatformer.csproj", "{0F250448-FF6C-4FEE-B803-30654132C0BB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TopDownPlatformer", "Samples\Winforms\TopDownPlatformer\TopDownPlatformer.csproj", "{0F250448-FF6C-4FEE-B803-30654132C0BB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flyover3D", "Samples\Winforms\Flyover3D\Flyover3D.csproj", "{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Flyover3D", "Samples\Winforms\Flyover3D\Flyover3D.csproj", "{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.ConvertObj", "engine.ConvertObj\engine.ConvertObj.csproj", "{EF5C698A-0AE2-4EC1-A063-8624E607A6DD}"
 EndProject
@@ -31,7 +31,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.XPlatform", "engine.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.Blazor", "engine.Blazor\engine.Blazor.csproj", "{99135D03-0415-46BA-AD56-306B5C8C5B05}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "engine.Server", "engine.Server\engine.Server.csproj", "{3439A12C-E736-4A14-B723-C0B91E0760F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.Server", "engine.Server\engine.Server.csproj", "{3439A12C-E736-4A14-B723-C0B91E0760F5}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "engine.Maui", "engine.Maui\engine.Maui.csproj", "{58BA0A69-AD41-4B13-A895-F6C0262E9DC8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "maui", "maui", "{1C75F52D-C0C3-4481-969A-D586903A3D40}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Catan", "Samples\Maui\Catan\Catan.csproj", "{3CFBBB33-8039-4DDC-83E1-36A4A0B4EEC4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ControlSamples", "Samples\Maui\ControlSamples\ControlSamples.csproj", "{0ECE6DA1-128B-41BA-AE8D-FAFFF2A734BB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -91,6 +99,22 @@ Global
 		{3439A12C-E736-4A14-B723-C0B91E0760F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3439A12C-E736-4A14-B723-C0B91E0760F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3439A12C-E736-4A14-B723-C0B91E0760F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58BA0A69-AD41-4B13-A895-F6C0262E9DC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58BA0A69-AD41-4B13-A895-F6C0262E9DC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58BA0A69-AD41-4B13-A895-F6C0262E9DC8}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{58BA0A69-AD41-4B13-A895-F6C0262E9DC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58BA0A69-AD41-4B13-A895-F6C0262E9DC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58BA0A69-AD41-4B13-A895-F6C0262E9DC8}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{3CFBBB33-8039-4DDC-83E1-36A4A0B4EEC4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3CFBBB33-8039-4DDC-83E1-36A4A0B4EEC4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3CFBBB33-8039-4DDC-83E1-36A4A0B4EEC4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3CFBBB33-8039-4DDC-83E1-36A4A0B4EEC4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0ECE6DA1-128B-41BA-AE8D-FAFFF2A734BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0ECE6DA1-128B-41BA-AE8D-FAFFF2A734BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0ECE6DA1-128B-41BA-AE8D-FAFFF2A734BB}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{0ECE6DA1-128B-41BA-AE8D-FAFFF2A734BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0ECE6DA1-128B-41BA-AE8D-FAFFF2A734BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0ECE6DA1-128B-41BA-AE8D-FAFFF2A734BB}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -103,6 +127,9 @@ Global
 		{AC1115F5-91BD-49D9-AE88-CE3708B51A2C} = {2A6BA02C-4532-4C05-98AE-E483E5E80AF3}
 		{0F250448-FF6C-4FEE-B803-30654132C0BB} = {2A6BA02C-4532-4C05-98AE-E483E5E80AF3}
 		{1512DC47-5F15-4FFF-A7CC-C2930F3B57EE} = {2A6BA02C-4532-4C05-98AE-E483E5E80AF3}
+		{1C75F52D-C0C3-4481-969A-D586903A3D40} = {F910D1E8-CA65-4AC1-A3EF-BB79DF00DB00}
+		{3CFBBB33-8039-4DDC-83E1-36A4A0B4EEC4} = {1C75F52D-C0C3-4481-969A-D586903A3D40}
+		{0ECE6DA1-128B-41BA-AE8D-FAFFF2A734BB} = {1C75F52D-C0C3-4481-969A-D586903A3D40}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {136F7BCF-9AD6-4812-8F1F-4048EB404D36}

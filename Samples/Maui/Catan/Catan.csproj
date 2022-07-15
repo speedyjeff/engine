@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net6.0</TargetFrameworks>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="..\..\Winforms\Catan\Resources\barren.png" Link="Resources\barren.png" />
+	  <EmbeddedResource Include="..\..\Winforms\Catan\Resources\gold.png" Link="Resources\gold.png" />
+	  <EmbeddedResource Include="..\..\Winforms\Catan\Resources\rock.png" Link="Resources\rock.png" />
+	  <EmbeddedResource Include="..\..\Winforms\Catan\Resources\wheat.png" Link="Resources\wheat.png" />
+	  <EmbeddedResource Include="..\..\Winforms\Catan\Resources\wood.png" Link="Resources\wood.png" />
+	  <EmbeddedResource Include="..\..\Winforms\Catan\Resources\wool.png" Link="Resources\wool.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <MauiXaml Update="Catan.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Resources\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\engine.Common\engine.Common.csproj" />
+	  <ProjectReference Include="..\..\..\engine.Maui\engine.Maui.csproj" />
+	</ItemGroup>
+
+</Project>

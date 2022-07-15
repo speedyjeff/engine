@@ -62,7 +62,7 @@ namespace engine.Server.Hubs
 
             // this is a loopback map to this server
             // todo use the loop back for config.ServerUrl
-            var remoteMap = new RemoteMap(config, depth, players, objects, background, applyBackgroundDamage: true, group);
+            var remoteMap = new RemoteMap(config, depth, players, objects, background, group); // applyBackgroundDamage: true, 
 
             // create the world (passing in the remote map)
             config.ServerUrl = "";
@@ -74,8 +74,8 @@ namespace engine.Server.Hubs
             objects = RemoteMap.FromJsons<Element>(objectsJson).ToArray();
             background = RemoteMap.FromJson<Background>(backgroundJson);
             IMap sourceOfTruthMap = null;
-            if (config.Is3D) sourceOfTruthMap = new Map3D(config.Width, config.Height, depth, players, objects, background, applyBackgroundDamage: false);
-            else sourceOfTruthMap = new Map(config.Width, config.Height, depth, players, objects, background, applyBackgroundDamage: false);
+            if (config.Is3D) sourceOfTruthMap = new Map3D(config.Width, config.Height, depth, players, objects, background); //, applyBackgroundDamage: false);
+            else sourceOfTruthMap = new Map(config.Width, config.Height, depth, players, objects, background); //, applyBackgroundDamage: false);
 
             // store for access by the groups
             AddConnection(group, new ConnectionDetails()

@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net6.0</TargetFrameworks>
+    <OutputType>Library</OutputType>
+    <UseMaui>true</UseMaui>
+ </PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="2.88.1-preview.79" />
+	  <PackageReference Include="System.Reactive" Version="5.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\engine.Common\engine.Common.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Platforms\Windows\Dapplo.Windows.Input\1.0.26\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Reference Include="Dapplo.Windows.Input">
+	    <HintPath>Platforms\Windows\Dapplo.Windows.Input\1.0.26\Dapplo.Windows.Input.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Platforms\Windows\Dapplo.Windows.Input\1.0.26\Dapplo.Windows.Input.dll">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+
+</Project>

@@ -501,6 +501,12 @@ namespace engine.Common
                     col = (int)Math.Floor((x - EdgeWidth) / (float)CellWidth);
                 }
 
+                // watch the edges
+                if (row < 0) row = 0;
+                if (row >= Config.Rows) row = Config.Rows - 1;
+                if (col < 0) col = 0;
+                if (col >= Config.Columns) col = Config.Columns - 1;
+
                 // get the local coordinates 
                 if (!Translate(x, y, row, col, out float lx, out float ly)) throw new Exception("failed to get local x,y");
 

@@ -15,27 +15,20 @@ namespace engine.Winforms
         public static Dictionary<string, IImage> LoadImages(Assembly assembly)
         {
             // load resources
-            var resources = engine.Common.Embedded.LoadResource<Bitmap>(assembly);
-
-            // convert to images
             var images = new Dictionary<string, IImage>();
-            foreach (var kvp in resources)
+            foreach (var resourceName in assembly.GetManifestResourceNames())
             {
-                var bitmap = kvp.Value;
-                var name = kvp.Key;
+                // load from stream
+                var stream = assembly.GetManifestResourceStream(resourceName);
+                var bitmap = new Bitmap(stream);
+                var img = new BitmapImage(bitmap);
+                // return the name of the asset "folder1.folder2.name.extension"
+                var parts = resourceName.Split('.');
+                var name = parts.Length == 0 ? resourceName :
+                    (parts.Length == 1 ? parts[0] : parts[parts.Length - 2]);
+                images.Add(name, img);
 
-                using (var mem = new MemoryStream())
-                {
-                    // save to stream
-                    bitmap.Save(mem, System.Drawing.Imaging.ImageFormat.Bmp);
-
-                    // create an IImage
-                    var img = new BitmapImage(bitmap);
-
-                    // add to collection
-                    images.Add(name, img);
-                } // using
-            }
+            } // foreach
 
             return images;
         }

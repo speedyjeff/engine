@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace engine.Common
 {
-    public enum PlatformType { None, Winforms, Blazor };
+    public enum PlatformType { None, Winforms, Blazor, Maui };
     public static class Platform
     {
         static Platform()

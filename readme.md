@@ -100,6 +100,35 @@ protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
 } // ProcessCmdKey
 ```
 
+### Create a Maui Application
+
+#### Maui Steps
+
+ 1. Create a Maui Application
+ 2. Create a Maui Control (Xaml)
+ 3. Reference engine.Common and engine.Maui
+ 4. Add the following to the Main method
+
+```
+    public static class MauiProgram
+    {
+        public static MauiApp CreateMauiApp()
+        {
+            ...
+            builder.UseSkiaSharp();
+
+            return builder.Build();
+        }
+    }
+```
+ 5. Within the Maui control add initialization code (similar to Winforms) 
+
+```
+    protected override void OnNavigatedTo(NavigatedToEventArgs args)
+    {
+    }
+```
+
 ### Engine Configurations
 
 #### World

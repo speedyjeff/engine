@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -66,8 +67,8 @@ namespace engine.Winforms
 
         private IUserInteraction Logic;
 
-        private Timer OnPaintTimer;
-        private Timer OnMoveTimer;
+        private System.Windows.Forms.Timer OnPaintTimer;
+        private System.Windows.Forms.Timer OnMoveTimer;
 
         static UIHookup()
         {
@@ -97,10 +98,10 @@ namespace engine.Winforms
                 Control.Paint += OnPaint;
 
                 // timers
-                OnPaintTimer = new Timer();
+                OnPaintTimer = new System.Windows.Forms.Timer();
                 OnPaintTimer.Interval = Common.Constants.GlobalClock / 2;
                 OnPaintTimer.Tick += OnPaintTimer_Tick;
-                OnMoveTimer = new Timer();
+                OnMoveTimer = new System.Windows.Forms.Timer();
                 OnMoveTimer.Interval = Common.Constants.GlobalClock / 2;
                 OnMoveTimer.Tick += OnMoveTimer_Tick;
 
