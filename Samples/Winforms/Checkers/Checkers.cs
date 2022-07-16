@@ -64,6 +64,7 @@ namespace engine.Samples.Winforms
                 );
             Board.OnCellClicked += Board_OnCellClicked;
             Board.OnCellOver += Board_OnCellOver;
+            Board.OnResize += Board_OnResize;
 
             // initialize UI handlers
             UI = new UIHookup(this, Board);
@@ -76,9 +77,14 @@ namespace engine.Samples.Winforms
             Images["red"].MakeTransparent(RGBA.White);
 
             // set initial board pieces
-            for(int row=0; row<Board.Rows; row++)
+            Board_OnResize();
+        }
+
+        private void Board_OnResize()
+        {
+            for (int row = 0; row < Board.Rows; row++)
             {
-                for(int col = 0; col<Board.Columns; col++)
+                for (int col = 0; col < Board.Columns; col++)
                 {
                     Board.UpdateCell(row, col, (img) =>
                     {

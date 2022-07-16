@@ -15,6 +15,7 @@
     <ProjectReference Include="..\Checkers\Checkers.csproj" />
     <ProjectReference Include="..\Flyover3D\Flyover3D.csproj" />
     <ProjectReference Include="..\Platformer2D\Platformer2D.csproj" />
+    <ProjectReference Include="..\Shapes\Shapes.csproj" />
     <ProjectReference Include="..\TopDownPlatformer\TopDownPlatformer.csproj" />
   </ItemGroup>
 

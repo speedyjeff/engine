@@ -12,22 +12,18 @@ namespace engine.Maui
     {
         public void Play(string path)
         {
-            throw new NotImplementedException("Play is not implemented");
         }
 
         public void Play(string name, Stream stream)
         {
-            throw new NotImplementedException("Play is not implemented");
         }
 
         public void PlayMusic(string path, bool repeat)
         {
-            throw new NotImplementedException("PlayMusic is not implemented");
         }
 
         public void Repeat()
         {
-            throw new NotImplementedException("Repeat is not implemented");
         }
     }
 }

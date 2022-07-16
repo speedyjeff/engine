@@ -1,9 +1,52 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:controls="clr-namespace:Catan;assembly=Catan"
+             xmlns:ccontrols="clr-namespace:Catan;assembly=Catan"
+             xmlns:scontrols="clr-namespace:Shapes;assembly=Shapes"
+             xmlns:chcontrols="clr-namespace:Checkers;assembly=checkers"
+             xmlns:pcontrols="clr-namespace:Platformer2D;assembly=platformer2d"
+             xmlns:tcontrols="clr-namespace:TopDownPlatformer;assembly=TopDownPlatformer"
+             xmlns:fcontrols="clr-namespace:Flyover3D;assembly=Flyover3D"
              x:Class="ControlSamples.MainPage">
 
-    <controls:Catan x:Name="CatanControl" HeightRequest="250" WidthRequest="250"/>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        
+        <!-- checkers -->
+        <Label Grid.Row="0" Grid.Column="0" Text="Checkers"/>
+        <chcontrols:Checkers Grid.Row="1" Grid.Column="0" x:Name="CheckersControl" HeightRequest="200" WidthRequest="200"/>
+        
+        <!-- catan -->
+        <Label Grid.Row="0" Grid.Column="1" Text="Catan"/>
+        <ccontrols:Catan Grid.Row="1" Grid.Column="1" x:Name="CatanControl" HeightRequest="200" WidthRequest="200"/>
+        
+        <!-- 2d platformer -->
+        <Label Grid.Row="2" Grid.Column="0" Text="2D Platformer"/>
+        <pcontrols:Platformer2D Grid.Row="3" Grid.Column="0" x:Name="Platformer2DControl" HeightRequest="200" WidthRequest="200"/>
+        
+        <!-- top down platformer -->
+        <Label Grid.Row="2" Grid.Column="1" Text="Top Down Platfomer"/>
+        <tcontrols:TopDownPlatformer Grid.Row="3" Grid.Column="1" x:Name="TopDownPlatformerCotrol" HeightRequest="200" WidthRequest="200"/>
+        
+        <!-- 3d flyover -->
+        <Label Grid.Row="4" Grid.Column="0" Text="3D Flyover"/>
+        <fcontrols:Flyover3D Grid.Row="5" Grid.Column="0" x:Name="Flyover3DControl" HeightRequest="200" WidthRequest="200"/>
+
+        <!-- shapes -->
+        <Label Grid.Row="4" Grid.Column="1" Text="Shapes"/>
+        <scontrols:Shapes Grid.Row="5" Grid.Column="1" x:Name="ShapesControl" HeightRequest="200" WidthRequest="200"/>
+        
+    </Grid>
 
 </ContentPage>

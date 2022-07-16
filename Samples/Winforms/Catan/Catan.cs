@@ -41,6 +41,23 @@ namespace engine.Samples.Winforms
         private Dictionary<string, IImage> Images;
         private Coord Previous;
 
+        private void Board_OnResize()
+        {
+            // set initial board pieces
+            for (int row = 0; row < Board.Rows; row++)
+            {
+                for (int col = 0; col < Board.Columns; col++)
+                {
+                    if (Cells[row][col] == Resources.Nothing) continue;
+
+                    Board.UpdateCell(row, col, (img) =>
+                    {
+                        DrawHexagon(row, col, img);
+                    });
+                }
+            }
+        }
+
         private void InitalizeBoard(int width, int height)
         {
             // initialize user control
@@ -62,6 +79,7 @@ namespace engine.Samples.Winforms
                 );
             Board.OnCellClicked += Board_OnCellClicked;
             Board.OnCellOver += Board_OnCellOver;
+            Board.OnResize += Board_OnResize;
 
             // initialize UI handlers
             UI = new UIHookup(this, Board);
@@ -86,18 +104,7 @@ namespace engine.Samples.Winforms
             Images = engine.Winforms.Resources.LoadImages(System.Reflection.Assembly.GetExecutingAssembly());
 
             // set initial board pieces
-            for (int row = 0; row < Board.Rows; row++)
-            {
-                for (int col = 0; col < Board.Columns; col++)
-                {
-                    if (Cells[row][col] == Resources.Nothing) continue;
-
-                    Board.UpdateCell(row, col, (img) =>
-                    {
-                        DrawHexagon(row, col, img);
-                    });
-                }
-            }
+            Board_OnResize();
         }
 
         private void Board_OnCellOver(int row, int col, float x, float y)
@@ -140,23 +147,23 @@ namespace engine.Samples.Winforms
             {
                 case Resources.Barren:
                     //img.Graphics.Clear(RGBA.Black);
-                    img.Graphics.Image(Images["barren"], 0, 0, Board.CellWidth, Board.CellHeight);
+                    img.Graphics.Image(Images["barren"], 0, 0, img.Width, img.Height);
                     break;
                 case Resources.Gold:
                     //img.Graphics.Clear(RGBA.White);
-                    img.Graphics.Image(Images["gold"], 0, 0, Board.CellWidth, Board.CellHeight);
+                    img.Graphics.Image(Images["gold"], 0, 0, img.Width, img.Height);
                     break;
                 case Resources.Grain:
                     //img.Graphics.Clear(new RGBA() { R = 255, G = 255, A = 255 });
-                    img.Graphics.Image(Images["wheat"], 0, 0, Board.CellWidth, Board.CellHeight);
+                    img.Graphics.Image(Images["wheat"], 0, 0, img.Width, img.Height);
                     break;
                 case Resources.Rock:
                     //img.Graphics.Clear(new RGBA() { R = 175, G = 175, B = 175, A = 255 });
-                    img.Graphics.Image(Images["rock"], 0, 0, Board.CellWidth, Board.CellHeight);
+                    img.Graphics.Image(Images["rock"], 0, 0, img.Width, img.Height);
                     break;
                 case Resources.Wool:
                     //img.Graphics.Clear(new RGBA() { G = 255, A = 255 });
-                    img.Graphics.Image(Images["wool"], 0, 0, Board.CellWidth, Board.CellHeight);
+                    img.Graphics.Image(Images["wool"], 0, 0, img.Width, img.Height);
                     break;
                 default:
                     throw new Exception("Unknown Resource type : " + Cells[row][col]);

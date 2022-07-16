@@ -1,4 +1,4 @@
-﻿namespace Flyover3D
+﻿namespace engine.Samples.Winforms
 {
     partial class Flyover3D
     {

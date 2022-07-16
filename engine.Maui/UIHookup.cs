@@ -33,10 +33,8 @@ namespace engine.Maui
 
             // track size changes
             Content.SizeChanged += Page_SizeChanged;
-            // do not create the graphics here (the bounds are not established)
-            //   create the graphics in SizeChanged
 
-            // initialize
+            // initialize - the actual size is set in OnResize
             var width = Math.Max(10, Content.Bounds.Width);
             var height = Math.Max(10, Content.Bounds.Height);
             var canvas = CreateDoubleBuffer(width, height);
@@ -44,8 +42,9 @@ namespace engine.Maui
             Sound = new MauiSounds();
 
             // todo handle shutdown
+            // hook process exit evnt
+            System.AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 
-            // todo
             // initialize the graphics
             Logic.InitializeGraphics(
                 Surface,
@@ -84,19 +83,25 @@ namespace engine.Maui
             engine.Common.Platform.SetType(PlatformType.Maui);
         }
 
+        private void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        {
+            // todo
+
+            // stop the timers
+            OnPaintTimer.Change(dueTime: Timeout.Infinite, period: 50);
+            OnMoveTimer.Change(dueTime: Timeout.Infinite, period: 50);
+        }
+
         private SKCanvas CreateDoubleBuffer(double width, double height)
         {
             lock (this)
             {
                 if (DoubleBuffer != null) DoubleBuffer.Close();
 
-                // get dpi
-                var dpi = Math.Max(1d, Microsoft.Maui.Devices.DeviceDisplay.Current.MainDisplayInfo.Density);
-
                 // create a new one
                 DoubleBuffer = new MauiImage(
-                    width: Convert.ToInt32(width * dpi),
-                    height: Convert.ToInt32(height * dpi));
+                    width: Convert.ToInt32(width),
+                    height: Convert.ToInt32(height));
 
                 // return canvas
                 return new SKCanvas(DoubleBuffer.UnderlyingBitmap);
@@ -114,7 +119,10 @@ namespace engine.Maui
 
         private void CanvasView_Touch(object sender, SKTouchEventArgs e)
         {
-            if (e.ActionType == SKTouchAction.WheelChanged) { } //Logic.Mousewheel(e.Delta);
+            var x = e.Location.X;
+            var y = e.Location.Y;
+
+            if (e.ActionType == SKTouchAction.WheelChanged) { Logic.Mousewheel(e.WheelDelta); }
             else if (e.ActionType == SKTouchAction.Moved)
             {
                 // translate the location into an angle relative to the mid point
@@ -123,24 +131,24 @@ namespace engine.Maui
                 //         180
 
                 // Width/2 and Height/2 act as the center point
-                float angle = Common.Collision.CalculateAngleFromPoint((float)Content.Width / 2.0f, (float)Content.Height / 2.0f, e.Location.X, e.Location.Y);
+                float angle = Common.Collision.CalculateAngleFromPoint((float)Content.Width / 2.0f, (float)Content.Height / 2.0f, x, y);
 
-                Logic.Mousemove(e.Location.X, e.Location.Y, angle);
+                Logic.Mousemove(x, y, angle);
             }
             else if (e.ActionType == SKTouchAction.Pressed)
             {
                 // fire a keyboard event
-                if (e.MouseButton == SKMouseButton.Left || e.DeviceType == SKTouchDeviceType.Touch || e.DeviceType == SKTouchDeviceType.Pen) { } // Logic.KeyPress(Common.Constants.LeftMouse);
+                if (e.MouseButton == SKMouseButton.Left || e.DeviceType == SKTouchDeviceType.Touch || e.DeviceType == SKTouchDeviceType.Pen) { Logic.KeyPress(Common.Constants.LeftMouse); }
                 else if (e.MouseButton == SKMouseButton.Right) OnMoveTimer.Change(dueTime: 0, period: 50);
-                else if (e.MouseButton == SKMouseButton.Middle) { } // Logic.KeyPress(Common.Constants.MiddleMouse);
+                else if (e.MouseButton == SKMouseButton.Middle) { Logic.KeyPress(Common.Constants.MiddleMouse); }
 
                 // fire a mouse event
                 Logic.Mousedown(
                     e.MouseButton == SKMouseButton.Left ? MouseButton.Left :
                       (e.MouseButton == SKMouseButton.Middle ? MouseButton.Middle :
                       MouseButton.Right),
-                    e.Location.X,
-                    e.Location.Y);
+                    x,
+                    y);
             }
             else if (e.ActionType == SKTouchAction.Released)
             {
@@ -152,8 +160,8 @@ namespace engine.Maui
                     e.MouseButton == SKMouseButton.Left ? MouseButton.Left :
                       (e.MouseButton == SKMouseButton.Middle ? MouseButton.Middle :
                       MouseButton.Right),
-                    e.Location.X,
-                    e.Location.Y);
+                    x,
+                    y);
             }
         }
 
@@ -213,8 +221,10 @@ namespace engine.Maui
 
         private void Page_SizeChanged(object sender, EventArgs e)
         {
-            var canvas = CreateDoubleBuffer(Content.Bounds.Width, Content.Bounds.Height);
-            Surface.RawResize(canvas, (int)Content.Bounds.Width, (int)Content.Bounds.Height);
+            var width = Content.Bounds.Width;
+            var height = Content.Bounds.Height;
+            var canvas = CreateDoubleBuffer(width, height);
+            Surface.RawResize(canvas, (int)width, (int)height);
             Logic.Resize();
         }
         #endregion

@@ -95,66 +95,8 @@ namespace engine.Common
             {
                 if (Config.Rows == 0 || Config.Columns == 0 || Config.Width < Config.Columns || Config.Height < Config.Rows) throw new Exception("Invalid Board dimensions");
 
-                // rectangle
-                if (Config.EdgeAngle == 0)
-                {
-                    CellWidth = Config.Width / Config.Columns;
-                    CellHeight = Config.Height / Config.Rows;
-                }
-
-                // hexagon
-                else
-                {
-                    // the angle starts at the mid point of the width
-                    // calculate how far down the height the edge will go
-                    // tan(angle) = opposite / adjacent
-                    EdgeWidth = ((Config.Width / Config.Columns) / 2);
-                    EdgeHeight = (int)Math.Floor(Math.Tan((Math.PI / 180) * Config.EdgeAngle) * EdgeWidth);
-
-                    // add later
-                    if ((2 * EdgeHeight * Config.Rows) > Config.Height) throw new Exception("The EdgeAngle is too steep");
-
-                    // need to adjust to an additional EdgeWidth and EdgeHeight (given the shift)
-                    CellWidth = ((Config.Width - EdgeWidth) / Config.Columns);
-                    CellHeight = ((Config.Height - EdgeHeight + (Config.Rows * EdgeHeight)) / Config.Rows);
-
-                    // update EdgeWidth
-                    EdgeWidth = CellWidth / 2;
-                }
-
-                // create the cells
-                Cells = new CellDetails[Config.Rows][];
-                for (int row = 0; row < Cells.Length; row++)
-                {
-                    Cells[row] = new CellDetails[Config.Columns];
-                    for (int col = 0; col < Cells[row].Length; col++)
-                    {
-                        // rectangle
-                        var left = col * CellWidth;
-                        var top = row * CellHeight;
-
-                        if (Config.EdgeAngle != 0)
-                        {
-                            // adjust for hexagon shape
-                            if (row % 2 != 0)
-                            {
-                                // odd
-                                left += EdgeWidth;
-                            }
-                            top -= (EdgeHeight * row);
-                        }
-
-                        Cells[row][col] = new CellDetails()
-                        {
-                            IsDirty = false,
-                            Image = null,
-                            Width = CellWidth,
-                            Height = CellHeight,
-                            Left = left,
-                            Top = top
-                        };
-                    } // for col
-                } // for row
+                // sets CellWidth/CellHeight and EdgeWidth/EdgeHeight
+                InitializeCellBoundaries(Width, Height);
             } // if regular
 
             // setup the background update timer
@@ -313,20 +255,16 @@ namespace engine.Common
             // invalidate everything so it is painted
             lock (Cells)
             {
-                Clear();
-                for (int row = 0; row < Cells.Length; row++)
-                {
-                    if (Cells[row] == null) continue;
-                    for (int col = 0; col < Cells[row].Length; col++)
-                    {
-                        if (Cells[row][col].Image != null) Cells[row][col].IsDirty = true;
-                    }
-                }
-                if (Overlay.Image != null) Overlay.IsDirty = true;
-
                 // reset the dimensions
                 Height = Surface.Height;
                 Width = Surface.Width;
+
+                // update cellheight/width/edges
+                InitializeCellBoundaries(Width, Height);
+
+                Clear();
+
+                if (Overlay.Image != null) Overlay.IsDirty = true;
             }
 
             if (OnResize != null) OnResize();
@@ -416,6 +354,73 @@ namespace engine.Common
         }
         private CellDetails[][] Cells;
 
+        private void InitializeCellBoundaries(int width, int height)
+        {
+            // only for rectangular and hexagon cells
+            if (Config.Cells != null && Config.Cells.Length > 0) return;
+
+            // rectangle
+            if (Config.EdgeAngle == 0)
+            {
+                EdgeWidth = 0;
+                EdgeHeight = 0;
+                CellWidth = width / Config.Columns;
+                CellHeight = height / Config.Rows;
+            }
+
+            // hexagon
+            else
+            {
+                // the angle starts at the mid point of the width
+                // calculate how far down the height the edge will go
+                // tan(angle) = opposite / adjacent
+                EdgeWidth = ((width / Config.Columns) / 2);
+                EdgeHeight = (int)Math.Floor(Math.Tan((Math.PI / 180) * Config.EdgeAngle) * EdgeWidth);
+
+                // add later
+                if ((2 * EdgeHeight * Config.Rows) > height) throw new Exception("The EdgeAngle is too steep");
+
+                // need to adjust to an additional EdgeWidth and EdgeHeight (given the shift)
+                CellWidth = ((width - EdgeWidth) / Config.Columns);
+                CellHeight = ((height - EdgeHeight + (Config.Rows * EdgeHeight)) / Config.Rows);
+
+                // update EdgeWidth
+                EdgeWidth = CellWidth / 2;
+            }
+
+            // create/update the cells
+            if (Cells == null) Cells = new CellDetails[Config.Rows][];
+            for (int row = 0; row < Cells.Length; row++)
+            {
+                if (Cells[row] == null) Cells[row] = new CellDetails[Config.Columns];
+                for (int col = 0; col < Cells[row].Length; col++)
+                {
+                    // rectangle
+                    var left = col * CellWidth;
+                    var top = row * CellHeight;
+
+                    if (Config.EdgeAngle != 0)
+                    {
+                        // adjust for hexagon shape
+                        if (row % 2 != 0)
+                        {
+                            // odd
+                            left += EdgeWidth;
+                        }
+                        top -= (EdgeHeight * row);
+                    }
+
+                    // init/update
+                    Cells[row][col].IsDirty = true;
+                    Cells[row][col].Image = null;
+                    Cells[row][col].Width = CellWidth;
+                    Cells[row][col].Height = CellHeight;
+                    Cells[row][col].Left = left;
+                    Cells[row][col].Top = top;
+                } // for col
+            } // for row
+        }
+
         private void Clear()
         {
             Surface.Clear(Config.Background);
@@ -477,6 +482,13 @@ namespace engine.Common
             {
                 col = (int)Math.Floor(x / (float)CellWidth);
                 row = (int)Math.Floor(y / (float)CellHeight);
+
+                // mind the edges
+                if (row < 0) row = 0;
+                if (row >= Config.Rows) row = Config.Rows - 1;
+                if (col < 0) col = 0;
+                if (col >= Config.Columns) col = Config.Columns - 1;
+
                 return true;
             }
 
@@ -501,7 +513,7 @@ namespace engine.Common
                     col = (int)Math.Floor((x - EdgeWidth) / (float)CellWidth);
                 }
 
-                // watch the edges
+                // mind the edges
                 if (row < 0) row = 0;
                 if (row >= Config.Rows) row = Config.Rows - 1;
                 if (col < 0) col = 0;
@@ -543,6 +555,7 @@ namespace engine.Common
                     row++;
                 }
 
+                // mind the edges
                 if (row < 0) row = 0;
                 if (row >= Config.Rows) row = Config.Rows - 1;
                 if (col < 0) col = 0;

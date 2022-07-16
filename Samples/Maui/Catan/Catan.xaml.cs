@@ -33,6 +33,7 @@ public partial class Catan : ContentView
             );
         Board.OnCellClicked += Board_OnCellClicked;
         Board.OnCellOver += Board_OnCellOver;
+        Board.OnResize += Board_OnResize;
 
         // initialize UI handlers
         UI = new UIHookup(this, Board);
@@ -56,19 +57,8 @@ public partial class Catan : ContentView
         // load embedded resources
         Images = engine.Maui.Resources.LoadImages(System.Reflection.Assembly.GetExecutingAssembly());
 
-        // set initial board pieces
-        for (int row = 0; row < Board.Rows; row++)
-        {
-            for (int col = 0; col < Board.Columns; col++)
-            {
-                if (Cells[row][col] == ResourceNames.Nothing) continue;
-
-                Board.UpdateCell(row, col, (img) =>
-                {
-                    DrawHexagon(row, col, img);
-                });
-            }
-        }
+        // initialize the board
+        Board_OnResize();
     }
 
     #region private
@@ -86,6 +76,8 @@ public partial class Catan : ContentView
 
     private void Board_OnCellOver(int row, int col, float x, float y)
     {
+        System.Diagnostics.Debug.WriteLine($"{x},{y} {row},{col}");
+
         if (Cells[row][col] == ResourceNames.Nothing) return;
 
         // check if we have already highlighted a cell
@@ -118,29 +110,46 @@ public partial class Catan : ContentView
         // add game logic
     }
 
+    private void Board_OnResize()
+    {
+        // set initial board pieces
+        for (int row = 0; row < Board.Rows; row++)
+        {
+            for (int col = 0; col < Board.Columns; col++)
+            {
+                if (Cells[row][col] == ResourceNames.Nothing) continue;
+
+                Board.UpdateCell(row, col, (img) =>
+                {
+                    DrawHexagon(row, col, img);
+                });
+            }
+        }
+    }
+
     private void DrawHexagon(int row, int col, IImage img)
     {
         switch (Cells[row][col])
         {
             case ResourceNames.Barren:
-                img.Graphics.Clear(RGBA.Black);
-                //img.Graphics.Image(Images["barren"], 0, 0, Board.CellWidth, Board.CellHeight);
+                //img.Graphics.Clear(RGBA.Black);
+                img.Graphics.Image(Images["barren"], 0, 0, img.Width, img.Height);
                 break;
             case ResourceNames.Gold:
-                img.Graphics.Clear(RGBA.White);
-                //img.Graphics.Image(Images["gold"], 0, 0, Board.CellWidth, Board.CellHeight);
+                //img.Graphics.Clear(RGBA.White);
+                img.Graphics.Image(Images["gold"], 0, 0, img.Width, img.Height);
                 break;
             case ResourceNames.Grain:
-                img.Graphics.Clear(new RGBA() { R = 255, G = 255, A = 255 });
-                //img.Graphics.Image(Images["wheat"], 0, 0, Board.CellWidth, Board.CellHeight);
+                //img.Graphics.Clear(new RGBA() { R = 255, G = 255, A = 255 });
+                img.Graphics.Image(Images["wheat"], 0, 0, img.Width, img.Height);
                 break;
             case ResourceNames.Rock:
-                img.Graphics.Clear(new RGBA() { R = 175, G = 175, B = 175, A = 255 });
-                //img.Graphics.Image(Images["rock"], 0, 0, Board.CellWidth, Board.CellHeight);
+                //img.Graphics.Clear(new RGBA() { R = 175, G = 175, B = 175, A = 255 });
+                img.Graphics.Image(Images["rock"], 0, 0, img.Width, img.Height);
                 break;
             case ResourceNames.Wool:
-                img.Graphics.Clear(new RGBA() { G = 255, A = 255 });
-                //img.Graphics.Image(Images["wool"], 0, 0, Board.CellWidth, Board.CellHeight);
+                //img.Graphics.Clear(new RGBA() { G = 255, A = 255 });
+                img.Graphics.Image(Images["wool"], 0, 0, img.Width, img.Height);
                 break;
             default:
                 throw new Exception("Unknown Resource type : " + Cells[row][col]);

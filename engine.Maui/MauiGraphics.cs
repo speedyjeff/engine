@@ -65,12 +65,31 @@ namespace engine.Maui
         public void Ellipse(RGBA color, float x, float y, float width, float height, bool fill = true, bool border = true, float thickness = 5)
         {
             if (Canvas == null) throw new Exception("must have a valid canvas");
-            Canvas.DrawOval(
-                cx: x,
-                cy: y,
-                rx: (width / 2f),
-                ry: (height / 2f),
-                GetCachedPaint(color, fill, border, thickness));
+
+            if (fill)
+            {
+                Canvas.DrawOval(
+                    cx: x + (width / 2),
+                    cy: y + (width / 2),
+                    rx: (width / 2f),
+                    ry: (height / 2f),
+                    GetCachedPaint(color, fill, border: false, thickness: 0));
+                if (border) Canvas.DrawOval(
+                    cx: x + (width / 2),
+                    cy: y + (width / 2),
+                    rx: (width / 2f),
+                    ry: (height / 2f),
+                    GetCachedPaint(RGBA.Black, fill: false, border: true, thickness));
+            }
+            else
+            {
+                Canvas.DrawOval(
+                    cx: x + (width / 2),
+                    cy: y + (width / 2),
+                    rx: (width / 2f),
+                    ry: (height / 2f),
+                    GetCachedPaint(color, fill: false, border: true, thickness));
+            }
         }
 
         public void Image(engine.Common.IImage img, float x, float y, float width = 0, float height = 0)
@@ -111,28 +130,18 @@ namespace engine.Maui
         {
             if (Canvas == null) throw new Exception("must have a valid canvas");
 
-            // convert points into PointF
-            SKPoint[] edges = null;
-            if (points.Length == 3)
-            {
-                TriPoints[0].X = points[0].X; TriPoints[0].Y = points[0].Y;
-                TriPoints[1].X = points[1].X; TriPoints[1].Y = points[1].Y;
-                TriPoints[2].X = points[2].X; TriPoints[2].Y = points[2].Y;
+            // todo how to cache the SKPath?
 
-                edges = TriPoints;
-            }
-            else
+            // build the apprpriate path
+            var path = new SKPath() { FillType = SKPathFillType.EvenOdd };
+            for(int i=0; i<points.Length; i++)
             {
-                edges = new SKPoint[points.Length];
-                for (int i = 0; i < points.Length; i++)
-                {
-                    edges[i] = new SKPoint(points[i].X, points[i].Y);
-                }
+                if (i == 0) path.MoveTo(points[i].X, points[i].Y);
+                else path.LineTo(points[i].X, points[i].Y);
             }
+            path.Close();
 
-            Canvas.DrawPoints(
-                fill ? SKPointMode.Polygon : SKPointMode.Lines,
-                edges,
+            Canvas.DrawPath(path,
                 GetCachedPaint(color, fill, border, thickness));
         }
 
@@ -146,6 +155,31 @@ namespace engine.Maui
                 width,
                 height,
                 GetCachedPaint(color, fill, border, thickness));
+
+            if (fill)
+            {
+                Canvas.DrawRect(
+                    x,
+                    y,
+                    width,
+                    height,
+                    GetCachedPaint(color, fill, border: false, thickness: 0));
+                if (border) Canvas.DrawRect(
+                    x,
+                    y,
+                    width,
+                    height,
+                    GetCachedPaint(RGBA.Black, fill: false, border: true, thickness));
+            }
+            else
+            {
+                Canvas.DrawRect(
+                    x,
+                    y,
+                    width,
+                    height,
+                    GetCachedPaint(RGBA.Black, fill: false, border: true, thickness));
+            }
         }
 
         public void Text(RGBA color, float x, float y, string text, float fontsize = 16, string fontname = "Arial")
@@ -164,14 +198,15 @@ namespace engine.Maui
         {
             if (Canvas == null) throw new Exception("must have a valid canvas");
 
-            // convert points into PointF
-            TriPoints[0].X = x1; TriPoints[0].Y = y1;
-            TriPoints[1].X = x2; TriPoints[1].Y = y2;
-            TriPoints[2].X = x3; TriPoints[2].Y = y3;
+            // todo cache the SKPath
+            var path = new SKPath() { FillType = SKPathFillType.EvenOdd };
+            path.MoveTo(x1, y1);
+            path.LineTo(x2, y2);
+            path.LineTo(x3, y3);
+            path.Close();
 
-            Canvas.DrawPoints(
-                fill ? SKPointMode.Polygon : SKPointMode.Lines,
-                TriPoints,
+            Canvas.DrawPath(
+                path,
                 GetCachedPaint(color, fill, border, thickness));
         }
 
