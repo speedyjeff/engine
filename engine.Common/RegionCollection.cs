@@ -193,7 +193,7 @@ namespace engine.Common
                 else
                 {
                     // find it and remove it
-                    if (!Regions[src.Layer][src.Row][src.Col].TryGetValue(key, out elem)) throw new Exception("Failed to location the element to move");
+                    if (!Regions[src.Layer][src.Row][src.Col].TryGetValue(key, out elem)) throw new Exception("Failed to find the element to move");
                     if (!Regions[src.Layer][src.Row][src.Col].Remove(key)) throw new Exception("Failed to remove this element");
                 }
 

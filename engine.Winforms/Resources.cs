@@ -15,20 +15,27 @@ namespace engine.Winforms
         public static Dictionary<string, IImage> LoadImages(Assembly assembly)
         {
             // load resources
-            var images = new Dictionary<string, IImage>();
-            foreach (var resourceName in assembly.GetManifestResourceNames())
-            {
-                // load from stream
-                var stream = assembly.GetManifestResourceStream(resourceName);
-                var bitmap = new Bitmap(stream);
-                var img = new BitmapImage(bitmap);
-                // return the name of the asset "folder1.folder2.name.extension"
-                var parts = resourceName.Split('.');
-                var name = parts.Length == 0 ? resourceName :
-                    (parts.Length == 1 ? parts[0] : parts[parts.Length - 2]);
-                images.Add(name, img);
+            var resources = engine.Common.Embedded.LoadResource(assembly);
 
-            } // foreach
+            // convert to images
+            var images = new Dictionary<string, IImage>();
+            foreach (var kvp in resources)
+            {
+                if (!kvp.Key.EndsWith(".png", StringComparison.OrdinalIgnoreCase) &&
+                    !kvp.Key.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)) continue;
+
+                // shorten name
+                var parts = kvp.Key.Split('.');
+                var name = parts.Length == 0 ? kvp.Key :
+                    (parts.Length == 1 ? parts[0] : parts[parts.Length - 2]);
+
+                // load images
+                var bitmap = new Bitmap(kvp.Value);
+                var img = new BitmapImage(bitmap);
+
+                // store
+                images.Add(name, img);
+            }
 
             return images;
         }
@@ -36,15 +43,24 @@ namespace engine.Winforms
         public static Dictionary<string, string> LoadText(Assembly assembly)
         {
             // load resources
-            var resources = engine.Common.Embedded.LoadResource<byte[]>(assembly);
+            var resources = engine.Common.Embedded.LoadResource(assembly);
 
-            // convert to images
+            // grab text
             var files = new Dictionary<string, string>();
             foreach (var kvp in resources)
             {
-                var bytes = kvp.Value;
-                var name = kvp.Key;
+                if (!kvp.Key.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) continue;
 
+                // shorten name
+                var parts = kvp.Key.Split('.');
+                var name = parts.Length == 0 ? kvp.Key :
+                    (parts.Length == 1 ? parts[0] : parts[parts.Length - 2]);
+
+                // read bytes
+                var bytes = new byte[kvp.Value.Length];
+                kvp.Value.Read(bytes, offset: 0, count: bytes.Length);
+
+                // store
                 files.Add(name, System.Text.UTF8Encoding.UTF8.GetString(bytes));
             }
 

@@ -5,6 +5,24 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Media\empty.wav" />
+    <None Remove="Media\hurt.wav" />
+    <None Remove="Media\meele.wav" />
+    <None Remove="Media\nothing.wav" />
+    <None Remove="Media\pickup.wav" />
+    <None Remove="Media\reload.wav" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Media\empty.wav" />
+    <EmbeddedResource Include="Media\hurt.wav" />
+    <EmbeddedResource Include="Media\meele.wav" />
+    <EmbeddedResource Include="Media\nothing.wav" />
+    <EmbeddedResource Include="Media\pickup.wav" />
+    <EmbeddedResource Include="Media\reload.wav" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="6.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="6.0.6" />
   </ItemGroup>
