@@ -66,5 +66,32 @@ namespace engine.Winforms
 
             return files;
         }
+
+        public static Dictionary<string, byte[]> Load(Assembly assembly, string extension)
+        {
+            // load resources
+            var resources = engine.Common.Embedded.LoadResource(assembly);
+
+            // grab text
+            var files = new Dictionary<string, byte[]>();
+            foreach (var kvp in resources)
+            {
+                if (!kvp.Key.EndsWith(extension, StringComparison.OrdinalIgnoreCase)) continue;
+
+                // shorten name
+                var parts = kvp.Key.Split('.');
+                var name = parts.Length == 0 ? kvp.Key :
+                    (parts.Length == 1 ? parts[0] : parts[parts.Length - 2]);
+
+                // read bytes
+                var bytes = new byte[kvp.Value.Length];
+                kvp.Value.Read(bytes, offset: 0, count: bytes.Length);
+
+                // store
+                files.Add(name, bytes);
+            }
+
+            return files;
+        }
     }
 }

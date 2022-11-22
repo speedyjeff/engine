@@ -18,6 +18,15 @@ namespace engine.Winforms
             HwnHandle = hwnHandle;
         }
 
+        public static void Preload(string name, Stream stream)
+        {
+            if (!All.ContainsKey(name))
+            {
+                var player = new SoundPlayer(stream);
+                All.Add(name, player);
+            }
+        }
+
         public void Play(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) return;

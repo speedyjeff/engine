@@ -577,7 +577,7 @@ namespace engine.Common
 
             if (item is Player)
             {
-                AddPlayer(item as Player);
+                AddPlayer(item as Player, setupUpdatePlayer: string.IsNullOrWhiteSpace(Config.ServerUrl));
             }
         }
 
@@ -747,21 +747,10 @@ namespace engine.Common
             // start paused
             if (Config.StartMenu != null) Menu = Config.StartMenu;
 
-            // add all the players
-            if (string.IsNullOrWhiteSpace(Config.ServerUrl))
-            {
-                // this happens in the local (non-remote server) case AND the server of the client-SERVER configuration
-
-                // add all the players (including the AI)
-                foreach (var player in players) AddPlayer(player, setupUpdatePlayer: true);
-            }
-            else
-            {
-                // this happens when for the remote clients of the CLIENT-server configuration
-
-                // add all the players (but do not apply any forces)
-                foreach (var player in players) AddPlayer(player, setupUpdatePlayer: false);
-            }
+            // add all the players (including the A
+            // ServerUrl == null: (local) (non-remote server) case AND the server of the client-SERVER configuration
+            // ServerUrl != null: (remote) remote clients of the CLIENT-server configuration
+            foreach (var player in players) AddPlayer(player, setupUpdatePlayer: string.IsNullOrWhiteSpace(Config.ServerUrl));
 
             // hook up map callbacks
             Map.OnElementHit += HitByAttack;
@@ -1074,7 +1063,7 @@ namespace engine.Common
         }
 
         // support
-        private void AddPlayer(Player player, bool setupUpdatePlayer = false)
+        private void AddPlayer(Player player, bool setupUpdatePlayer)
         {
             // add another alive player
             Alive++;

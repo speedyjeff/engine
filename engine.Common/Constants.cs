@@ -14,6 +14,7 @@ namespace engine.Common
 
         // keyboard
         public const char Space = (char)248;
+        public const char Space2 = (char)32;
         public const char Esc = (char)247;
 
         public const char Up = 'W';
