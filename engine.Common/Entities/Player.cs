@@ -111,6 +111,10 @@ namespace engine.Common.Entities
         {
         }
 
+        public virtual void Update()
+        {
+        }
+
         #region private
         private float _angle;
         private float _pitchAngle;
