@@ -38,6 +38,7 @@ namespace engine.Common
         bool SwitchPrimary(Player player);
         bool Turn(Player player, float yaw, float pitch, float roll);
         Type Drop(Player player);
+        bool Place(Player player);
         bool AddItem(Element item);
         bool RemoveItem(Element item);
         Player GetPlayer(int id);

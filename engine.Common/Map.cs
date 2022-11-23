@@ -311,6 +311,38 @@ namespace engine.Common
             }
         }
 
+        public bool Place(Player player)
+        {
+            if (IsPaused) return false;
+            if (player.IsDead) return false;
+
+            var guard = GetLock(player);
+            lock (guard)
+            {
+                var item = player.DropPrimary();
+
+                if (item != null)
+                {
+                    // modify the item to be stationary
+                    item.MakeStationary();
+
+                    // todo: Z?
+                    // place the item a the end of their hand
+                    float x1, y1, x2, y2;
+                    Collision.CalculateLineByAngle(player.X, player.Y, player.Angle, player.Width, out x1, out y1, out x2, out y2);
+
+                    item.Move(xDelta: x2 - item.X, yDelta: y2 - item.Y, zDelta: item.Z);
+
+                    // add it to the map as stationary
+                    AddItem(item);
+
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
         public bool ReduceHealth(Player player, float damage)
         {
             if (IsPaused) return false;

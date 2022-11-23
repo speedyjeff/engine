@@ -113,5 +113,16 @@ namespace engine.Common
             return System.Threading.Interlocked.Increment(ref NextId);
         }
         #endregion
+
+        #region internal
+        internal void MakeStationary()
+        {
+            CanMove = false;
+            TakesDamage = true;
+            ShowDamage = true;
+            CanAcquire = false;
+            IsSolid = true;
+        }
+        #endregion
     }
 }

@@ -433,6 +433,11 @@ namespace engine.Common
                     case Constants.Jump2:
                         action = ActionEnum.Jump;
                         break;
+
+                    case Constants.Place:
+                    case Constants.Place2:
+                        action = ActionEnum.Place;
+                        break;
                 }
 
                 // take action
@@ -465,6 +470,11 @@ namespace engine.Common
 
                     case ActionEnum.Jump:
                         result = Jump(Human);
+                        Human.Feedback(action, null, result);
+                        break;
+
+                    case ActionEnum.Place:
+                        result = Place(Human);
                         Human.Feedback(action, null, result);
                         break;
                 }
@@ -896,6 +906,10 @@ namespace engine.Common
                             break;
                         case ActionEnum.Move:
                         case ActionEnum.None:
+                            break;
+                        case ActionEnum.Place:
+                            result = Place(ai);
+                            ai.Feedback(action, null, result);
                             break;
                         default: throw new Exception("Unknown ai action : " + action);
                     }
@@ -1389,6 +1403,14 @@ namespace engine.Common
                 }
             }
             return false;
+        }
+
+        private bool Place(Player player)
+        {
+            if (player.IsDead) return false;
+            if (player.Primary == null) return false;
+
+            return Map.Place(player);
         }
 
         // callbacks

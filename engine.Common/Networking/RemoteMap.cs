@@ -427,6 +427,44 @@ namespace engine.Common.Networking
             var result = ActualMap.Drop(player);
             if (result == null || !type.Equals(result)) throw new Exception("Drop returned the wrong result : " + player.Id + " (" + result + " != " + type + ")");
         }
+        #endregion
+
+#region place
+        public bool Place(Player player)
+        {
+            if (string.IsNullOrWhiteSpace(Group)) return false;
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[In] Place {player.Id}");
+
+            // send to server
+            var result = Connection.InvokeAsync<string>("Send_Place", Group, player.Id).Result;
+            bool remoteSuccess = false;
+
+            if (!string.IsNullOrWhiteSpace(result))
+            {
+                // deserialize the type
+                remoteSuccess = FromJson<bool>(result);
+
+                // todo Place uses AddItem - an issue?
+
+                var success = ActualMap.Place(player);
+                if (success != remoteSuccess) throw new Exception($"Place failed: {remoteSuccess} != {success}");
+            }
+
+            return remoteSuccess;
+        }
+
+        private void Receive_Place(int playerId, string successJson)
+        {
+            if (DEBUG_TRACING) System.Diagnostics.Debug.WriteLine($"[In] Receive_Place {playerId}");
+
+            // deserialize the success
+            var remoteSuccess = FromJson<bool>(successJson);
+
+            // drop locally
+            var player = ActualMap.GetPlayer(playerId);
+            var success = ActualMap.Place(player);
+            if (success != remoteSuccess) throw new Exception($"Place failed: {remoteSuccess} != {success}");
+        }
 #endregion
 
 #region pickup
@@ -591,7 +629,7 @@ namespace engine.Common.Networking
 
         #endregion
 
-        #region private
+#region private
         private HubConnection Connection;
         private string Group;
         private IMap ActualMap;

@@ -43,6 +43,9 @@ namespace engine.Common
         public const char Drop3 = 'Q';
         public const char Drop4 = 'q';
 
+        public const char Place = 'P';
+        public const char Place2 = 'p';
+
         public const char Jump = 'j';
         public const char Jump2 = 'J';
 

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace engine.Common.Entities
 {
-    public enum ActionEnum { None, SwitchPrimary, Pickup, Drop, Reload, Attack, Move, Jump, COUNT };
+    public enum ActionEnum { None, SwitchPrimary, Pickup, Drop, Reload, Attack, Move, Jump, Place, COUNT };
 
     public class Player : Element
     {
@@ -32,7 +32,7 @@ namespace engine.Common.Entities
 
         // in hands
         public int HandCapacity { get; set; }
-        public Element Primary { get; private set; }
+        public Element Primary { get; protected set; } // protected to allow for initialization of a default
         public Element[] Secondary { get; set; }
 
         public Tool Fists { get; protected set; }
@@ -119,13 +119,14 @@ namespace engine.Common.Entities
         private float _angle;
         private float _pitchAngle;
 
+        // the following state must flow through the map (for remote playing)
+
         internal bool Take(Element item)
         {
             if (item is Ammo)
             {
-                if (Primary != null && Primary is RangeWeapon)
+                if (Primary != null && Primary is RangeWeapon gun)
                 {
-                    var gun = (Primary as RangeWeapon);
                     gun.AddAmmo((int)item.Health);
                     return true;
                 }
@@ -182,10 +183,8 @@ namespace engine.Common.Entities
             // check if we have a primary weapon
             if (Primary == null) return AttackStateEnum.Melee;
 
-            if (Primary is RangeWeapon)
+            if (Primary is RangeWeapon gun)
             {
-                var gun = (Primary as RangeWeapon);
-
                 // check if there is a round in the clip
                 int rounds;
                 gun.RoundsInClip(out rounds);
@@ -209,10 +208,8 @@ namespace engine.Common.Entities
         {
             if (Primary == null) return AttackStateEnum.None;
 
-            if (Primary is RangeWeapon)
+            if (Primary is RangeWeapon gun)
             {
-                var gun = (Primary as RangeWeapon);
-
                 // check if we have a primary weapon
                 if (!gun.HasAmmo()) return AttackStateEnum.NoRounds;
                 // check if there are rounds
