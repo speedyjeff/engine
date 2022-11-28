@@ -18,12 +18,10 @@ namespace engine.Common
     {
         public int Width { get; set; }
         public int Height { get; set; }
-        public bool CenterIndicator { get; set; }
         public Menu StartMenu { get; set; }
         public Menu EndMenu { get; set; }
         public Menu HUD { get; set; }
         public bool EnableZoom { get; set; }
-        public bool DisplayStats { get; set; }
         public bool ShowCoordinates { get; set; }
         public int ForcesApplied { get; set; }
         public float HorizonX { get; set; }
@@ -137,36 +135,6 @@ namespace engine.Common
             // draw the map
             Map.Background.Draw(Surface);
 
-            // add center indicator
-            if (Config.CenterIndicator && !Config.Is3D && Human.Z == Constants.Ground)
-            {
-                var centerAngle = Collision.CalculateAngleFromPoint(Human.X, Human.Y, Map.Width / 2, Map.Height / 2);
-                float x1, y1, x2, y2;
-                var distance = Math.Min(Surface.Width, Surface.Height) * 0.9f;
-                Collision.CalculateLineByAngle(Surface.Width / 2, Surface.Height / 2, centerAngle, (distance / 2), out x1, out y1, out x2, out y2);
-                Surface.DisableTranslation();
-                {
-                    // draw an arrow
-                    var endX = x2;
-                    var endY = y2;
-                    x1 = endX;
-                    y1 = endY;
-                    Collision.CalculateLineByAngle(x1, y1, (centerAngle + 180) % 360, 50, out x1, out y1, out x2, out y2);
-                    Surface.Line(RGBA.Black, x1, y1, x2, y2, 10);
-
-                    x1 = endX;
-                    y1 = endY;
-                    Collision.CalculateLineByAngle(x1, y1, (centerAngle + 135) % 360, 25, out x1, out y1, out x2, out y2);
-                    Surface.Line(RGBA.Black, x1, y1, x2, y2, 10);
-
-                    x1 = endX;
-                    y1 = endY;
-                    Collision.CalculateLineByAngle(x1, y1, (centerAngle + 225) % 360, 25, out x1, out y1, out x2, out y2);
-                    Surface.Line(RGBA.Black, x1, y1, x2, y2, 10);
-                }
-                Surface.EnableTranslation();
-            }
-
             // if 3d, defer the rendering of the polygons to ensure proper ordering
             if (Config.Is3D) Surface.CapturePolygons();
 
@@ -258,26 +226,15 @@ namespace engine.Common
                 Surface.EnableTranslation();
             }
 
-            // display the player counts
-            if (Config.DisplayStats)
-            {
-                Surface.DisableTranslation();
-                {
-                    Surface.Text(RGBA.Black, Surface.Width - 200, 10, string.Format("Alive {0} of {1}", Alive, Players));
-                    Surface.Text(RGBA.Black, Surface.Width - 200, 30, string.Format("Kills {0}", Human.Kills));
-                }
-                Surface.EnableTranslation();
-            }
-
             if (Config.ShowCoordinates)
             {
                 Surface.DisableTranslation();
                 {
-                    Surface.Text(RGBA.Black, 200, 10, string.Format("X {0}", Human.X));
-                    Surface.Text(RGBA.Black, 200, 30, string.Format("Y {0}", Human.Y));
-                    Surface.Text(RGBA.Black, 200, 50, string.Format("Z {0}", Human.Z));
-                    Surface.Text(RGBA.Black, 200, 70, string.Format("A {0}", Human.Angle));
-                    Surface.Text(RGBA.Black, 200, 90, string.Format("P {0}", Human.PitchAngle));
+                    Surface.Text(RGBA.Black, 20, 5, $"X {Human.X}");
+                    Surface.Text(RGBA.Black, 20, 45, $"Y {Human.Y}");
+                    Surface.Text(RGBA.Black, 20, 85, $"Z {Human.Z}");
+                    Surface.Text(RGBA.Black, 20, 125, $"A {Human.Angle}");
+                    Surface.Text(RGBA.Black, 20, 165, $"P {Human.PitchAngle}");
                 }
                 Surface.EnableTranslation();
             }
