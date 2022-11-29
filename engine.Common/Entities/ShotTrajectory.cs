@@ -25,8 +25,12 @@ namespace engine.Common.Entities
             var thickness = (Damage/ 100f) * 20;
             if (thickness > 5) thickness = 5;
             else if (thickness < 1) thickness = 1;
-            g.Line(new RGBA() { A = 255, R = 255 }, X1, Y1, X2, Y2, thickness);
+            g.Line(Red, X1, Y1, X2, Y2, thickness);
             base.Draw(g);
         }
+
+        #region private
+        private readonly RGBA Red = new RGBA() { A = 255, R = 255 };
+        #endregion
     }
 }

@@ -29,12 +29,15 @@ namespace engine.Common.Entities
         {
             if (ShowDefaultDrawing)
             {
-                var gray = new RGBA() { R = 154, G = 166, B = 173, A = 200 };
-                g.Rectangle(gray, X - Width / 2, Y - Height / 2, Width / 3, Height, false);
-                g.Rectangle(gray, X - Width / 3, Y - Height / 2, Width / 3, Height);
-                g.Rectangle(gray, X + Width / 3, Y - Height / 2, Width / 3, Height, false);
+                g.Rectangle(Gray, X - (Width / 2), Y - (Height / 2), Width / 3, Height, fill: false);
+                g.Rectangle(Gray, X - (Width / 3), Y - (Height / 2), Width / 3, Height);
+                g.Rectangle(Gray, X + (Width / 3), Y - (Height / 2), Width / 3, Height, fill: false);
             }
             base.Draw(g);
         }
+
+        #region private
+        private readonly RGBA Gray = new RGBA() { R = 154, G = 166, B = 173, A = 200 };
+        #endregion
     }
 }

@@ -101,15 +101,15 @@ namespace engine.Common
             }
 
             // convert these into offsets to adjust the regions to a 0,0,0 based matrix
-            if (minx < 0) XOffset = (int)Math.Floor(minx);
-            else XOffset = (int)Math.Ceiling(minx);
-            XOffset *= -1;
-            if (miny < 0) YOffset = (int)Math.Floor(miny);
-            else YOffset = (int)Math.Ceiling(miny);
-            YOffset *= -1;
-            if (minz < 0) ZOffset = (int)Math.Floor(minz);
-            else ZOffset = (int)Math.Ceiling(minz);
-            ZOffset *= -1;
+            if (minx < 0) XOffset = (float)Math.Floor(minx);
+            else XOffset = (float)Math.Ceiling(minx);
+            XOffset *= -1f;
+            if (miny < 0) YOffset = (float)Math.Floor(miny);
+            else YOffset = (float)Math.Ceiling(miny);
+            YOffset *= -1f;
+            if (minz < 0) ZOffset = (float)Math.Floor(minz);
+            else ZOffset = (float)Math.Ceiling(minz);
+            ZOffset *= -1f;
 
             // add all the elements
             foreach (var elem in elements) Add(elem.Id, elem);
@@ -284,9 +284,9 @@ namespace engine.Common
         private int Columns;
         private int Rows;
         private int Layers;
-        private int XOffset;
-        private int YOffset;
-        private int ZOffset;
+        private float XOffset;
+        private float YOffset;
+        private float ZOffset;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsOversized(Element elem)
@@ -298,14 +298,14 @@ namespace engine.Common
         private void GetRegion(float x, float y, float z, out int row, out int column, out int layer)
         {
             // round to avoid near boundary misses
-            x = (float)Math.Round(x);
-            y = (float)Math.Round(y);
-            z = (float)Math.Round(z);
+            x = (float)Math.Round(x, digits: 0);
+            y = (float)Math.Round(y, digits: 0);
+            z = (float)Math.Round(z, digits: 0);
 
             // get region
-            row = (int)Math.Floor((y + YOffset) / RegionSize);
-            column = (int)Math.Floor((x + XOffset) / RegionSize);
-            layer = (int)Math.Floor((z + ZOffset) / RegionSize);
+            row = (int)Math.Floor((y + YOffset) / (float)RegionSize);
+            column = (int)Math.Floor((x + XOffset) / (float)RegionSize);
+            layer = (int)Math.Floor((z + ZOffset) / (float)RegionSize);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

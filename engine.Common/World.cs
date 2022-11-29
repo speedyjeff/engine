@@ -242,7 +242,11 @@ namespace engine.Common
             // show a menu if present
             if (Map.IsPaused && Menu != null)
             {
-                Menu.Draw(Surface);
+                Surface.DisableTranslation();
+                {
+                    Menu.Draw(Surface);
+                }
+                Surface.EnableTranslation();
             }
         }
 

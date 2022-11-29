@@ -19,9 +19,13 @@ namespace engine.Common.Entities
         {
             if (ShowDefaultDrawing)
             {
-                g.Ellipse(new RGBA() { R = 85, G = 85, B = 85, A = 255 }, X - (Width / 2), Y - (Height / 2), Width, Height);
+                g.Ellipse(Gray, X - (Width / 2), Y - (Height / 2), Width, Height);
             }
             base.Draw(g);
         }
+
+        #region private
+        private readonly RGBA Gray = new RGBA() { R = 85, G = 85, B = 85, A = 255 };
+        #endregion
     }
 }

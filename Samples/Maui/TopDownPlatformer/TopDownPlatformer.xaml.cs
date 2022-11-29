@@ -74,7 +74,7 @@ public partial class TopDownPlatformer : ContentView
                 Width = width,
                 Height = height,
                 EnableZoom = true,
-                ShowCoordinates = true
+                ShowCoordinates = false
             },
             players,
             obstacles.ToArray(),

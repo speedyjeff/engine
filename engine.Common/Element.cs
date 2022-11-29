@@ -51,10 +51,10 @@ namespace engine.Common
             {
                 if (!string.Equals(Name, PreviousName))
                 {
-                    DisplayName = string.Format("[{0}] {1}", Constants.Pickup2, Name);
+                    DisplayName = $"[{Constants.Pickup2}] {Name}";
                     PreviousName = Name;
                 }
-                g.Text(RGBA.Black, X - Width / 2, Y - Height / 2 - 20, DisplayName);
+                g.Text(RGBA.Black, X + (Width/2), Y, DisplayName);
             }
             if (TakesDamage && ShowDamage)
             {
@@ -62,9 +62,9 @@ namespace engine.Common
                 {
                     PreviousShield = Shield;
                     PreviousHealth = Health;
-                    DisplayHealth = string.Format("{0:0}/{1:0}", Health, Shield);
+                    DisplayHealth = $"{Health:0}/{Shield:0}";
                 }
-                g.Text(RGBA.Black, X - Width / 2, Y - Height / 2 - 20, DisplayHealth);
+                g.Text(RGBA.Black, X - Width, Y - Height, DisplayHealth);
             }
         }
 

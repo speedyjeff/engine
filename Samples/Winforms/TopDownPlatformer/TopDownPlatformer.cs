@@ -104,7 +104,7 @@ namespace engine.Samples.Winforms
                     Width = width,
                     Height = height,
                     EnableZoom = true,
-                    ShowCoordinates = true
+                    ShowCoordinates = false
                 },
                 players,
                 obstacles.ToArray(),

@@ -84,7 +84,7 @@ namespace engine.Common.Entities
                     {
                         // we are in a parachute
                         g.Ellipse(Color, X - (Width / 2), Y - (Height / 2), Width, Height);
-                        g.Rectangle(new RGBA() { R = 146, G = 27, B = 167, A = 255 }, X - Width, Y, Width * 2, Height / 2, true);
+                        g.Rectangle(Purple, X - Width, Y, Width * 2, Height / 2, true);
                         g.Line(RGBA.Black, X - Width, Y, X, Y - (Height / 4), 5f);
                         g.Line(RGBA.Black, X, Y - (Height / 4), X + Width, Y, 5f);
                     }
@@ -118,6 +118,8 @@ namespace engine.Common.Entities
         #region private
         private float _angle;
         private float _pitchAngle;
+
+        private readonly RGBA Purple = new RGBA() { R = 146, G = 27, B = 167, A = 255 };
 
         // the following state must flow through the map (for remote playing)
 

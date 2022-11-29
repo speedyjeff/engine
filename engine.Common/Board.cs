@@ -332,6 +332,8 @@ namespace engine.Common
         private object OverlayLock;
         private BoardTranslationGraphics SubsetOfBoardGraphics;
 
+        private readonly RGBA ClearColor = new RGBA() { R = 0x12, G = 0x34, B = 0x56, A = 255 };
+
         // tick
         private Timer TickTimer;
         private int TickLock;
@@ -435,18 +437,17 @@ namespace engine.Common
             if (CellWidth == 0 || CellHeight == 0 || EdgeHeight == 0 || EdgeWidth == 0) return;
 
             // make edges transparent
-            var clear = new RGBA() { R = 0x12, G = 0x34, B = 0x56, A = 255 };
 
             // upper left
-            img.Graphics.Triangle(clear, 0, 0, EdgeWidth, 0, 0, EdgeHeight);
+            img.Graphics.Triangle(ClearColor, 0, 0, EdgeWidth, 0, 0, EdgeHeight);
             // upper right
-            img.Graphics.Triangle(clear, EdgeWidth, 0, CellWidth, 0, CellWidth, EdgeHeight);
+            img.Graphics.Triangle(ClearColor, EdgeWidth, 0, CellWidth, 0, CellWidth, EdgeHeight);
             // lower left
-            img.Graphics.Triangle(clear, 0, CellHeight - EdgeHeight, 0, CellHeight, EdgeWidth, CellHeight);
+            img.Graphics.Triangle(ClearColor, 0, CellHeight - EdgeHeight, 0, CellHeight, EdgeWidth, CellHeight);
             // lower right
-            img.Graphics.Triangle(clear, EdgeWidth, CellHeight, CellWidth, CellHeight, CellWidth, CellHeight - EdgeHeight);
+            img.Graphics.Triangle(ClearColor, EdgeWidth, CellHeight, CellWidth, CellHeight, CellWidth, CellHeight - EdgeHeight);
             // make the edges transparent
-            img.MakeTransparent(clear);
+            img.MakeTransparent(ClearColor);
         }
 
         // screen x,y into row,col

@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net6.0</TargetFrameworks>
+		<TargetFrameworks>net7.0</TargetFrameworks>
     <OutputType>Library</OutputType>
     <UseMaui>true</UseMaui>
  </PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="2.88.1-preview.79" />
+	  <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="2.88.3" />
 	  <PackageReference Include="System.Reactive" Version="5.0.0" />
 	</ItemGroup>
 

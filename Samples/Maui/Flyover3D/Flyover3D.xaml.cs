@@ -51,7 +51,7 @@ public partial class Flyover3D : ContentView
           {
               Width = width,
               Height = height,
-              ShowCoordinates = true,
+              ShowCoordinates = false,
               HorizonX = 1000,
               HorizonY = 1000,
               HorizonZ = 1000,

@@ -64,7 +64,7 @@ namespace engine.Samples.Winforms
               {
                   Width = width,
                   Height = height,
-                  ShowCoordinates = true,
+                  ShowCoordinates = false,
                   HorizonX = 1000,
                   HorizonY = 1000,
                   HorizonZ = 1000,
