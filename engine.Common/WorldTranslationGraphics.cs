@@ -13,7 +13,11 @@ namespace engine.Common
     {
         public WorldTranslationGraphics(IGraphics graphics)
         {
+            // set graphics
             Graphics = graphics;
+
+            // set the defaults
+            EnableTranslation();
         }
 
         public void Clear(RGBA color)

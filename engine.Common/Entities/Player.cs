@@ -101,7 +101,7 @@ namespace engine.Common.Entities
                     g.Ellipse(Color, X - Width / 2, Y - Height / 2, Width, Height, true);
 
                     // draw a fist
-                    g.Ellipse(Color, x2, y2, Width / 3, Width / 3);
+                    g.Ellipse(Color, x2 - (Width / 6), y2 - (Width / 6), Width / 3, Width / 3);
                 }
             }
             base.Draw(g);

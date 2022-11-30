@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -166,7 +167,7 @@ namespace engine.Common
                 elem.Draw(Surface);
             }
 
-            // draw the players
+            // draw the players (todo - if not on the same plane, they may be draw in wrong order)
             foreach (var player in visiblePlayers)
             {
                 if (hidden.Contains(player.Id)) continue;
@@ -473,9 +474,6 @@ namespace engine.Common
             // must have a human player for input
             if (this.Human == null) return;
 
-            // only if on the ground
-            if (Human.Z != Constants.Ground) return;
-
             // adjust the zoom
             if (delta > 0) Config.CameraZ -= 1f;
             else if (delta < 0) Config.CameraZ += 1f;
@@ -716,7 +714,15 @@ namespace engine.Common
             Element3D.SetShader(Element3DShader);
 
             // start paused
-            if (Config.StartMenu != null) Menu = Config.StartMenu;
+            if (Config.StartMenu != null)
+            {
+                Menu = Config.StartMenu;
+                Map.IsPaused = true;
+            }
+            else
+            {
+                Map.IsPaused = false;
+            }
 
             // add all the players (including the A
             // ServerUrl == null: (local) (non-remote server) case AND the server of the client-SERVER configuration

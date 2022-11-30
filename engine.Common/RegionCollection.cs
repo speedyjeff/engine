@@ -65,16 +65,27 @@ namespace engine.Common
             }
 
             // get the regionSize
-            if (sizes.Count == 0)
-            {
-                // setup only 1 region
-                RegionSize = Math.Max(width, Math.Max(height, depth));
-            }
-            else
+            var maxRegionSize = Math.Max(width, Math.Max(height, depth));
+            RegionSize = maxRegionSize;
+            if (sizes.Count > 0)
             {
                 // get the 80th percentile
                 sizes.Sort();
                 RegionSize = (int)sizes[(int)(sizes.Count * 0.8)];
+            }
+
+            // check if there is only one region and do an artifical split (worst case is that everything ends up in oversized - eg. 1 region)
+            if (RegionSize == maxRegionSize)
+            {
+                // split the RegionSize into smaller pieces - a default player is 50x50
+                // there are two possible strategies
+                //  1. absolute split (400x400x400 regions)
+                //  2. equal split (10%)
+                // the combined strategy is to split into at least by 10%, but not smaller than 2x a default player
+                var splitRegionSize = RegionSize / 10;
+                if (splitRegionSize < (50*2) || maxRegionSize > 400) RegionSize = 400;
+                else if (splitRegionSize > 50) RegionSize = splitRegionSize;
+                // else make one region
             }
 
             // init
