@@ -254,8 +254,6 @@ namespace engine.Common
                             if (elem is Player) player.Kills++;
 
                             if (OnElementDied != null) OnElementDied(elem);
-
-                            if (OnAddEphemerial != null) OnAddEphemerial(new OnScreenText() { Text = string.Format("Player {0} killed {1}", player.Name, elem.Name) });
                         }
                     }
                 }
@@ -425,7 +423,6 @@ namespace engine.Common
                 {
                     // this player has died as a result of taking damage from the zone
                     if (OnElementDied != null) OnElementDied(elem);
-                    if (OnAddEphemerial != null) OnAddEphemerial(new OnScreenText() { Text = string.Format("Player {0} died in the zone", elem.Name) });
                 }
             }
 
@@ -436,7 +433,11 @@ namespace engine.Common
         {
             if (item != null)
             {
-                if (item.CanAcquire)
+                if (item is EphemerialElement eph)
+                {
+                    if (OnAddEphemerial != null) OnAddEphemerial(eph);
+                }
+                else if (item.CanAcquire)
                 {
                     Items.Add(item.Id, item);
                 }

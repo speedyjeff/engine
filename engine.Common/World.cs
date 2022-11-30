@@ -20,7 +20,6 @@ namespace engine.Common
         public int Width { get; set; }
         public int Height { get; set; }
         public Menu StartMenu { get; set; }
-        public Menu EndMenu { get; set; }
         public Menu HUD { get; set; }
         public bool EnableZoom { get; set; }
         public bool ShowCoordinates { get; set; }
