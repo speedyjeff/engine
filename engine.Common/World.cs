@@ -770,13 +770,13 @@ namespace engine.Common
             timer.Start();
 
             // get a snapshot of the player ids
-            Dictionary<int,PlayerDetails>.KeyCollection ids;
+            List<int> ids;
             try
             {
                 DetailsLock.EnterReadLock();
 
                 // todo - is this thread safe?
-                ids = Details.Keys;
+                ids = Details.Keys.ToList();
             }
             finally
             {
