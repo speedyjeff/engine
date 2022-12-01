@@ -3,7 +3,6 @@ using engine.Common.Entities3D;
 using Microsoft.AspNetCore.SignalR.Client;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;

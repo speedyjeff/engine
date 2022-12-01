@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -967,7 +965,7 @@ namespace engine.Common
             // set state back to not running
             System.Threading.Volatile.Write(ref detail.UpdatePlayerLock, 0);
 
-            if (timer.ElapsedMilliseconds > 100) System.Diagnostics.Debug.WriteLine("**UpdatePlayer Duration {0} ms", timer.ElapsedMilliseconds);
+            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**UpdatePlayer Duration {0} ms", timer.ElapsedMilliseconds);
         }
 
         // backgroup callback

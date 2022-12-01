@@ -10,7 +10,7 @@ using engine.Common.Entities;
 
 namespace engine.Common
 {
-    struct Region
+    public struct Region
     {
         public Region(int row, int col, int layer)
         {
@@ -46,7 +46,7 @@ namespace engine.Common
     // this collection will provide fast access to a subset of the elements
     // the subset is defined by a region
 
-    class RegionCollection
+    public class RegionCollection
     {
         public RegionCollection(IEnumerable<Element> elements, int width, int height, int depth)
         {
@@ -66,8 +66,14 @@ namespace engine.Common
 
             // get the regionSize
             var maxRegionSize = Math.Max(width, Math.Max(height, depth));
-            RegionSize = maxRegionSize;
-            if (sizes.Count > 0)
+            if (sizes.Count == 0)
+            {
+                // we hit a corner case
+                // set mins to 0
+                minx = miny = minz = 0;
+                RegionSize = maxRegionSize;
+            }
+            else
             {
                 // get the 80th percentile
                 sizes.Sort();
@@ -125,6 +131,10 @@ namespace engine.Common
             // add all the elements
             foreach (var elem in elements) Add(elem.Id, elem);
         }
+
+        public int Width { get; private set; }
+        public int Height { get; private set; }
+        public int Depth { get; private set; }
 
         public void Add(int key, Element elem)
         {
@@ -203,6 +213,9 @@ namespace engine.Common
                 }
                 else
                 {
+                    // check if the src and dst are the same, and dst is not out of range, keep it here
+                    if (src.Equals(dst) && !IsOutofRange(dst)) return;
+
                     // find it and remove it
                     if (!Regions[src.Layer][src.Row][src.Col].TryGetValue(key, out elem)) throw new Exception("Failed to find the element to move");
                     if (!Regions[src.Layer][src.Row][src.Col].Remove(key)) throw new Exception("Failed to remove this element");
@@ -218,7 +231,7 @@ namespace engine.Common
             }
         }
 
-        public IEnumerable<Element> Values(float x1, float y1, float z1, float x2, float y2, float z2)
+        public IEnumerable<Element> Values(float x1, float y1, float z1, float x2, float y2, float z2, bool expandRegion = true)
         {
             try
             {
@@ -237,8 +250,11 @@ namespace engine.Common
                 var maxc = Math.Max(c1, c2);
 
                 // expand the region
-                minr -= 1; minc -= 1; minl -= 1;
-                maxr += 1; maxc += 1; maxl += 1;
+                if (expandRegion)
+                {
+                    minr -= 1; minc -= 1; minl -= 1;
+                    maxr += 1; maxc += 1; maxl += 1;
+                }
 
                 // hold the lock for the duration of this call
                 for (int l = (minl >= 0) ? minl : 0; l <= maxl && l < Regions.Length; l++)
@@ -289,9 +305,6 @@ namespace engine.Common
         private Dictionary<int, Element>[][][] Regions;
         private Dictionary<int, Element> Oversized;
         private int RegionSize;
-        private int Width;
-        private int Height;
-        private int Depth;
         private int Columns;
         private int Rows;
         private int Layers;

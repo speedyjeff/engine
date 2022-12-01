@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 
 using engine.Common.Entities;
@@ -53,10 +52,13 @@ namespace engine.Common
                     if (((depth / 2) + (elem.Depth / 2)) < Math.Abs(z - elem.Z)) continue;
 
                     // check they are within the bounds of x,y
-                    var x3 = elem.X - elem.Width / 2;
-                    var y3 = elem.Y - elem.Height / 2;
-                    var x4 = elem.X + elem.Width / 2;
-                    var y4 = elem.Y + elem.Height / 2;
+                    // NOTE: there is a race here, elements may be moving while comparing
+                    var ex = elem.X;
+                    var ey = elem.Y;
+                    var x3 = ex - elem.Width / 2;
+                    var y3 = ey - elem.Height / 2;
+                    var x4 = ex + elem.Width / 2;
+                    var y4 = ey + elem.Height / 2;
 
                     if (Collision.IntersectingRectangles(x1, y1, x2, y2,
                         x3, y3, x4, y4))
@@ -574,8 +576,13 @@ namespace engine.Common
             PlayersLock = new ReaderWriterLockSlim();
 
             // seperate the items from the obstacles (used to reduce what is considered, and for ordering)
-            var obstacles = (objects != null) ? objects.Where(o => !o.CanAcquire) : new List<Element>();
-            var items = (objects != null) ? objects.Where(o => o.CanAcquire) : new List<Element>();
+            var obstacles = new List<Element>();
+            var items = new List<Element>();
+            foreach(var o in objects)
+            {
+                if (o.CanAcquire) items.Add(o);
+                else obstacles.Add(o);
+            }
 
             // add all things to the map
             Obstacles = new RegionCollection(obstacles, Width, Height, Depth);

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 
 using engine.Common;
 using engine.Common.Entities3D;
