@@ -541,17 +541,16 @@ namespace engine.Common
 
             Map.AddItem(item);
 
-            if (item is Player)
+            if (item is Player player)
             {
-                AddPlayer(item as Player, setupUpdatePlayer: string.IsNullOrWhiteSpace(Config.ServerUrl));
+                AddPlayer(player);
             }
         }
 
         public void RemoveItem(Element item)
         {
-            if (item is Player)
+            if (item is Player player)
             {
-                var player = (item as Player);
                 Type type = null;
 
                 // remove an active player
@@ -570,18 +569,15 @@ namespace engine.Common
                     }
                 }
 
-                // clean up the dead players
-                if (player.IsDead)
+                // clean up players
+                try
                 {
-                    try
-                    {
-                        DetailsLock.EnterWriteLock();
-                        Details.Remove(player.Id);
-                    }
-                    finally
-                    {
-                        DetailsLock.ExitWriteLock();
-                    }
+                    DetailsLock.EnterWriteLock();
+                    Details.Remove(player.Id);
+                }
+                finally
+                {
+                    DetailsLock.ExitWriteLock();
                 }
             }
             else throw new Exception("Invalid item to remove");
@@ -652,8 +648,6 @@ namespace engine.Common
         class PlayerDetails
         {
             public int Id;
-            public Timer UpdatePlayerTimer;
-            public int UpdatePlayerLock; // to avoid reentrancy in the timer
 
             // physics
             public object ForceLock;
@@ -673,6 +667,8 @@ namespace engine.Common
                 ForceInMotion = new bool[3];
             }
         }
+        public Timer UpdateAllPlayersTimer;
+        public int UpdateAllPlayersLock; // to avoid reentrancy in the timer
 
         private enum TimeAxis { X = 0, Y = 1, Z = 2};
 
@@ -721,10 +717,8 @@ namespace engine.Common
                 Map.IsPaused = false;
             }
 
-            // add all the players (including the A
-            // ServerUrl == null: (local) (non-remote server) case AND the server of the client-SERVER configuration
-            // ServerUrl != null: (remote) remote clients of the CLIENT-server configuration
-            foreach (var player in players) AddPlayer(player, setupUpdatePlayer: string.IsNullOrWhiteSpace(Config.ServerUrl));
+            // add all the players
+            foreach (var player in players) AddPlayer(player);
 
             // hook up map callbacks
             Map.OnElementHit += HitByAttack;
@@ -732,7 +726,13 @@ namespace engine.Common
             Map.OnAddEphemerial += EphemerialAdded;
 
             // setup the background update timer
-            BackgroundTimer = new Timer(BackgroundUpdate, null, 0, Constants.GlobalClock);
+            BackgroundTimer = new Timer(BackgroundUpdate, state: null, dueTime: 0, period: Constants.GlobalClock);
+            if (string.IsNullOrWhiteSpace(Config.ServerUrl))
+            {
+                // ServerUrl == null: (local) (non-remote server) case AND the server of the client-SERVER configuration (Updates should happen)
+                // ServerUrl != null: (remote) remote clients of the CLIENT-server configuration (Updates should NOT happen)
+                UpdateAllPlayersTimer = new Timer(UpdateAllPlayers, state: null, dueTime: 0, period: Constants.GlobalClock);
+            }
         }
 
         // menu items
@@ -756,216 +756,229 @@ namespace engine.Common
             Map.IsPaused = false;
         }
 
-        // AI and other updates for players
-        private void UpdatePlayer(object state)
+        // AI and other updates for ALL players
+        private void UpdateAllPlayers(object state)
         {
             // block usage if a menu is being displayed
             if (Map.IsPaused) return;
 
-            // move the AI
-            int id = (int)state;
-            Stopwatch timer = new Stopwatch();
+            // the timer is reentrant, so only allow one instance to run
+            if (System.Threading.Interlocked.CompareExchange(ref UpdateAllPlayersLock, 1, 0) != 0) return;
 
-            // grab the details
-            PlayerDetails detail = null;
+            // update the player
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            // get a snapshot of the player ids
+            Dictionary<int,PlayerDetails>.KeyCollection ids;
             try
             {
                 DetailsLock.EnterReadLock();
-                if (!Details.TryGetValue(id, out detail))
-                {
-                    // the player must be dead and caused the record to be cleaned up
-                    return;
-                }
+
+                // todo - is this thread safe?
+                ids = Details.Keys;
             }
             finally
             {
                 DetailsLock.ExitReadLock();
             }
 
-            // the timer is reentrant, so only allow one instance to run
-            if (System.Threading.Interlocked.CompareExchange(ref detail.UpdatePlayerLock, 1, 0) != 0) return;
-
-            Player player = Map.GetPlayer(detail.Id);
-
-            timer.Start();
-
-            // todo when can the player be null?
-            if (player != null)
+            // iterate through all the players and update
+            Parallel.ForEach(ids, (id) =>
             {
-                // for all players, call update function (consistent clock to allow players to make updates)
-                player.Update();
-
-                // if AI, then query for movement
-                if (player is AI ai)
+                // grab the details
+                PlayerDetails detail = null;
+                try
                 {
-                    float xdelta = 0;
-                    float ydelta = 0;
-                    float zdelta = 0;
-                    float angle = 0;
-
-                    if (ai.IsDead)
+                    DetailsLock.EnterReadLock();
+                    if (!Details.TryGetValue(id, out detail))
                     {
-                        // remove the AI player
-                        RemoveItem(ai);
-
-                        // stop the timer
-                        detail.UpdatePlayerTimer.Dispose();
+                        // the player must be dead and caused the record to be cleaned up
                         return;
                     }
-
-                    List<Element> elements = Map.WithinWindow(ai.X, ai.Y, ai.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
-                    var angleToCenter = Collision.CalculateAngleFromPoint(ai.X, ai.Y, Config.Width / 2, Config.Height / 2);
-                    var inZone = Map.Background.Damage(ai.X, ai.Y) > 0;
-
-                    // get action from AI
-
-                    var action = ai.Action(elements, angleToCenter, inZone, ref xdelta, ref ydelta, ref zdelta, ref angle);
-
-                    // provide details for telemetry
-                    if (OnBeforeAction != null)
-                    {
-                        OnBeforeAction(ai, new ActionDetails()
-                        {
-                            Elements = elements,
-                            AngleToCenter = angleToCenter,
-                            InZone = inZone,
-                            XDelta = xdelta,
-                            YDelta = ydelta,
-                            ZDelta = zdelta,
-                            Angle = angle
-                        });
-                    }
-
-                    // turn
-                    Map.Turn(ai, yaw: angle, pitch: 0f, roll: 0f);
-
-                    // perform action
-                    bool result = false;
-                    Type item = null;
-                    switch (action)
-                    {
-                        case ActionEnum.Drop:
-                            result = Drop(ai, out item);
-                            ai.Feedback(action, item, result);
-                            break;
-                        case ActionEnum.Pickup:
-                            result = Pickup(ai, out item);
-                            ai.Feedback(action, item, result);
-                            break;
-                        case ActionEnum.Reload:
-                            result = Reload(ai, out AttackStateEnum reloaded);
-                            ai.Feedback(action, reloaded, result);
-                            break;
-                        case ActionEnum.Attack:
-                            result = Attack(ai, out AttackStateEnum attack);
-                            ai.Feedback(action, attack, result);
-                            break;
-                        case ActionEnum.SwitchPrimary:
-                            result = SwitchPrimary(ai, out item);
-                            ai.Feedback(action, item, result);
-                            break;
-                        case ActionEnum.Jump:
-                            result = Jump(ai);
-                            ai.Feedback(action, null, result);
-                            break;
-                        case ActionEnum.Move:
-                        case ActionEnum.None:
-                            break;
-                        case ActionEnum.Place:
-                            result = Place(ai);
-                            ai.Feedback(action, null, result);
-                            break;
-                        default: throw new Exception("Unknown ai action : " + action);
-                    }
-
-                    // send after telemetry
-                    if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(ai, action, result);
-
-                    // have the AI move
-                    var moved = Move(ai, xdelta, ydelta, zdelta, Constants.DefaultPace);
-                    ai.Feedback(ActionEnum.Move, null, moved);
-                    if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
+                }
+                finally
+                {
+                    DetailsLock.ExitReadLock();
                 }
 
-                // apply forces, if necessary
-                if (Config.ForcesApplied > 0 && player.CanMove)
+                Player player = Map.GetPlayer(detail.Id);
+
+                // todo when can the player be null?
+                if (player != null)
                 {
-                    // apply 'jump' force
-                    if ((Config.ForcesApplied & (int)Forces.Y) > 0)
-                    {
-                        var result = ApplyForce(detail, player, TimeAxis.Y, force: detail.Forces[(int)TimeAxis.Y], opposingForce: Constants.Gravity);
-                        // we are in the air if the force was successfully applied OR if we were heading up (negative) and were unsuccessful
-                        detail.ForceInMotion[(int)TimeAxis.Y] = (result & ForceState.Success) != 0 || ((result & ForceState.Failed) != 0 && (result & ForceState.Negative) != 0);
-                    }
+                    // for all players, call update function (consistent clock to allow players to make updates)
+                    player.Update();
 
-                    // apply a horizontal force, if necessary
-                    if ((Config.ForcesApplied & (int)Forces.X) > 0)
+                    // if AI, then query for movement
+                    if (player is AI ai)
                     {
-                        if (detail.ForceInMotion[(int)TimeAxis.Y] && detail.Forces[(int)TimeAxis.X] != 0)
+                        float xdelta = 0;
+                        float ydelta = 0;
+                        float zdelta = 0;
+                        float angle = 0;
+
+                        if (ai.IsDead)
                         {
-                            var result = ApplyForce(detail, player, TimeAxis.X, force: detail.Forces[(int)TimeAxis.X], opposingForce: 0f);
-                            detail.ForceInMotion[(int)TimeAxis.X] = (result & ForceState.Success) != 0;
+                            // remove the AI
+                            RemoveItem(ai);
+                            return;
                         }
+
+                        List<Element> elements = Map.WithinWindow(ai.X, ai.Y, ai.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
+                        var angleToCenter = Collision.CalculateAngleFromPoint(ai.X, ai.Y, Config.Width / 2, Config.Height / 2);
+                        var inZone = Map.Background.Damage(ai.X, ai.Y) > 0;
+
+                        // get action from AI
+
+                        var action = ai.Action(elements, angleToCenter, inZone, ref xdelta, ref ydelta, ref zdelta, ref angle);
+
+                        // provide details for telemetry
+                        if (OnBeforeAction != null)
+                        {
+                            OnBeforeAction(ai, new ActionDetails()
+                            {
+                                Elements = elements,
+                                AngleToCenter = angleToCenter,
+                                InZone = inZone,
+                                XDelta = xdelta,
+                                YDelta = ydelta,
+                                ZDelta = zdelta,
+                                Angle = angle
+                            });
+                        }
+
+                        // turn
+                        Map.Turn(ai, yaw: angle, pitch: 0f, roll: 0f);
+
+                        // perform action
+                        bool result = false;
+                        Type item = null;
+                        switch (action)
+                        {
+                            case ActionEnum.Drop:
+                                result = Drop(ai, out item);
+                                ai.Feedback(action, item, result);
+                                break;
+                            case ActionEnum.Pickup:
+                                result = Pickup(ai, out item);
+                                ai.Feedback(action, item, result);
+                                break;
+                            case ActionEnum.Reload:
+                                result = Reload(ai, out AttackStateEnum reloaded);
+                                ai.Feedback(action, reloaded, result);
+                                break;
+                            case ActionEnum.Attack:
+                                result = Attack(ai, out AttackStateEnum attack);
+                                ai.Feedback(action, attack, result);
+                                break;
+                            case ActionEnum.SwitchPrimary:
+                                result = SwitchPrimary(ai, out item);
+                                ai.Feedback(action, item, result);
+                                break;
+                            case ActionEnum.Jump:
+                                result = Jump(ai);
+                                ai.Feedback(action, null, result);
+                                break;
+                            case ActionEnum.Move:
+                            case ActionEnum.None:
+                                break;
+                            case ActionEnum.Place:
+                                result = Place(ai);
+                                ai.Feedback(action, null, result);
+                                break;
+                            default: throw new Exception("Unknown ai action : " + action);
+                        }
+
+                        // send after telemetry
+                        if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(ai, action, result);
+
+                        // have the AI move
+                        var moved = Move(ai, xdelta, ydelta, zdelta, Constants.DefaultPace);
+                        ai.Feedback(ActionEnum.Move, null, moved);
+                        if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
                     }
 
-                    // apply z force, if necessary
-                    if ((Config.ForcesApplied & (int)Forces.Z) > 0)
+                    // apply forces, if necessary
+                    if (Config.ForcesApplied > 0 && player.CanMove)
                     {
-                        if (detail.Forces[(int)TimeAxis.Z] != 0)
+                        // apply 'jump' force
+                        if ((Config.ForcesApplied & (int)Forces.Y) > 0)
                         {
-                            // decend
-                            var result = ApplyForce(detail, player, TimeAxis.Z, force: 0f, opposingForce: -0.03f * Constants.Gravity);
-                            if (player.Z <= Constants.IsTouchingDistance ||
-                                ((int)result & (int)ForceState.Failed) != 0)
+                            var result = ApplyForce(detail, player, TimeAxis.Y, force: detail.Forces[(int)TimeAxis.Y], opposingForce: Constants.Gravity);
+                            // we are in the air if the force was successfully applied OR if we were heading up (negative) and were unsuccessful
+                            detail.ForceInMotion[(int)TimeAxis.Y] = (result & ForceState.Success) != 0 || ((result & ForceState.Failed) != 0 && (result & ForceState.Negative) != 0);
+                        }
+
+                        // apply a horizontal force, if necessary
+                        if ((Config.ForcesApplied & (int)Forces.X) > 0)
+                        {
+                            if (detail.ForceInMotion[(int)TimeAxis.Y] && detail.Forces[(int)TimeAxis.X] != 0)
                             {
-                                // ensure the player is on the ground
-                                Teleport(player, x: player.X, player.Y, z: Constants.Ground);
-
-                                // remove the force
-                                RemoveForce(detail, TimeAxis.Z);
-
-                                // check if the player is touching an object, if so then move
-                                int count = 100;
-                                float xstep = 0.01f;
-                                float xmove = 10f;
-                                if (player.X > Map.Width / 2)
-                                {
-                                    // move the other way
-                                    xstep *= -1;
-                                    xmove *= -1;
-                                }
-
-                                // check that we are in a safe place to land
-                                do
-                                {
-                                    float xdelta = xstep;
-                                    float ydelta = 0;
-                                    float zdelta = 0;
-                                    if (Move(player, xdelta, ydelta, zdelta, Constants.DefaultPace))
-                                    {
-                                        break;
-                                    }
-
-                                    // move over
-                                    Teleport(player, player.X + xmove, player.Y, player.Z);
-                                }
-                                while (count-- > 0);
-
-                                if (count <= 0)
-                                {
-                                    System.Diagnostics.Debug.WriteLine("Failed to move after ZForce");
-                                }
+                                var result = ApplyForce(detail, player, TimeAxis.X, force: detail.Forces[(int)TimeAxis.X], opposingForce: 0f);
+                                detail.ForceInMotion[(int)TimeAxis.X] = (result & ForceState.Success) != 0;
                             }
                         }
-                    } // if z force
-                } // if apply force
-            } // if (player != null)
+
+                        // apply z force, if necessary
+                        if ((Config.ForcesApplied & (int)Forces.Z) > 0)
+                        {
+                            if (detail.Forces[(int)TimeAxis.Z] != 0)
+                            {
+                                // decend
+                                var result = ApplyForce(detail, player, TimeAxis.Z, force: 0f, opposingForce: -0.03f * Constants.Gravity);
+                                if (player.Z <= Constants.IsTouchingDistance ||
+                                    ((int)result & (int)ForceState.Failed) != 0)
+                                {
+                                    // ensure the player is on the ground
+                                    Teleport(player, x: player.X, player.Y, z: Constants.Ground);
+
+                                    // remove the force
+                                    RemoveForce(detail, TimeAxis.Z);
+
+                                    // check if the player is touching an object, if so then move
+                                    int count = 100;
+                                    float xstep = 0.01f;
+                                    float xmove = 10f;
+                                    if (player.X > Map.Width / 2)
+                                    {
+                                        // move the other way
+                                        xstep *= -1;
+                                        xmove *= -1;
+                                    }
+
+                                    // check that we are in a safe place to land
+                                    do
+                                    {
+                                        float xdelta = xstep;
+                                        float ydelta = 0;
+                                        float zdelta = 0;
+                                        if (Move(player, xdelta, ydelta, zdelta, Constants.DefaultPace))
+                                        {
+                                            break;
+                                        }
+
+                                        // move over
+                                        Teleport(player, player.X + xmove, player.Y, player.Z);
+                                    }
+                                    while (count-- > 0);
+
+                                    if (count <= 0)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine("Failed to move after ZForce");
+                                    }
+                                }
+                            }
+                        } // if z force
+                    } // if apply force
+                } // if (player != null)
+            });
             timer.Stop();
 
             // set state back to not running
-            System.Threading.Volatile.Write(ref detail.UpdatePlayerLock, 0);
+            System.Threading.Volatile.Write(ref UpdateAllPlayersLock, 0);
 
-            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**UpdatePlayer Duration {0} ms", timer.ElapsedMilliseconds);
+            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**UpdateAllPlayers Duration {0} ms", timer.ElapsedMilliseconds);
         }
 
         // backgroup callback
@@ -1048,7 +1061,7 @@ namespace engine.Common
         }
 
         // support
-        private void AddPlayer(Player player, bool setupUpdatePlayer)
+        private void AddPlayer(Player player)
         {
             // add another alive player
             Alive++;
@@ -1083,15 +1096,6 @@ namespace engine.Common
             {
                 // apply an initial Z force
                 AddForce(detail, TimeAxis.Z, percentage: 1f);
-            }
-
-            // setup humans and AI with an Update loop
-            if (setupUpdatePlayer)
-            {
-                if (player is AI || Config.ForcesApplied > 0)
-                {
-                    detail.UpdatePlayerTimer = new Timer(UpdatePlayer, player.Id, 0, Constants.GlobalClock);
-                }
             }
         }
 
