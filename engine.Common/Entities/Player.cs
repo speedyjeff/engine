@@ -20,6 +20,7 @@ namespace engine.Common.Entities
             HandCapacity = 1;
             Secondary = new Element[HandCapacity];
             MaxYForcePercentage = 1f;
+            Speed = Constants.Speed;
 
             // hit box
             Height = 50;
@@ -42,6 +43,8 @@ namespace engine.Common.Entities
         public int Kills { get; set; }
 
         public float MaxYForcePercentage { get; set; }
+
+        public float Speed { get; protected set; }
 
         public virtual string HurtSoundPath => "hurt";
 

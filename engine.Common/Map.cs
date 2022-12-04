@@ -122,6 +122,9 @@ namespace engine.Common
             if (pace < Constants.MinSpeedMultiplier) pace = Constants.MinSpeedMultiplier;
             float speed = Constants.Speed * pace;
 
+            // allow for player defined speed
+            if (elem is Player player) speed = player.Speed * pace;
+
             // check if the delta is legal
             if (Math.Abs(xdelta) + Math.Abs(ydelta) + Math.Abs(zdelta) > 1.00001) return false;
 

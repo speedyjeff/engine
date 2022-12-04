@@ -55,7 +55,6 @@ namespace engine.Common
 
         // player options
         public const int Speed = 10;
-        public const float MaxSpeedMultiplier = 4;
         public const float MinSpeedMultiplier = 0.1f;
         public const int MaxShield = 100;
         public const int MaxHealth = 100;
