@@ -539,15 +539,22 @@ namespace engine.Common
             // check that they intersect on the depth plane
             if (((elem1.Depth / 2) + (elem2.Depth / 2)) < Math.Abs((elem1.Z + z1delta) - elem2.Z)) return false;
 
-            float x1 = (elem1.X + x1delta) - (elem1.Width / 2);
-            float y1 = (elem1.Y + y1delta) - (elem1.Height / 2);
-            float x2 = (elem1.X + x1delta) + (elem1.Width / 2);
-            float y2 = (elem1.Y + y1delta) + (elem1.Height / 2);
+            // cache x,y (as there is a race)
+            var e1x = elem1.X;
+            var e1y = elem1.Y;
+            var e2x = elem2.X;
+            var e2y = elem2.Y;
 
-            float x3 = (elem2.X) - (elem2.Width / 2);
-            float y3 = (elem2.Y) - (elem2.Height / 2);
-            float x4 = (elem2.X) + (elem2.Width / 2);
-            float y4 = (elem2.Y) + (elem2.Height / 2);
+            // calculate edges
+            float x1 = (e1x + x1delta) - (elem1.Width / 2);
+            float y1 = (e1y + y1delta) - (elem1.Height / 2);
+            float x2 = (e1x + x1delta) + (elem1.Width / 2);
+            float y2 = (e1y + y1delta) + (elem1.Height / 2);
+
+            float x3 = (e2x) - (elem2.Width / 2);
+            float y3 = (e2y) - (elem2.Height / 2);
+            float x4 = (e2x) + (elem2.Width / 2);
+            float y4 = (e2y) + (elem2.Height / 2);
 
             return Collision.IntersectingRectangles(x1, y1, x2, y2, x3, y3, x4, y4);
         }

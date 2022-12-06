@@ -268,7 +268,11 @@ namespace engine.Common
                 {
                     RegionColumnLocks[src.Row][src.Col].EnterWriteLock();
 
-                    if (!Regions[src.Layer][src.Row][src.Col].TryGetValue(key, out elem)) throw new Exception("Failed to find the element to move");
+                    if (!Regions[src.Layer][src.Row][src.Col].TryGetValue(key, out elem))
+                    {
+                        System.Diagnostics.Debug.WriteLine("Failed to find the element to move");
+                        return;
+                    }
                     if (!Regions[src.Layer][src.Row][src.Col].Remove(key)) throw new Exception("Failed to remove this element");
                 }
                 finally

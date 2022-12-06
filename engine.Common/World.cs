@@ -100,6 +100,7 @@ namespace engine.Common
         }
 
         public delegate bool BeforeKeyPressedDelegate(Player player, ref char key);
+        public delegate bool BeforeMousedownDelegate(Element elem, MouseButton btn, float sx, float sy, float wx, float wy, float wz, ref char key);
 
         public event Func<Menu> OnPaused;
         public event Action OnResumed;
@@ -110,9 +111,12 @@ namespace engine.Common
         public event Func<Player, char, bool> OnAfterKeyPressed;
         public event Action<Player, ActionDetails> OnBeforeAction;
         public event Action<Player, ActionEnum, bool> OnAfterAction;
+        public event BeforeMousedownDelegate OnBeforeMousedown;
+        public event Action<Element, char, bool> OnAfterMousedown;
 
         public int Width { get { return Map.Width;  } }
         public int Height {  get { return Map.Height;  } }
+        public int Depth { get { return Map.Depth; } }
 
         public Player Human { get; private set; }
         public int Alive { get; private set; }
@@ -522,11 +526,35 @@ namespace engine.Common
 
                 Map.Turn(Human, yaw, pitch, roll: 0f);
             }
+
+            // todo move events
         }
 
         public void Mousedown(MouseButton btn, float x, float y)
         {
+            // block usage if a menu is being displayed
+            if (Map.IsPaused) return;
+
+            // must have a human player for input
+            if (Human == null || Human.IsDead) return;
+
+            // before callbacks
+            var key = '\0';
+            Element elem = null;
+            if (OnBeforeMousedown != null)
+            {
+                // see what is touching the mouse pointer
+                TryGetElementAtScreenCoordinate(x, y, out float wx, out float wy, out float wz, out elem);
+
+                // send the notifiction
+                if (OnBeforeMousedown(elem, btn, sx: x, sy: y, wx, wy, wz, ref key)) return;
+            }
+
             // ignore
+            var result = false;
+
+            // after callbacks
+            if (OnAfterMousedown != null) OnAfterMousedown(elem, key, result);
         }
 
         public void Mouseup(MouseButton btn, float x, float y)
@@ -678,6 +706,7 @@ namespace engine.Common
         private WorldConfiguration Config;
         private HashSet<int> UniquePlayers;
         private ReaderWriterLockSlim DetailsLock;
+        private Element MouseSelectRegion;
 
         private Timer BackgroundTimer;
         private int BackgroundLock;
@@ -1075,6 +1104,41 @@ namespace engine.Common
         }
 
         // support
+        private bool TryGetElementAtScreenCoordinate(float x, float y, out float wx, out float wy, out float wz, out Element elem)
+        {
+            elem = null;
+            wx = wy = wz = 0f;
+
+            // todo 3d
+
+            if (Human == null) return false;
+
+            // convert screen x,y into world x,y
+            if (MouseSelectRegion == null) MouseSelectRegion = new Element() { Width = 50, Height = 50 };
+
+            // calculate how far the distance should be scaled (from WorldTranslationGraphics)
+            var zoom = Human.Z + Config.CameraZ;
+
+            // scale the sx,sy - the Human player is at the center of the screen, which is relative positioning
+            var xdelta = x - (Surface.Width / 2f);
+            var ydelta = y - (Surface.Height / 2f);
+            wx = Human.X + (xdelta * zoom);
+            wy = Human.Y + (ydelta * zoom);
+
+            // identify what element is touching is point (only will consider obstacles)
+            xdelta = ydelta = 0f;
+            var zdelta = 0f;
+            lock (MouseSelectRegion)
+            {
+                MouseSelectRegion.X = wx;
+                MouseSelectRegion.Y = wy;
+                MouseSelectRegion.Z = 0;
+                Map.WhatWouldPlayerTouch(MouseSelectRegion, ref xdelta, ref ydelta, ref zdelta, out elem);
+            }
+
+            return elem != null;
+        }
+
         private void AddPlayer(Player player)
         {
             // add another alive player

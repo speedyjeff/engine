@@ -138,18 +138,19 @@ public struct WorldConfiguration
 {
   public int Width;
   public int Height;
-  public bool CenterIndicator; // not available in 3D
   public Menu StartMenu;
-  public Menu EndMenu;
   public Menu HUD;
   public bool EnableZoom;     // not available in 3D
-  public bool DisplayStats;
   public bool ShowCoordinates;
   public bool ForcesApplied;
   public float HorizonX;
   public float HorizonY;
   public float HorizonZ;
   public bool Is3D;           // enables 3D
+  public float CameraX;
+  public float CameraY;
+  public float CameraZ;
+  public string ServerUrl;    // experimental
 }
 
 public struct ActionDetails
@@ -164,6 +165,7 @@ public struct ActionDetails
 }
 
 public delegate bool BeforeKeyPressedDelegate(Player player, ref char key);
+public delegate bool BeforeMousedownDelegate(Player player, MouseButton btn, float sx, float sy, float wx, float wy, ref char key);
 
 public event Func<Menu> OnPaused;
 public event Action OnResumed;
@@ -174,6 +176,8 @@ public event BeforeKeyPressedDelegate OnBeforeKeyPressed;
 public event Func<Player, char, bool> OnAfterKeyPressed;
 public event Func<Player, ActionDetails> OnBeforeAction;
 public event Func<Player, ActionEnum, bool> OnAfterAction;
+public event BeforeMousedownDelegate OnBeforeMousedown;
+public event Action<Player, char, bool> OnAfterMousedown;
 
 public int Width { get; }
 public int Height {  get; }
@@ -183,12 +187,12 @@ public Player Human { get; }
 public int Alive { get; }
 
 public void AddItem(Element item);
-public void RemoveAllItems(Type type);
 public void RemoveItem(Element item);
 public void Play(string path);
 public void Music(string path, bool repeat);
 public void ShowMenu(Menu menu);
 public void Teleport(Player player, float x, float y, float z);
+public void ApplyForce(Player player, Forces axis, float percentage);
 ```
 
 There are a default set of key bindings which can be overridden by subscribing to OnBeforeKeyPressed.
@@ -297,6 +301,14 @@ public override void Draw(IGraphics g)
   // will likely want to set ShowDefaultDrawing = false so you an draw your
   // own player
   base.Draw(g);
+}
+```
+
+```C#
+public override void Update()
+{
+  // make updates to state on this cadance
+  base.Update();
 }
 ```
 
