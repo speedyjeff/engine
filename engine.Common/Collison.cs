@@ -10,6 +10,13 @@ namespace engine.Common
     //                   |
     //                (+y, 0)
 
+    // angles
+    //                (180)
+    //                   |
+    // (270) ----------------------- (90)
+    //                   |
+    //                 (0)
+
     public static class Collision
     {
         public static bool IntersectingRectangles(

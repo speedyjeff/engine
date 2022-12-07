@@ -927,12 +927,9 @@ namespace engine.Common
                             if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(ai, action, result);
 
                             // have the AI move
-                            if (action != ActionEnum.None && Math.Abs(xdelta) + Math.Abs(ydelta) + Math.Abs(zdelta) > 0)
-                            {
-                                var moved = Move(ai, xdelta, ydelta, zdelta, Constants.DefaultPace);
-                                ai.Feedback(ActionEnum.Move, null, moved);
-                                if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
-                            }
+                            var moved = Move(ai, xdelta, ydelta, zdelta, Constants.DefaultPace);
+                            ai.Feedback(ActionEnum.Move, null, moved);
+                            if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
                         }
 
                         // apply forces, if necessary
