@@ -30,6 +30,7 @@ namespace engine.Common
         public float CameraY { get; set; }
         public float CameraZ { get; set; }
         public string ServerUrl { get; set; }
+        public bool EnableFastPlayerUpdate { get; set; }
     }
 
     public enum Forces { None = 0, X = 1, Y = 2, Z = 4};
@@ -707,9 +708,7 @@ namespace engine.Common
         private HashSet<int> UniquePlayers;
         private ReaderWriterLockSlim DetailsLock;
         private Element MouseSelectRegion;
-
-        private Timer BackgroundTimer;
-        private int BackgroundLock;
+        private bool EnableFastPlayerUpdate;
 
         private List<EphemerialElement> Ephemerial;
         private ReaderWriterLockSlim EphemerialLock;
@@ -729,6 +728,7 @@ namespace engine.Common
             UniquePlayers = new HashSet<int>();
             Ephemerial = new List<EphemerialElement>();
             EphemerialLock = new ReaderWriterLockSlim();
+            EnableFastPlayerUpdate = config.EnableFastPlayerUpdate;
 
             // 3D shaders
             Element3D.SetShader(Element3DShader);
@@ -752,15 +752,14 @@ namespace engine.Common
             Map.OnElementDied += PlayerDied;
             Map.OnAddEphemerial += EphemerialAdded;
 
-            // setup the background update timer
-            BackgroundTimer = new Timer(BackgroundUpdate, state: null, dueTime: 0, period: Constants.GlobalClock);
+            // setup the background updates
             if (string.IsNullOrWhiteSpace(Config.ServerUrl))
             {
                 // ServerUrl == null: (local) (non-remote server) case AND the server of the client-SERVER configuration (Updates should happen)
                 // ServerUrl != null: (remote) remote clients of the CLIENT-server configuration (Updates should NOT happen)
 
                 // start the update thread
-                Task.Run(UpdateAllPlayers);
+                Task.Run(UpdateAllPlayersAndBackground);
             }
         }
 
@@ -785,8 +784,8 @@ namespace engine.Common
             Map.IsPaused = false;
         }
 
-        // AI and other updates for ALL players
-        private void UpdateAllPlayers()
+        // AI and other updates for ALL players, and background
+        private void UpdateAllPlayersAndBackground()
         {
             // continually update
             while (true)
@@ -1008,12 +1007,16 @@ namespace engine.Common
                         } // if apply force
                     } // if (player != null)
                 });
+
+                // do a background update
+                BackgroundUpdate();
+
                 timer.Stop();
 
                 if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine($"**UpdateAllPlayers Duration {timer.ElapsedMilliseconds} ms");
 
                 // check if we should stall before our next round
-                if (timer.ElapsedMilliseconds < Constants.GlobalClock)
+                if (!EnableFastPlayerUpdate && timer.ElapsedMilliseconds < Constants.GlobalClock)
                 {
                     var delta = (int)Math.Ceiling((Constants.GlobalClock - timer.ElapsedMilliseconds) * 0.9f);
                     System.Threading.Thread.Sleep(delta);
@@ -1022,17 +1025,8 @@ namespace engine.Common
         }
 
         // backgroup callback
-        private void BackgroundUpdate(object state)
+        private void BackgroundUpdate()
         {
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-
-            // no updates while paused
-            if (Map.IsPaused) return;
-
-            // the timer is reentrant, so only allow one instance to run
-            if (System.Threading.Interlocked.CompareExchange(ref BackgroundLock, 1, 0) != 0) return;
-
             // update the ephemerial items
             var toremove = new List<EphemerialElement>();
             try
@@ -1091,13 +1085,6 @@ namespace engine.Common
 
             // apply any necessary damage to the players
             Map.UpdateBackground(applydamage: string.IsNullOrWhiteSpace(Config.ServerUrl));
-
-            // set state back to not running
-            System.Threading.Volatile.Write(ref BackgroundLock, 0);
-
-            timer.Stop();
-
-            if (timer.ElapsedMilliseconds > Constants.GlobalClock) System.Diagnostics.Debug.WriteLine("**BackgroundUpdate Duration {0} ms", timer.ElapsedMilliseconds);
         }
 
         // support
