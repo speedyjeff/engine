@@ -133,7 +133,8 @@ namespace engine.Common
                 centerX: Human.X, centerY: Human.Y, centerZ: Human.Z,
                 yaw: Human.Angle, pitch: Human.PitchAngle, roll: 0f,
                 cameraX: Config.CameraX, cameraY: Config.CameraY, cameraZ: Config.CameraZ,
-                horizon: Config.HorizonZ * 2);
+                horizon: Config.HorizonZ * 2,
+                lod: (Human.Z+Config.CameraZ) / Constants.Sky);
 
             // draw the map
             Map.Background.Draw(Surface);

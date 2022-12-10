@@ -18,6 +18,7 @@ namespace engine.Winforms
             Graphics = g;
             Width = width;
             Height = height;
+            LevelOfDetail = 0f;
             SolidBrushCache = new Dictionary<int, SolidBrush>();
             PenCache = new Dictionary<long, Pen>();
             FontCache = new Dictionary<string, Dictionary<float, Font>>();
@@ -116,7 +117,10 @@ namespace engine.Winforms
         }
 
         // no-op
-        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon) { }
+        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon, float lod)
+        {
+            LevelOfDetail = lod;
+        }
         public void EnableTranslation() { }
         public void DisableTranslation(TranslationOptions options) {}
 
@@ -193,6 +197,7 @@ namespace engine.Winforms
 
         public int Height { get; private set; }
         public int Width { get; private set; }
+        public float LevelOfDetail { get; private set; }
 
         public IImage CreateImage(int width, int height)
         {

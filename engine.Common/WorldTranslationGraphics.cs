@@ -82,7 +82,7 @@ namespace engine.Common
             Graphics.Image(img, x, y, width, height);
         }
 
-        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon)
+        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon ,float lod)
         {
             Is3D = is3D;
             CenterX = centerX;
@@ -95,6 +95,7 @@ namespace engine.Common
             CameraY = cameraY;
             CameraZ = cameraZ;
             Horizon = horizon;
+            LevelOfDetail = lod;
         }
 
         public void EnableTranslation()
@@ -205,6 +206,8 @@ namespace engine.Common
         { 
             get { return Graphics.Width; }
         }
+
+        public float LevelOfDetail { get; private set; }
 
         public IImage CreateImage(int width, int height)
         {

@@ -102,7 +102,7 @@ namespace engine.Common
         void Image(IImage img, float x, float y, float width = 0, float height = 0);
 
         // support to project to screen coordinates
-        void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0f);
+        void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0f, float lod = 0f);
         void DisableTranslation(TranslationOptions options=0);
         void EnableTranslation();
 
@@ -113,6 +113,7 @@ namespace engine.Common
         // details
         int Height { get; }
         int Width { get; }
+        float LevelOfDetail { get; } // 0 is high details, 1 is low detail
 
         // helper
         IImage CreateImage(int width, int height);

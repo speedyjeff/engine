@@ -16,6 +16,7 @@ namespace engine.Common
         public int Height { get; private set; }
 
         public int Width { get; private set; }
+        public float LevelOfDetail { get { return Graphics.LevelOfDetail; } }
 
         public void Clear(RGBA color)
         {
@@ -98,9 +99,9 @@ namespace engine.Common
             Graphics.Rectangle(color, x + StartX, y + StartY, width, height, fill, border, thickness);
         }
 
-        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0)
+        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0f, float lod = 0f)
         {
-            Graphics.SetPerspective(is3D, centerX, centerY, centerZ, yaw, pitch, roll, cameraX, cameraY, cameraZ, horizon);
+            Graphics.SetPerspective(is3D, centerX, centerY, centerZ, yaw, pitch, roll, cameraX, cameraY, cameraZ, horizon, lod);
         }
 
         public void Text(RGBA color, float x, float y, string text, float fontsize = 16, string fontname = "Arial")
