@@ -177,12 +177,12 @@ namespace engine.Common
                 player.Draw(Surface);
             }
 
-            // get ephemerials
+            // get ephemerals
             try
             {
                 EphemerialLock.EnterReadLock();
 
-                // add any ephemerial elements (non-text)
+                // add any ephemeral elements (non-text)
                 foreach (var b in Ephemerial)
                 {
                     // skip all the messages
@@ -203,7 +203,7 @@ namespace engine.Common
             {
                 EphemerialLock.EnterReadLock();
 
-                // add any ephemerial elements (text only)
+                // add any ephemeral elements (text only)
                 foreach (var b in Ephemerial)
                 {
                     // show only 1 message at a time
@@ -514,7 +514,7 @@ namespace engine.Common
                 //        |
                 //       315
 
-                // horiztonal (angle)
+                // horizonal (angle)
                 var hwidth = Surface.Width / 2f;
                 if (x >= hwidth) x -= hwidth;
                 var yaw = (x / hwidth) * 360;
@@ -548,7 +548,7 @@ namespace engine.Common
                 // see what is touching the mouse pointer
                 TryGetElementAtScreenCoordinate(x, y, out float wx, out float wy, out float wz, out elem);
 
-                // send the notifiction
+                // send the notification
                 if (OnBeforeMousedown(elem, btn, sx: x, sy: y, wx, wy, wz, ref key)) return;
             }
 
@@ -674,7 +674,7 @@ namespace engine.Common
         }
 
         #region private
-        // NOTE: DO NOT Cache any contnet from the Map locally... it may not be the most current 
+        // NOTE: DO NOT Cache any content from the Map locally... it may not be the most current 
         class PlayerDetails
         {
             public int Id;
@@ -1025,10 +1025,10 @@ namespace engine.Common
             }
         }
 
-        // backgroup callback
+        // background callback
         private void BackgroundUpdate()
         {
-            // update the ephemerial items
+            // update the ephemeral items
             var toremove = new List<EphemerialElement>();
             try
             {
@@ -1048,7 +1048,7 @@ namespace engine.Common
                             }
                             else
                             {
-                                // would hit something, notify that an attack occured
+                                // would hit something, notify that an attack occurred
                                 if (string.IsNullOrWhiteSpace(Config.ServerUrl))
                                 {
                                     // this happens in the local (non-remote server) case AND the server of the client-SERVER configuration
@@ -1103,6 +1103,7 @@ namespace engine.Common
 
             // calculate how far the distance should be scaled (from WorldTranslationGraphics)
             var zoom = Human.Z + Config.CameraZ;
+            if (zoom == 0) zoom = 1;
 
             // scale the sx,sy - the Human player is at the center of the screen, which is relative positioning
             var xdelta = x - (Surface.Width / 2f);
@@ -1310,7 +1311,7 @@ namespace engine.Common
 
         private bool Drop(Player player, out Type type)
         {
-            // indicidate what was dropped
+            // indicate what was dropped
             type = Map.Drop(player);
             return (type != null);
         }
