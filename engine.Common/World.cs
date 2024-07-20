@@ -102,6 +102,7 @@ namespace engine.Common
 
         public delegate bool BeforeKeyPressedDelegate(Player player, ref char key);
         public delegate bool BeforeMousedownDelegate(Element elem, MouseButton btn, float sx, float sy, float wx, float wy, float wz, ref char key);
+        public delegate void AfterMousemoveDelegate(Element elem, float sx, float sy, float wx, float wy, float wz);
 
         public event Func<Menu> OnPaused;
         public event Action OnResumed;
@@ -114,6 +115,9 @@ namespace engine.Common
         public event Action<Player, ActionEnum, bool> OnAfterAction;
         public event BeforeMousedownDelegate OnBeforeMousedown;
         public event Action<Element, char, bool> OnAfterMousedown;
+        public event Action<MouseButton> OnAfterMouseup;
+        public event Func<bool> OnBeforeMousemove;
+        public event AfterMousemoveDelegate OnAfterMousemove;
 
         public int Width { get { return Map.Width;  } }
         public int Height {  get { return Map.Height;  } }
@@ -496,6 +500,12 @@ namespace engine.Common
 
             if (Human.IsDead) return;
 
+            // events
+            if (OnBeforeMousemove != null)
+            {
+                if (OnBeforeMousemove()) return;
+            }
+
             // use the angle to turn the human player
             if (!Config.Is3D)
             {
@@ -529,7 +539,13 @@ namespace engine.Common
                 Map.Turn(Human, yaw, pitch, roll: 0f);
             }
 
-            // todo move events
+            // move events
+            if (OnAfterMousemove != null)
+            {
+                // capture what it is touching
+                TryGetElementAtScreenCoordinate(x, y, out float wx, out float wy, out float wz, out Element elem);
+                OnAfterMousemove(elem, x, y, wx, wy, wz);
+            }
         }
 
         public void Mousedown(MouseButton btn, float x, float y)
@@ -561,7 +577,8 @@ namespace engine.Common
 
         public void Mouseup(MouseButton btn, float x, float y)
         {
-            // ignore
+            // event
+            if (OnAfterMouseup != null) OnAfterMouseup(btn);
         }
 
         public void AddItem(Element item)
@@ -1099,7 +1116,7 @@ namespace engine.Common
             if (Human == null) return false;
 
             // convert screen x,y into world x,y
-            if (MouseSelectRegion == null) MouseSelectRegion = new Element() { Width = 50, Height = 50 };
+            if (MouseSelectRegion == null) MouseSelectRegion = new Element() { Width = 1, Height = 1 };
 
             // calculate how far the distance should be scaled (from WorldTranslationGraphics)
             var zoom = Human.Z + Config.CameraZ;

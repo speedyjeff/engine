@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace engine.Common
 {
-    public enum MouseButton { Left, Middle, Right };
+    public enum MouseButton { None, Left, Middle, Right };
 
     public interface IUserInteraction
     {
