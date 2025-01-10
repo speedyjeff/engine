@@ -10,7 +10,7 @@ namespace engine.XPlatform
     {
         public static void Load(Stream stream)
         {
-            All.Install(stream);
+            All.Add(stream);
         }
 
         #region private

@@ -28,6 +28,8 @@ namespace engine.Maui
 
         public int Width { get; private set; }
 
+        public float LevelOfDetail { get; private set; } // 0 is high details, 1 is low detail
+
         public void RawResize(SKCanvas canvas, int width, int height)
         {
             // initialize the double buffer
@@ -213,7 +215,7 @@ namespace engine.Maui
         // no-op
         public void DisableTranslation(TranslationOptions options = TranslationOptions.None) { }
         public void EnableTranslation() { }
-        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0) { }
+        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0f, float lod = 0f) { }
 
         #region private
         private SKCanvas Canvas;

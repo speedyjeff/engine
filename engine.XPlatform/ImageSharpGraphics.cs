@@ -1,6 +1,5 @@
 ﻿using engine.Common;
 using SixLabors.Fonts;
-using SixLabors.Fonts.Exceptions;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
@@ -35,6 +34,8 @@ namespace engine.XPlatform
 
         public int Height { get; private set; }
         public int Width { get; private set; }
+
+        public float LevelOfDetail { get; } // 0 is high details, 1 is low detail
         public bool HasChanged { get; internal set; }
 
         public void Clear(RGBA color)
@@ -102,7 +103,7 @@ namespace engine.XPlatform
             // draw line
             Surface.Mutate(ctx =>
             {
-                ctx.DrawLines(Color.FromRgba(color.R, color.G, color.B, color.A), thickness, Points[2]);
+                ctx.DrawLine(Color.FromRgba(color.R, color.G, color.B, color.A), thickness, Points[2]);
             });
         }
 
@@ -254,7 +255,7 @@ namespace engine.XPlatform
 
         public void DisableTranslation(TranslationOptions options = TranslationOptions.None) { }
         public void EnableTranslation() { }
-        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0) { }
+        public void SetPerspective(bool is3D, float centerX, float centerY, float centerZ, float yaw, float pitch, float roll, float cameraX, float cameraY, float cameraZ, float horizon = 0f, float lod = 0f) { }
 
         #region private
         private Image<SixLabors.ImageSharp.PixelFormats.Rgba32> Surface;
@@ -281,11 +282,11 @@ namespace engine.XPlatform
                 FontFamily family;
                 try
                 {
-                    family = SystemFonts.Find(name);
+                    family = SystemFonts.Get(name);
                 }
                 catch (FontFamilyNotFoundException)
                 { 
-                    family = Fonts.All.Find(name);
+                    family = Fonts.All.Get(name);
                 }
 
                 font = new Font(family, key);

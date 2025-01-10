@@ -4,6 +4,7 @@ using System;
 using engine.Common;
 using engine.Winforms;
 using engine.Common.Entities;
+using System.ComponentModel;
 
 namespace engine.Samples.Winforms
 {
@@ -28,13 +29,14 @@ namespace engine.Samples.Winforms
                     ShowCoordinates = false
                 },
                 players: new Player[] {me},
-                objects: null,
+                objects: new Element[0],
                 background: new CanvasBackground()
                 );
 
             UI = new UIHookup(this, World);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public World World { get; private set; }
 
         #region private

@@ -3,9 +3,9 @@ using SkiaSharp.Views.Maui;
 using SkiaSharp;
 using System.Diagnostics;
 using SkiaSharp.Views.Maui.Controls;
-using Microsoft.Maui.Controls;
 using System.Threading;
 using System;
+using Microsoft.Maui.Controls;
 
 namespace engine.Maui
 {

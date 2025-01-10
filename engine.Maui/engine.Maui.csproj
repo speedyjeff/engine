@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net7.0</TargetFrameworks>
+		<TargetFrameworks>net9.0</TargetFrameworks>
     <OutputType>Library</OutputType>
     <UseMaui>true</UseMaui>
  </PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="2.88.3" />
-	  <PackageReference Include="System.Reactive" Version="5.0.0" />
+	  <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.118.0-preview.2.3" />
+	  <PackageReference Include="System.Reactive" Version="6.0.1" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -29,6 +29,10 @@
 	  <None Update="Platforms\Windows\Dapplo.Windows.Input\1.0.26\Dapplo.Windows.Input.dll">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Update="Microsoft.Maui.Controls" Version="9.0.22" />
 	</ItemGroup>
 
 </Project>
