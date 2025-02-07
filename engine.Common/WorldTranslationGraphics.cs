@@ -352,13 +352,13 @@ namespace engine.Common
                 z -= CenterZ;
 
                 // turn first (yaw)
-                if ((options & TranslationOptions.RotaionYaw) != 0 && Yaw != 0) Utilities3D.Yaw(Yaw, ref x, ref y, ref z);
+                if ((options & TranslationOptions.RotationYaw) != 0 && Yaw != 0) Utilities3D.Yaw(Yaw, ref x, ref y, ref z);
 
                 // tilt head (pitch)
                 if ((options & TranslationOptions.RotationPitch) != 0 && Pitch != 0) Utilities3D.Pitch(Pitch, ref x, ref y, ref z);
 
-                // todo - rotate (roll)
-                // if ((options & TranslationOptions.RotationRoll) != 0 && Roll != 0) Utilities3D.Roll(Roll, ref x, ref y, ref z);
+                // rotate (roll)
+                if ((options & TranslationOptions.RotationRoll) != 0 && Roll != 0) Utilities3D.Roll(Roll, ref x, ref y, ref z);
 
                 // apply camera
                 z += CameraZ;

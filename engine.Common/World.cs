@@ -135,7 +135,7 @@ namespace engine.Common
             // set graphics the perspective
             Surface.SetPerspective(is3D: Config.Is3D,
                 centerX: Human.X, centerY: Human.Y, centerZ: Human.Z,
-                yaw: Human.Angle, pitch: Human.PitchAngle, roll: 0f,
+                yaw: Human.Angle, pitch: Human.PitchAngle, roll: Human.RollAngle,
                 cameraX: Config.CameraX, cameraY: Config.CameraY, cameraZ: Config.CameraZ,
                 horizon: Config.HorizonZ * 2,
                 lod: (Human.Z+Config.CameraZ) / Constants.Sky);
@@ -243,6 +243,7 @@ namespace engine.Common
                     Surface.Text(RGBA.Black, 20, 85, $"Z {Human.Z}");
                     Surface.Text(RGBA.Black, 20, 125, $"A {Human.Angle}");
                     Surface.Text(RGBA.Black, 20, 165, $"P {Human.PitchAngle}");
+                    Surface.Text(RGBA.Black, 20, 205, $"R {Human.RollAngle}");
                 }
                 Surface.EnableTranslation();
             }
@@ -295,9 +296,10 @@ namespace engine.Common
                 // handle the user input
                 bool result = false;
                 Type item = null;
-                float xdelta = 0;
-                float ydelta = 0;
-                float zdelta = 0;
+                var xdelta = 0f;
+                var ydelta = 0f;
+                var zdelta = 0f;
+                var rolldelta = 0f;
 
                 // pass the key off to the caller to see if they know what to 
                 // do in this case
@@ -346,6 +348,14 @@ namespace engine.Common
                         // use the mouse to move in the direction of the angle
                         if (!Config.Is3D) DirectionByAngle(Human.Angle, out xdelta, out ydelta);
                         else DirectionByAngle(Human.Angle, out xdelta, out zdelta);
+                        break;
+                    case Constants.RollLeft:
+                    case Constants.RollLeft2:
+                        rolldelta = -10;
+                        break;
+                    case Constants.RollRight:
+                    case Constants.RollRight2:
+                        rolldelta = 10;
                         break;
                 }
 
@@ -458,6 +468,13 @@ namespace engine.Common
                     if (OnAfterKeyPressed(Human, key)) return;
                 }
 
+                // if there is a roll, then turn
+                if (rolldelta != 0)
+                {
+                    // ActionEnum.Move;
+                    result = Map.Turn(Human, yaw: Human.Angle, pitch: Human.PitchAngle, roll: Human.RollAngle + rolldelta);
+                }
+
                 // if a move command, then move
                 if (xdelta != 0 || ydelta != 0 || zdelta != 0)
                 {
@@ -473,7 +490,6 @@ namespace engine.Common
         {
             // disabled by the developer
             if (!Config.EnableZoom) return;
-            if (Config.Is3D) return;
 
             // block usage if a menu is being displayed
             if (Map.IsPaused) return;
@@ -481,13 +497,19 @@ namespace engine.Common
             // must have a human player for input
             if (this.Human == null) return;
 
+            var zoomFactor = 1f;
+            if (Config.Is3D) zoomFactor = 50f;
+
             // adjust the zoom
-            if (delta > 0) Config.CameraZ -= 1f;
-            else if (delta < 0) Config.CameraZ += 1f;
+            if (delta > 0) Config.CameraZ -= zoomFactor;
+            else if (delta < 0) Config.CameraZ += zoomFactor;
 
             // cap the zoom capability
-            if (Config.CameraZ < Constants.Ground) Config.CameraZ = Constants.Ground;
-            if (Config.CameraZ > Constants.Sky) Config.CameraZ = Constants.Sky;
+            if (!Config.Is3D)
+            {
+                if (Config.CameraZ < Constants.Ground) Config.CameraZ = Constants.Ground;
+                if (Config.CameraZ > Constants.Sky) Config.CameraZ = Constants.Sky;
+            }
         }
 
         public void Mousemove(float x, float y, float angle)
@@ -536,7 +558,7 @@ namespace engine.Common
                 else foundation = 315f;
                 var pitch = ((y / hheight) * 45) + foundation;
 
-                Map.Turn(Human, yaw, pitch, roll: 0f);
+                Map.Turn(Human, yaw, pitch, roll: Human.RollAngle);
             }
 
             // move events

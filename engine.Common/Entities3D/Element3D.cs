@@ -22,6 +22,8 @@ namespace engine.Common.Entities3D
         public RGBA UniformColor { get; set; }
         // turn on color shading
         public bool DisableShading { get; set; }
+        // turn off drawing the polygons
+        public bool DisableDrawing { get; set; }
 
         public Element3D()
         {
@@ -30,6 +32,13 @@ namespace engine.Common.Entities3D
 
         public override void Draw(IGraphics g)
         {
+            // check if we should skip drawing
+            if (DisableDrawing)
+            {
+                base.Draw(g);
+                return;
+            }
+
             // check if shaders should be applied
             if (!DisableShading && !Wireframe && OnShader != null && ShaderLevel != GlobalShaderLevel)
             {

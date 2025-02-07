@@ -27,6 +27,7 @@ namespace engine.Samples.Winforms
             InitializeSurface(width, height);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public World World { get; private set; }
 
         #region private

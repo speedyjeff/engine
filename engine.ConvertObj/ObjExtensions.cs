@@ -42,11 +42,12 @@ namespace engine.ConvertObj
             code.AppendFormat($"        public {obj.Name}()");
             code.AppendLine();
             code.AppendLine("        {");
-            code.AppendFormat($"            Width = {obj.Width * scale};");
+            code.AppendLine("               var multiplier = 1f;");
+            code.AppendFormat($"            Width = {obj.Width * scale}f * multiplier;");
             code.AppendLine();
-            code.AppendFormat($"            Height = {obj.Height * scale};");
+            code.AppendFormat($"            Height = {obj.Height * scale}f * multiplier;");
             code.AppendLine();
-            code.AppendFormat($"            Depth = {obj.Depth * scale};");
+            code.AppendFormat($"            Depth = {obj.Depth * scale}f * multiplier;");
             code.AppendLine();
 
             // check if the colors are all the same

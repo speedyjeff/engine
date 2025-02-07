@@ -88,7 +88,7 @@ namespace engine.Common
     //       (-z, 0) /   |
     //                (+y, 0)
 
-    public enum TranslationOptions { None = 0, Translation = 1, Scaling = 2, RotaionYaw = 4, RotationPitch = 8, Default = 0xfff};
+    public enum TranslationOptions { None = 0, Translation = 1, Scaling = 2, RotationYaw = 4, RotationPitch = 8, RotationRoll = 16, Default = 0xfff};
 
     public interface IGraphics
     {

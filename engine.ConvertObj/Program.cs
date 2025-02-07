@@ -31,7 +31,7 @@ namespace engine.ConvertObj
                 Console.WriteLine("   -x <angle to rotate around the x-axis (pitch)>");
                 Console.WriteLine("   -y <angle to rotate around the y-axis (yaw)>");
                 Console.WriteLine("   -z <angle to rotate around the z-axis (roll)>");
-                Console.WriteLine("Use Microsoft 3D Builder to create a scene and save in obj format");
+                Console.WriteLine("Use Blender to create a scene and save in Wavefront obj format (select TriangulatedMesh option)");
                 return -1;
             }
 
@@ -46,7 +46,7 @@ namespace engine.ConvertObj
             {
                 var output = Path.Combine(baseDirectory, filename + "_" + (count++) + ".cs");
                 Console.WriteLine($"... saving {output}");
-                if (obj.Triangles.Count > 1000) Console.WriteLine("*** WARNING *** having too many faces may lead to long or failing initialization of the oject (consider reducing the faces)");
+                if (obj.Triangles.Count > 1000) Console.WriteLine("*** WARNING *** having too many faces may lead to long or failing initialization of the object (consider reducing the faces)");
                 var code = obj.GenerateCode(namespaceName, xangle: xangle, yangle: yangle, zangle: zangle);
                 File.WriteAllText(output, code.ToString());
             }

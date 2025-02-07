@@ -58,7 +58,7 @@ namespace engine.Winforms
 
                 // read bytes
                 var bytes = new byte[kvp.Value.Length];
-                kvp.Value.Read(bytes, offset: 0, count: bytes.Length);
+                kvp.Value.ReadExactly(bytes);
 
                 // store
                 files.Add(name, System.Text.UTF8Encoding.UTF8.GetString(bytes));
@@ -85,7 +85,7 @@ namespace engine.Winforms
 
                 // read bytes
                 var bytes = new byte[kvp.Value.Length];
-                kvp.Value.Read(bytes, offset: 0, count: bytes.Length);
+                kvp.Value.ReadExactly(bytes);
 
                 // store
                 files.Add(name, bytes);

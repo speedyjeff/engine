@@ -49,6 +49,11 @@ namespace engine.Common
         public const char Jump = 'j';
         public const char Jump2 = 'J';
 
+        public const char RollLeft = '-';
+        public const char RollLeft2 = '_';
+        public const char RollRight = '=';
+        public const char RollRight2 = '+';
+
         // mouse
         public const char LeftMouse = (char)250;
         public const char RightMouse = (char)249;
@@ -74,7 +79,7 @@ namespace engine.Common
         public const float ProximityViewWidth = 1384;
         public const float ProximityViewDepth = 700;
 
-        // diagnstics
+        // diagnostics
         public const bool Debug_ShowHitBoxes = false;
         public const bool Debug_AIMoveDiag = false;
     }

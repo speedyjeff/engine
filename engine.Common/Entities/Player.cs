@@ -77,6 +77,22 @@ namespace engine.Common.Entities
             }
         }
 
+        // roll
+        public float RollAngle
+        {
+            get
+            {
+                return _rollAngle;
+            }
+            internal set
+            {
+                while (value < 0) value += 360;
+                while (value >= 360) value -= 360;
+                _rollAngle = value;
+            }
+        }
+
+
         public override void Draw(IGraphics g)
         {
             if (ShowDefaultDrawing)
@@ -121,6 +137,7 @@ namespace engine.Common.Entities
         #region private
         private float _angle;
         private float _pitchAngle;
+        private float _rollAngle;
 
         private readonly RGBA Purple = new RGBA() { R = 146, G = 27, B = 167, A = 255 };
 

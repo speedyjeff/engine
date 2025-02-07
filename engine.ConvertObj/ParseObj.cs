@@ -62,14 +62,17 @@ namespace engine.ConvertObj
                             min = new Point() { X = Single.MaxValue, Y = Single.MaxValue, Z = Single.MaxValue };
                             max = new Point() { X = Single.MinValue, Y = Single.MinValue, Z = Single.MinValue };
                             obj = new Obj();
+
+                            // check if there is a name
+                            if (parts.Length >= 2) obj.Name = parts[1];
                             break;
                         case "v":
                             if (parts.Length != 4) throw new Exception("Invalid v : " + trimmed);
                             var point = new Point()
                             {
-                                X = (float)Math.Round(Convert.ToSingle(parts[1])),
-                                Y = (float)Math.Round(Convert.ToSingle(parts[2])),
-                                Z = (float)Math.Round(Convert.ToSingle(parts[3]))
+                                X = (float)Convert.ToSingle(parts[1]),
+                                Y = (float)Convert.ToSingle(parts[2]),
+                                Z = (float)Convert.ToSingle(parts[3])
                             };
 
                             // set min and max
@@ -91,11 +94,24 @@ namespace engine.ConvertObj
                         case "usemtl":
                             // get the color and set the name
                             if (parts.Length != 2) throw new Exception("Invalid usemtl : " + trimmed);
-                            obj.Name = parts[1];
-                            if (mtl == null || !mtl.Sections.TryGetValue(obj.Name, out color)) throw new Exception("Missing mtl : " + trimmed);
+                            if (mtl == null || !mtl.Sections.TryGetValue(parts[1], out color)) throw new Exception("Missing mtl : " + trimmed);
                             break;
                         case "f":
+                            // f 1/1/1 5/2/1 7/3/1
+                            // f 1 5 7
                             if (parts.Length != 4) throw new Exception("Invalid v : " + trimmed);
+
+                            // check the further format
+                            if (parts[1].Contains("/"))
+                            {
+                                // f 1/1/1 5/2/1 7/3/1
+                                // f 1 5 7
+                                parts[1] = parts[1].Split('/')[0];
+                                parts[2] = parts[2].Split('/')[0];
+                                parts[3] = parts[3].Split('/')[0];
+                            }
+
+                            // parse out the vertices index
                             var v1 = Convert.ToInt32(parts[1]);
                             var v2 = Convert.ToInt32(parts[2]);
                             var v3 = Convert.ToInt32(parts[3]);
@@ -118,6 +134,15 @@ namespace engine.ConvertObj
                                     normalize: (!treatAsScene))
                                 );
                             obj.Colors.Add(color);
+                            break;
+                        case "vn":
+                            // ignore normals
+                            break;
+                        case "vt":
+                            // ignore texture coordinates
+                            break;
+                        case "s":
+                            // ignore smoothing
                             break;
                         default: throw new Exception("Unknown file content : " + trimmed);
                     }

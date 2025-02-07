@@ -233,7 +233,7 @@ namespace engine.Common.Tests
 
 			var ellapsed = timer.ElapsedMilliseconds;
 
-			Assert.IsTrue(ellapsed < 150, $"Execution was too long {ellapsed}");
+            Assert.IsTrue(ellapsed < 150, $"Execution was too long {ellapsed}");
 		}
 	}
 }

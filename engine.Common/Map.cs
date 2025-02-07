@@ -95,10 +95,9 @@ namespace engine.Common
                 // get region before move
                 var beforeRegion = Obstacles.GetRegion(player);
 
-                // move the player
-                player.X = x;
-                player.Y = y;
-                player.Z = z;
+                // make player Move call for updates (the delta's are absolute - which may violate the movement rules in World)
+                // todo - there may be a race with player.X,Y,Z changing on a different thread concurrently
+                player.Move(xDelta: x - player.X, yDelta: y - player.Y, zDelta: z - player.Z);
 
                 // get region after move
                 var afterRegion = Obstacles.GetRegion(player);
@@ -385,6 +384,7 @@ namespace engine.Common
             {
                 player.Angle = yaw;
                 player.PitchAngle = pitch;
+                player.RollAngle = roll;
                 return true;
             }
         }

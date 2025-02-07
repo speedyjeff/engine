@@ -51,6 +51,27 @@ namespace engine.ConvertObj
                             mtl.Sections.Add(name, rgba);
                             name = "";
                             break;
+                        case "illum":
+                            // ignore the illumination model
+                            break;
+                        case "Ks":
+                            // ignore the specular color
+                            break;
+                        case "Ka":
+                            // ignore the reflective color
+                            break;
+                        case "Ns":
+                            // ignore the specular exponent
+                            break;
+                        case "Ke":
+                            // ignore the emissive color
+                            break;
+                        case "d":
+                            // ignore the dissolve factor
+                            break;
+                        case "Ni":
+                            // ignore the optical density
+                            break;
                         default: throw new Exception("Unknown file content : " + trimmed);
                     }
                 }

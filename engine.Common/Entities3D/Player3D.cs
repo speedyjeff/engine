@@ -1,9 +1,5 @@
-﻿using engine.Common;
+﻿using System;
 using engine.Common.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace engine.Common.Entities3D
 {
@@ -19,6 +15,30 @@ namespace engine.Common.Entities3D
 
         public override void Draw(IGraphics g)
         {
+            // check if we should initialize the default drawing
+            if (Body == null && ShowDefaultDrawing)
+            {
+                // create the body
+                Body = new ComboElement3D()
+                {
+                    Height = Height,
+                    Width = Width,
+                    Depth = Depth,
+                    X = X,
+                    Y = Y,
+                    Z = Z,
+                };
+                // create a diamond
+                var yellow = new RGBA() { R = 255, G = 255, B = 0, A = 255 };
+                var p1 = new Pyramid() { UniformColor = yellow, X = X, Y = Y - (Height * 0.25f), Z = Z, Width = Width, Height = Height * 0.5f, Depth = Depth };
+                var p2 = new Pyramid() { UniformColor = yellow, X = X, Y = Y + (Height * 0.25f), Z = Z, Width = Width, Height = Height * 0.5f, Depth = Depth };
+                // flip the lower pyramid to make a diamond
+                p2.Rotate(yaw: 0, pitch: 180, roll: 0);
+                // add them to the combo
+                (Body as ComboElement3D).AddInner(p1);
+                (Body as ComboElement3D).AddInner(p2);
+            }
+
             if (ShowTarget)
             {
                 g.DisableTranslation();
@@ -30,7 +50,8 @@ namespace engine.Common.Entities3D
             }
             if (Body != null)
             {
-                g.DisableTranslation(TranslationOptions.Translation | TranslationOptions.Scaling | TranslationOptions.RotationPitch);
+                // do not apply yaw, pitch, or roll when drawing the player (the camera is the one that is moving)
+                g.DisableTranslation(TranslationOptions.Translation | TranslationOptions.Scaling);
                 {
                     Body.Draw(g);
                 }
@@ -43,7 +64,7 @@ namespace engine.Common.Entities3D
             base.Move(xDelta, yDelta, zDelta);
 
             // also update the body
-            Body.Move(xDelta, yDelta, zDelta);
+            if (Body != null) Body.Move(xDelta, yDelta, zDelta);
         }
     }
 }

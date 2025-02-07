@@ -30,6 +30,7 @@ namespace engine.Samples.Winforms
             InitalizeBoard(width, height);
         }
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Board Board { get; private set; }
 
         #region private

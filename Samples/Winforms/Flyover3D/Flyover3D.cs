@@ -32,7 +32,7 @@ namespace engine.Samples.Winforms
             // put the player in the middle
             var players = new Player[]
               {
-                new Player3D() { Name = "YoBro", X = 0, Y = -75, Z = 1000 }
+                new Player3D() { Name = "YoBro", X = 0, Y = -75, Z = 1000, ShowDefaultDrawing = false }
               };
             // any objects to interact with
             Element[] objects = new Element[100];
@@ -45,8 +45,8 @@ namespace engine.Samples.Winforms
 
                 var x = ((i % 10) * 200) - 700;
                 var z = (i / 10) * 200;
-
-                switch (rand.Next() % 9)
+                
+                switch (rand.Next() % 13)
                 {
                     case 0: objects[i] = new Cube() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
                     case 1: objects[i] = new Cone() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
@@ -57,6 +57,10 @@ namespace engine.Samples.Winforms
                     case 6: objects[i] = new Torus() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
                     case 7: objects[i] = new Tree() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
                     case 8: objects[i] = new Wedge() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
+                    case 9: objects[i] = new Capsule() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
+                    case 10: objects[i] = new Ellipsoid() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
+                    case 11: objects[i] = new Icosphere() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
+                    case 12: objects[i] = new Monkey() { X = x, Y = 0, Z = z, Width = 100, Height = 100, Depth = 100, Wireframe = false }; break;
                 }
             }
             var world = new World(
