@@ -71,7 +71,7 @@ namespace engine.Common
 
             var minDistance = float.MaxValue;
             for (int i = 0; i < e1.Length; i++)
-                for (int j = i + 1; j < e2.Length; j++)
+                for (int j = 0; j < e2.Length; j++)
                     minDistance = Math.Min(Collision.DistanceBetweenPoints(e1[i].Item1, e1[i].Item2, e2[j].Item1, e2[j].Item2), minDistance);
             return minDistance;
         }
@@ -192,8 +192,8 @@ namespace engine.Common
 
             if (clockwise) return;
 
-            // reverse for counter clockwise (should use a custom sort comparer)
-            Array.Reverse(angles);
+            // reverse for counter clockwise
+            Array.Reverse(points);
         }
 
         #region private

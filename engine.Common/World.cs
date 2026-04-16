@@ -41,7 +41,7 @@ namespace engine.Common
         public World(WorldConfiguration config, Player[] players, Element[] objects, Background background)
         {
             // sanity check the parameters
-            if (config.Width <= 0 || config.Width <= 0) throw new Exception("Must specify a Width and Height for the world");
+            if (config.Width <= 0 || config.Height <= 0) throw new Exception("Must specify a Width and Height for the world");
             if (background == null) throw new Exception("Must specify a background");
             if (players == null) throw new Exception("Must specify a list of players");
 
@@ -75,7 +75,7 @@ namespace engine.Common
         public World(WorldConfiguration config, IMap map, Player[] players)
         {
             // sanity check the parameters
-            if (config.Width <= 0 || config.Width <= 0) throw new Exception("Must specify a Width and Height for the world");
+            if (config.Width <= 0 || config.Height <= 0) throw new Exception("Must specify a Width and Height for the world");
             if (players == null) throw new Exception("Must specify a list of players");
 
             // there is no the human

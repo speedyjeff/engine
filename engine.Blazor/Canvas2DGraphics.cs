@@ -122,7 +122,7 @@ namespace engine.Blazor
                 {
                     await Surface.MoveToAsync(points[0].X, points[0].Y);
                     for (int i = 1; i < points.Length; i++) await Surface.LineToAsync(points[i].X, points[i].Y);
-                    await Surface.LineToAsync(points[0].Y, points[0].Y);
+                    await Surface.LineToAsync(points[0].X, points[0].Y);
                     if (fill)
                     {
                         await Surface.SetFillStyleAsync(hex);

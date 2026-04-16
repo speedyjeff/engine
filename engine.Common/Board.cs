@@ -63,8 +63,6 @@ namespace engine.Common
                 {
                     if (Config.Cells[row].Length > Config.Columns) Config.Columns = Config.Cells[row].Length;
                 }
-                // moving from index to length
-                Config.Columns++;
 
                 // add all the points
                 Cells = new CellDetails[Config.Rows][];

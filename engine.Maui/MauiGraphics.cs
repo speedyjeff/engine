@@ -72,13 +72,13 @@ namespace engine.Maui
             {
                 Canvas.DrawOval(
                     cx: x + (width / 2),
-                    cy: y + (width / 2),
+                    cy: y + (height / 2),
                     rx: (width / 2f),
                     ry: (height / 2f),
                     GetCachedPaint(color, fill, border: false, thickness: 0));
                 if (border) Canvas.DrawOval(
                     cx: x + (width / 2),
-                    cy: y + (width / 2),
+                    cy: y + (height / 2),
                     rx: (width / 2f),
                     ry: (height / 2f),
                     GetCachedPaint(RGBA.Black, fill: false, border: true, thickness));
@@ -87,7 +87,7 @@ namespace engine.Maui
             {
                 Canvas.DrawOval(
                     cx: x + (width / 2),
-                    cy: y + (width / 2),
+                    cy: y + (height / 2),
                     rx: (width / 2f),
                     ry: (height / 2f),
                     GetCachedPaint(color, fill: false, border: true, thickness));
