@@ -75,8 +75,10 @@ namespace engine.Common.Entities3D
                     for (int j = 0; j < Polygons[i].Length; j++) points[j] = new Point() { X = (Polygons[i][j].X * Width) + X, Y = (Polygons[i][j].Y * Height) + Y, Z = (Polygons[i][j].Z * Depth) + Z };
                 }
 
-                // draw
-                if (ImageSources != null && ImageSources[i] != null) g.Image(ImageSources[i].Image, points);
+                // For textured faces, draw only the image. Rendering the fallback face
+                // underneath makes the masked triangle appear vertically offset.
+                if (ImageSources != null && ImageSources[i] != null && !Wireframe)
+                    g.Image(ImageSources[i].Image, points);
                 else g.Polygon(color, points, fill: !Wireframe, border: false, thickness: 1f);
             }
 

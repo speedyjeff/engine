@@ -245,6 +245,7 @@ namespace engine.Common
         // 3D support
         class PolygonDetails
         {
+            public int Sequence;
             public RGBA Color;
             public bool Fill;
             public bool Border;
@@ -269,7 +270,9 @@ namespace engine.Common
                 // when z's are equal, sort by y's
                 else if (x.MinY < y.MinY) return -1;
                 else if (y.MinY < x.MinY) return 1;
-                // equal
+                // preserve the original capture order when depth keys tie
+                else if (x.Sequence < y.Sequence) return -1;
+                else if (y.Sequence < x.Sequence) return 1;
                 else return 0;
             }
         }
@@ -297,7 +300,7 @@ namespace engine.Common
                 // reuse
             }
 
-            // increment
+            details.Sequence = index;
             index++;
 
             // set
