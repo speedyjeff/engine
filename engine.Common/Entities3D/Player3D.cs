@@ -15,29 +15,8 @@ namespace engine.Common.Entities3D
 
         public override void Draw(IGraphics g)
         {
-            // check if we should initialize the default drawing
-            if (Body == null && ShowDefaultDrawing)
-            {
-                // create the body
-                Body = new ComboElement3D()
-                {
-                    Height = Height,
-                    Width = Width,
-                    Depth = Depth,
-                    X = X,
-                    Y = Y,
-                    Z = Z,
-                };
-                // create a diamond
-                var yellow = new RGBA() { R = 255, G = 255, B = 0, A = 255 };
-                var p1 = new Pyramid() { UniformColor = yellow, X = X, Y = Y - (Height * 0.25f), Z = Z, Width = Width, Height = Height * 0.5f, Depth = Depth };
-                var p2 = new Pyramid() { UniformColor = yellow, X = X, Y = Y + (Height * 0.25f), Z = Z, Width = Width, Height = Height * 0.5f, Depth = Depth };
-                // flip the lower pyramid to make a diamond
-                p2.Rotate(yaw: 0, pitch: 180, roll: 0);
-                // add them to the combo
-                (Body as ComboElement3D).AddInner(p1);
-                (Body as ComboElement3D).AddInner(p2);
-            }
+            if (ShowDefaultDrawing && Body == null) Body = CreateDefaultBody();
+            if (Body is Humanoid3D humanoid) UpdateHumanoidPose(humanoid);
 
             if (ShowTarget)
             {
@@ -63,8 +42,44 @@ namespace engine.Common.Entities3D
         {
             base.Move(xDelta, yDelta, zDelta);
 
-            // also update the body
-            if (Body != null) Body.Move(xDelta, yDelta, zDelta);
+            if (Body != null)
+            {
+                var movement = Math.Abs(xDelta) + Math.Abs(yDelta) + Math.Abs(zDelta);
+                if (movement > 0.001f) WalkPhase += Math.Min(0.45f, movement * 0.18f);
+                Body.Move(xDelta, yDelta, zDelta);
+
+                if (Body is Humanoid3D humanoid) UpdateHumanoidPose(humanoid);
+            }
         }
+
+        #region private
+        private float WalkPhase;
+
+        private static Humanoid3D CreateDefaultBody()
+        {
+            var body = new Humanoid3D()
+            {
+                ShirtColor = new RGBA() { R = 96, G = 108, B = 92, A = 255 },
+                PantsColor = new RGBA() { R = 52, G = 60, B = 72, A = 255 },
+                BootColor = new RGBA() { R = 86, G = 62, B = 42, A = 255 },
+                SkinColor = new RGBA() { R = 244, G = 214, B = 58, A = 255 },
+                BackpackColor = new RGBA() { R = 81, G = 95, B = 75, A = 255 },
+            };
+
+            return body;
+        }
+
+        private void UpdateHumanoidPose(Humanoid3D humanoid)
+        {
+            humanoid.X = X;
+            humanoid.Y = Y;
+            humanoid.Z = Z;
+            humanoid.Width = Width;
+            humanoid.Height = Height;
+            humanoid.Depth = Depth;
+            humanoid.WalkPhase = WalkPhase;
+            humanoid.UpdatePose();
+        }
+        #endregion
     }
 }
