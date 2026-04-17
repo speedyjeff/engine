@@ -138,11 +138,18 @@ namespace engine.Common
             // Allow players to "step up" small ledges and moderate slopes instead of
             // treating every slight terrain contact as a hard stop.
             if (SupportsTerrainStepUp &&
-                touching != null && elem is Player &&
+                elem is Player &&
                 Math.Abs(ydelta) < 0.0001f &&
                 (Math.Abs(xdelta) > 0f || Math.Abs(zdelta) > 0f))
             {
-                TryStepUp(elem, xdelta, ref ydelta, zdelta, out touching);
+                if (touching != null)
+                {
+                    TryStepUp(elem, xdelta, ref ydelta, zdelta, out touching);
+                }
+                else
+                {
+                    TryStepDown(elem, xdelta, ref ydelta, zdelta);
+                }
             }
 
             // return that we actually checked
@@ -716,6 +723,35 @@ namespace engine.Common
                     ydelta = candidateYDelta;
                     return true;
                 }
+            }
+
+            return false;
+        }
+
+        private bool TryStepDown(Element elem, float xdelta, ref float ydelta, float zdelta)
+        {
+            var maxStepDepth = Math.Max(Constants.IsTouchingDistance, elem.Height / 4f);
+            var stepIncrement = Math.Max(Constants.IsTouchingDistance, maxStepDepth / 6f);
+            var bestYDelta = ydelta;
+
+            for (var step = stepIncrement; step <= maxStepDepth + 0.0001f; step += stepIncrement)
+            {
+                var candidateYDelta = ydelta + step;
+                var touching = RetrieveWhatPlayerIsTouching(elem, false /* consider acquirable */, xdelta, candidateYDelta, zdelta);
+
+                if (touching == null)
+                {
+                    bestYDelta = candidateYDelta;
+                    continue;
+                }
+
+                if (elem.Y < touching.Y && bestYDelta > ydelta)
+                {
+                    ydelta = bestYDelta;
+                    return true;
+                }
+
+                break;
             }
 
             return false;

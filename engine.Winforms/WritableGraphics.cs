@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -166,11 +168,9 @@ namespace engine.Winforms
 
             // convert points into PointF
             PointF[] edges = null;
-            if (points.Length == 3)
+            if (points.Length == TriPoints.Length)
             {
-                TriPoints[0].X = points[0].X; TriPoints[0].Y = points[0].Y;
-                TriPoints[1].X = points[1].X; TriPoints[1].Y = points[1].Y;
-                TriPoints[2].X = points[2].X; TriPoints[2].Y = points[2].Y;
+                ExpandTriangle(points, TriPoints, TerrainTextureOverlap);
 
                 edges = TriPoints;
             }
@@ -186,7 +186,12 @@ namespace engine.Winforms
             // draw
             try
             {
-                Graphics.DrawImage(bitmap.UnderlyingImage, edges);
+                Graphics.DrawImage(
+                    bitmap.UnderlyingImage,
+                    edges,
+                    new RectangleF(0, 0, bitmap.UnderlyingImage.Width, bitmap.UnderlyingImage.Height),
+                    GraphicsUnit.Pixel,
+                    TextureImageAttributes);
             }
             catch (OutOfMemoryException)
             {
@@ -221,6 +226,8 @@ namespace engine.Winforms
         private BufferedGraphics Surface;
         private BufferedGraphicsContext Context;
         private PointF[] TriPoints;
+        private const float TerrainTextureOverlap = 0.75f;
+        private static readonly ImageAttributes TextureImageAttributes = CreateTextureImageAttributes();
 
         internal void Release()
         {
@@ -236,6 +243,48 @@ namespace engine.Winforms
         private Dictionary<int, SolidBrush> SolidBrushCache;
         private Dictionary<long, Pen> PenCache;
         private Dictionary<string, Dictionary<float, Font>> FontCache;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ExpandTriangle(Common.Point[] points, PointF[] destination, float amount)
+        {
+            var pointCount = Math.Min(points.Length, destination.Length);
+            var centerX = 0f;
+            var centerY = 0f;
+
+            for (int i = 0; i < pointCount; i++)
+            {
+                centerX += points[i].X;
+                centerY += points[i].Y;
+            }
+
+            centerX /= pointCount;
+            centerY /= pointCount;
+
+            for (int i = 0; i < pointCount; i++)
+            {
+                var dx = points[i].X - centerX;
+                var dy = points[i].Y - centerY;
+                var length = (float)Math.Sqrt((dx * dx) + (dy * dy));
+
+                if (length > 0.001f)
+                {
+                    destination[i].X = points[i].X + ((dx / length) * amount);
+                    destination[i].Y = points[i].Y + ((dy / length) * amount);
+                }
+                else
+                {
+                    destination[i].X = points[i].X;
+                    destination[i].Y = points[i].Y;
+                }
+            }
+        }
+
+        private static ImageAttributes CreateTextureImageAttributes()
+        {
+            var attributes = new ImageAttributes();
+            attributes.SetWrapMode(WrapMode.TileFlipXY);
+            return attributes;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private System.Drawing.Bitmap LoadImage(string path, Stream stream = null)
