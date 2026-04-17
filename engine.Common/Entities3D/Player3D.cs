@@ -7,6 +7,7 @@ namespace engine.Common.Entities3D
     {
         public bool ShowTarget { get; set; }
         public Element3D Body { get; set; }
+        public bool LockBodyToCamera { get; set; } = true;
 
         public Player3D()
         {
@@ -29,12 +30,13 @@ namespace engine.Common.Entities3D
             }
             if (Body != null)
             {
-                // do not apply yaw, pitch, or roll when drawing the player (the camera is the one that is moving)
-                g.DisableTranslation(TranslationOptions.Translation | TranslationOptions.Scaling);
+                // The local player body can be camera-locked, but other 3D players/NPCs
+                // should render in world space with normal perspective.
+                if (LockBodyToCamera) g.DisableTranslation(TranslationOptions.Translation | TranslationOptions.Scaling);
                 {
                     Body.Draw(g);
                 }
-                g.EnableTranslation();
+                if (LockBodyToCamera) g.EnableTranslation();
             }
         }
 

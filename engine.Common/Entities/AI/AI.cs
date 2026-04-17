@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace engine.Common.Entities.AI
 {
-    public class AI : Player
+    public class AI : Player, IAI
     {
         public AI() : base()
         {

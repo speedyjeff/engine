@@ -56,7 +56,7 @@ namespace engine.Common
             foreach (var player in players)
             {
                 // assign human
-                if (Human == null && !(player is AI))
+                if (Human == null && !(player is IAI))
                 {
                     Human = player;
                     break;
@@ -884,23 +884,24 @@ namespace engine.Common
                         player.Update();
 
                         // if AI, then query for movement
-                        if (player is AI ai)
+                        if (player is IAI ai)
                         {
+                            var aiPlayer = player;
                             float xdelta = 0;
                             float ydelta = 0;
                             float zdelta = 0;
                             float angle = 0;
-
-                            if (ai.IsDead)
+ 
+                            if (aiPlayer.IsDead)
                             {
                                 // remove the AI
-                                RemoveItem(ai);
+                                RemoveItem(aiPlayer);
                                 return;
                             }
-
-                            List<Element> elements = Map.WithinWindow(ai.X, ai.Y, ai.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
-                            var angleToCenter = Collision.CalculateAngleFromPoint(ai.X, ai.Y, Config.Width / 2, Config.Height / 2);
-                            var inZone = Map.Background.Damage(ai.X, ai.Y) > 0;
+ 
+                            List<Element> elements = Map.WithinWindow(aiPlayer.X, aiPlayer.Y, aiPlayer.Z, Constants.ProximityViewWidth, Constants.ProximityViewHeight, depth: Constants.ProximityViewDepth).ToList();
+                            var angleToCenter = Collision.CalculateAngleFromPoint(aiPlayer.X, aiPlayer.Y, Config.Width / 2, Config.Height / 2);
+                            var inZone = Map.Background.Damage(aiPlayer.X, aiPlayer.Y) > 0;
 
                             // get action from AI
 
@@ -909,7 +910,7 @@ namespace engine.Common
                             // provide details for telemetry
                             if (OnBeforeAction != null)
                             {
-                                OnBeforeAction(ai, new ActionDetails()
+                                OnBeforeAction(aiPlayer, new ActionDetails()
                                 {
                                     Elements = elements,
                                     AngleToCenter = angleToCenter,
@@ -922,54 +923,54 @@ namespace engine.Common
                             }
 
                             // turn
-                            Map.Turn(ai, yaw: angle, pitch: 0f, roll: 0f);
+                            Map.Turn(aiPlayer, yaw: angle, pitch: 0f, roll: 0f);
 
                             // perform action
                             bool result = false;
                             Type item = null;
-                            switch (action)
-                            {
-                                case ActionEnum.Drop:
-                                    result = Drop(ai, out item);
-                                    ai.Feedback(action, item, result);
+                                switch (action)
+                                {
+                                    case ActionEnum.Drop:
+                                    result = Drop(aiPlayer, out item);
+                                    aiPlayer.Feedback(action, item, result);
                                     break;
                                 case ActionEnum.Pickup:
-                                    result = Pickup(ai, out item);
-                                    ai.Feedback(action, item, result);
+                                    result = Pickup(aiPlayer, out item);
+                                    aiPlayer.Feedback(action, item, result);
                                     break;
                                 case ActionEnum.Reload:
-                                    result = Reload(ai, out AttackStateEnum reloaded);
-                                    ai.Feedback(action, reloaded, result);
+                                    result = Reload(aiPlayer, out AttackStateEnum reloaded);
+                                    aiPlayer.Feedback(action, reloaded, result);
                                     break;
                                 case ActionEnum.Attack:
-                                    result = Attack(ai, out AttackStateEnum attack);
-                                    ai.Feedback(action, attack, result);
+                                    result = Attack(aiPlayer, out AttackStateEnum attack);
+                                    aiPlayer.Feedback(action, attack, result);
                                     break;
                                 case ActionEnum.SwitchPrimary:
-                                    result = SwitchPrimary(ai, out item);
-                                    ai.Feedback(action, item, result);
+                                    result = SwitchPrimary(aiPlayer, out item);
+                                    aiPlayer.Feedback(action, item, result);
                                     break;
                                 case ActionEnum.Jump:
-                                    result = Jump(ai);
-                                    ai.Feedback(action, null, result);
+                                    result = Jump(aiPlayer);
+                                    aiPlayer.Feedback(action, null, result);
                                     break;
                                 case ActionEnum.Move:
                                 case ActionEnum.None:
                                     break;
                                 case ActionEnum.Place:
-                                    result = Place(ai);
-                                    ai.Feedback(action, null, result);
+                                    result = Place(aiPlayer);
+                                    aiPlayer.Feedback(action, null, result);
                                     break;
                                 default: throw new Exception("Unknown ai action : " + action);
                             }
 
                             // send after telemetry
-                            if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(ai, action, result);
+                            if (OnAfterAction != null && action != ActionEnum.Move) OnAfterAction(aiPlayer, action, result);
 
                             // have the AI move
-                            var moved = Move(ai, xdelta, ydelta, zdelta, Constants.DefaultPace);
-                            ai.Feedback(ActionEnum.Move, null, moved);
-                            if (OnAfterAction != null) OnAfterAction(ai, ActionEnum.Move, result);
+                            var moved = Move(aiPlayer, xdelta, ydelta, zdelta, Constants.DefaultPace);
+                            aiPlayer.Feedback(ActionEnum.Move, null, moved);
+                            if (OnAfterAction != null) OnAfterAction(aiPlayer, ActionEnum.Move, result);
                         }
 
                         // apply forces, if necessary
