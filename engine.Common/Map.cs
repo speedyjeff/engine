@@ -135,6 +135,16 @@ namespace engine.Common
             // return if the player would collide with an object
             touching = RetrieveWhatPlayerIsTouching(elem, false /* consider acquirable */, xdelta, ydelta, zdelta);
 
+            // Allow players to "step up" small ledges and moderate slopes instead of
+            // treating every slight terrain contact as a hard stop.
+            if (SupportsTerrainStepUp &&
+                touching != null && elem is Player &&
+                Math.Abs(ydelta) < 0.0001f &&
+                (Math.Abs(xdelta) > 0f || Math.Abs(zdelta) > 0f))
+            {
+                TryStepUp(elem, xdelta, ref ydelta, zdelta, out touching);
+            }
+
             // return that we actually checked
             return true;
         }
@@ -560,6 +570,8 @@ namespace engine.Common
         }
 
         #region private
+        protected virtual bool SupportsTerrainStepUp => false;
+
         // objects that have hit boxes
         private RegionCollection Obstacles;
         // items that can be acquired
@@ -686,6 +698,27 @@ namespace engine.Common
             }
 
             return null;
+        }
+
+        private bool TryStepUp(Element elem, float xdelta, ref float ydelta, float zdelta, out Element touching)
+        {
+            touching = null;
+
+            var maxStepHeight = Math.Max(Constants.IsTouchingDistance, elem.Height / 4f);
+            var stepIncrement = Math.Max(Constants.IsTouchingDistance, maxStepHeight / 4f);
+
+            for (var step = stepIncrement; step <= maxStepHeight + 0.0001f; step += stepIncrement)
+            {
+                var candidateYDelta = ydelta - step;
+                touching = RetrieveWhatPlayerIsTouching(elem, false /* consider acquirable */, xdelta, candidateYDelta, zdelta);
+                if (touching == null)
+                {
+                    ydelta = candidateYDelta;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private Element LineIntersectingRectangle(Player player, float x1, float y1, float x2, float y2, out float distance)

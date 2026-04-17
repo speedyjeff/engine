@@ -1,4 +1,4 @@
-﻿using engine.Common.Entities;
+using engine.Common.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -19,9 +19,9 @@ namespace engine.Common.Entities3D
             if (base.IsTouching(elem1, elem2, x1delta, y1delta, z1delta))
             {
                 // get the 3D object's polygons
-                var e1_3D = (elem1 is Element3D) ? elem1 as Element3D : 
-                    ((elem1 is Player3D) ? (elem1 as Player3D).Body : 
-                    ((elem1 is ShotTrajectory3D) ? (elem1 as ShotTrajectory3D).Body : null) );
+                var e1_3D = (elem1 is Element3D) ? elem1 as Element3D :
+                    ((elem1 is Player3D) ? (elem1 as Player3D).Body :
+                    ((elem1 is ShotTrajectory3D) ? (elem1 as ShotTrajectory3D).Body : null));
                 var e2_3D = (elem2 is Element3D) ? elem2 as Element3D :
                     ((elem2 is Player3D) ? (elem2 as Player3D).Body :
                     ((elem2 is ShotTrajectory3D) ? (elem2 as ShotTrajectory3D).Body : null));
@@ -41,7 +41,7 @@ namespace engine.Common.Entities3D
                     // ensure to scale and position via X,Y,Z and Width,Height,Depth
 
                     // check if the polygons in elem1 are touching any of the polygons in elem2
-                    for (int i=0; i<e1_3D.Polygons.Length; i++)
+                    for (int i = 0; i < e1_3D.Polygons.Length; i++)
                     {
                         if (e1_3D.Polygons[i].Length >= 3)
                         {
@@ -77,6 +77,8 @@ namespace engine.Common.Entities3D
         }
 
         #region private
+        protected override bool SupportsTerrainStepUp => true;
+
         protected override bool TrackAttackTrajectory(Player player, Tool weapon, out List<Element> hit, out List<ShotTrajectory> trajectories)
         {
             // init
@@ -100,7 +102,7 @@ namespace engine.Common.Entities3D
 
             // add projectile
             trajectories.Add(new ShotTrajectory3D(x: player.X + x1, y: player.Y + y1, z: player.Z + z1)
-            { 
+            {
                 X1 = player.X + x1,
                 Y1 = player.Y + y1,
                 Z1 = player.Z + z1,
