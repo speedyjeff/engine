@@ -29,6 +29,7 @@ namespace engine.Common
         public float CameraX { get; set; }
         public float CameraY { get; set; }
         public float CameraZ { get; set; }
+        public float Gravity { get; set; }
         public string ServerUrl { get; set; }
         public bool EnableFastPlayerUpdate { get; set; }
     }
@@ -977,7 +978,7 @@ namespace engine.Common
                             // apply 'jump' force
                             if ((Config.ForcesApplied & (int)Forces.Y) > 0)
                             {
-                                var result = ApplyForce(detail, player, TimeAxis.Y, force: detail.Forces[(int)TimeAxis.Y], opposingForce: Constants.Gravity);
+                                var result = ApplyForce(detail, player, TimeAxis.Y, force: detail.Forces[(int)TimeAxis.Y], opposingForce: EffectiveGravity);
                                 // we are in the air if the force was successfully applied OR if we were heading up (negative) and were unsuccessful
                                 detail.ForceInMotion[(int)TimeAxis.Y] = (result & ForceState.Success) != 0 || ((result & ForceState.Failed) != 0 && (result & ForceState.Negative) != 0);
                             }
@@ -998,7 +999,7 @@ namespace engine.Common
                                 if (detail.Forces[(int)TimeAxis.Z] != 0)
                                 {
                                     // decend
-                                    var result = ApplyForce(detail, player, TimeAxis.Z, force: 0f, opposingForce: -0.03f * Constants.Gravity);
+                                    var result = ApplyForce(detail, player, TimeAxis.Z, force: 0f, opposingForce: -0.03f * EffectiveGravity);
                                     if (player.Z <= Constants.IsTouchingDistance ||
                                         ((int)result & (int)ForceState.Failed) != 0)
                                     {
@@ -1219,7 +1220,7 @@ namespace engine.Common
                 {
                     case TimeAxis.X: detail.Forces[(int)TimeAxis.X] = percentage * Math.Abs(Constants.Force); break;
                     case TimeAxis.Y: detail.Forces[(int)TimeAxis.Y] = percentage * Constants.Force; break;
-                    case TimeAxis.Z: detail.Forces[(int)TimeAxis.Z] = percentage * Constants.Gravity; break;
+                    case TimeAxis.Z: detail.Forces[(int)TimeAxis.Z] = percentage * EffectiveGravity; break;
                 }
             }
         }
@@ -1235,6 +1236,8 @@ namespace engine.Common
                 detail.ForceInMotion[(int)axis] = false;
             }
         }
+
+        private float EffectiveGravity => Config.Gravity > 0f ? Config.Gravity : Constants.Gravity;
 
         private enum ForceState { None = 0, Success = 1, Failed = 2, Negative = 4, Positive = 8 };
         private ForceState ApplyForce(PlayerDetails detail, Player player, TimeAxis axis, float force, float opposingForce)

@@ -132,8 +132,10 @@ namespace engine.Common
             ydelta *= speed;
             zdelta *= speed;
 
-            // return if the player would collide with an object
-            touching = RetrieveWhatPlayerIsTouching(elem, false /* consider acquirable */, xdelta, ydelta, zdelta);
+            // Sweep the path instead of checking only the destination. This avoids
+            // tunneling through thin terrain or objects when forces (like gravity)
+            // make a player move farther in a single tick.
+            touching = RetrieveWhatPlayerIsTouchingAlongPath(elem, false /* consider acquirable */, xdelta, ydelta, zdelta);
 
             // Allow players to "step up" small ledges and moderate slopes instead of
             // treating every slight terrain contact as a hard stop.
@@ -672,6 +674,29 @@ namespace engine.Common
             return hit.Count > 0;
         }
 
+        // use this entry point as it goes beyond just the bounds and checks the journey
+        private Element RetrieveWhatPlayerIsTouchingAlongPath(Element primaryElem, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
+        {
+            var referenceSize = Math.Max(primaryElem.Width, Math.Max(primaryElem.Height, Math.Max(primaryElem.Depth, 1f)));
+            var sweepStepDistance = Math.Max(Constants.IsTouchingDistance, Math.Min(referenceSize / 4f, 8f));
+            var maxDelta = Math.Max(Math.Abs(xdelta), Math.Max(Math.Abs(ydelta), Math.Abs(zdelta)));
+            var steps = Math.Max(1, (int)Math.Ceiling(maxDelta / sweepStepDistance));
+
+            for (var step = 1; step <= steps; step++)
+            {
+                var ratio = step / (float)steps;
+                var touching = RetrieveWhatPlayerIsTouching(primaryElem,
+                    considerAquireable,
+                    xdelta * ratio,
+                    ydelta * ratio,
+                    zdelta * ratio);
+
+                if (touching != null) return touching;
+            }
+
+            return null;
+        }
+
         private Element RetrieveWhatPlayerIsTouching(Element primaryElem, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
         {
             float x1 = (primaryElem.X + xdelta) - (primaryElem.Width / 2);
@@ -717,7 +742,7 @@ namespace engine.Common
             for (var step = stepIncrement; step <= maxStepHeight + 0.0001f; step += stepIncrement)
             {
                 var candidateYDelta = ydelta - step;
-                touching = RetrieveWhatPlayerIsTouching(elem, false /* consider acquirable */, xdelta, candidateYDelta, zdelta);
+                touching = RetrieveWhatPlayerIsTouchingAlongPath(elem, false /* consider acquirable */, xdelta, candidateYDelta, zdelta);
                 if (touching == null)
                 {
                     ydelta = candidateYDelta;
@@ -737,7 +762,7 @@ namespace engine.Common
             for (var step = stepIncrement; step <= maxStepDepth + 0.0001f; step += stepIncrement)
             {
                 var candidateYDelta = ydelta + step;
-                var touching = RetrieveWhatPlayerIsTouching(elem, false /* consider acquirable */, xdelta, candidateYDelta, zdelta);
+                var touching = RetrieveWhatPlayerIsTouchingAlongPath(elem, false /* consider acquirable */, xdelta, candidateYDelta, zdelta);
 
                 if (touching == null)
                 {
