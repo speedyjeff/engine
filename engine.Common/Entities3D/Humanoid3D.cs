@@ -11,6 +11,7 @@ namespace engine.Common.Entities3D
             BootColor = new RGBA() { R = 86, G = 62, B = 42, A = 255 };
             SkinColor = new RGBA() { R = 244, G = 214, B = 58, A = 255 };
             BackpackColor = new RGBA() { R = 82, G = 95, B = 74, A = 255 };
+            WeaponColor = new RGBA() { R = 64, G = 68, B = 78, A = 255 };
 
             Head = new Sphere() { Wireframe = false, DisableShading = true };
             Torso = new Cylinder() { Wireframe = false, DisableShading = true };
@@ -22,6 +23,7 @@ namespace engine.Common.Entities3D
             LeftBoot = new Cube() { Wireframe = false, DisableShading = false };
             RightBoot = new Cube() { Wireframe = false, DisableShading = false };
             Backpack = new Cube() { Wireframe = false, DisableShading = false };
+            HandItem = new Cube() { Wireframe = false, DisableShading = false };
 
             AddInner(Head);
             AddInner(Torso);
@@ -33,6 +35,7 @@ namespace engine.Common.Entities3D
             AddInner(LeftBoot);
             AddInner(RightBoot);
             AddInner(Backpack);
+            AddInner(HandItem);
 
             ApplyAppearance();
         }
@@ -42,6 +45,7 @@ namespace engine.Common.Entities3D
         public RGBA BootColor { get; set; }
         public RGBA SkinColor { get; set; }
         public RGBA BackpackColor { get; set; }
+        public RGBA WeaponColor { get; set; }
         public float WalkPhase { get; set; }
 
         public void ApplyAppearance()
@@ -56,6 +60,7 @@ namespace engine.Common.Entities3D
             LeftBoot.UniformColor = BootColor;
             RightBoot.UniformColor = BootColor;
             Backpack.UniformColor = BackpackColor;
+            HandItem.UniformColor = WeaponColor;
         }
 
         public void UpdatePose()
@@ -134,6 +139,13 @@ namespace engine.Common.Entities3D
             Backpack.X = X;
             Backpack.Y = Y - (Height * 0.05f) + (bob * 0.4f);
             Backpack.Z = Z + (Depth * 0.12f);
+
+            HandItem.Width = Width * 0.10f;
+            HandItem.Height = Height * 0.07f;
+            HandItem.Depth = Depth * 0.22f;
+            HandItem.X = RightArm.X + (Width * 0.08f);
+            HandItem.Y = RightArm.Y + (Height * 0.12f);
+            HandItem.Z = Z - (Depth * 0.10f);
         }
 
         #region private
@@ -147,6 +159,7 @@ namespace engine.Common.Entities3D
         private readonly Cube LeftBoot;
         private readonly Cube RightBoot;
         private readonly Cube Backpack;
+        private readonly Cube HandItem;
         #endregion
     }
 }

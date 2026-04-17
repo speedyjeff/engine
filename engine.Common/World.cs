@@ -1060,14 +1060,25 @@ namespace engine.Common
                 // check if we should stall before our next round
                 if (!EnableFastPlayerUpdate && timer.ElapsedMilliseconds < Constants.GlobalClock)
                 {
-                    var delta = (int)Math.Ceiling((Constants.GlobalClock - timer.ElapsedMilliseconds) * 0.9f);
-                    System.Threading.Thread.Sleep(delta);
+                    var remaining = (int)Math.Ceiling((Constants.GlobalClock - timer.ElapsedMilliseconds) * 0.9f);
+                    var substep = Math.Max(10, Constants.GlobalClock / 4);
+                    while (remaining > 0)
+                    {
+                        var delay = Math.Min(substep, remaining);
+                        System.Threading.Thread.Sleep(delay);
+                        remaining -= delay;
+
+                        if (HasEphemerial())
+                        {
+                            BackgroundUpdate(applyDamage: false);
+                        }
+                    }
                 }
             }
         }
 
         // background callback
-        private void BackgroundUpdate()
+        private void BackgroundUpdate(bool applyDamage = true)
         {
             // update the ephemeral items
             var toremove = new List<EphemerialElement>();
@@ -1076,8 +1087,14 @@ namespace engine.Common
                 EphemerialLock.EnterReadLock();
                 foreach (var b in Ephemerial)
                 {
+                    if (b.IsDead)
+                    {
+                        toremove.Add(b);
+                        continue;
+                    }
+
                     // advance
-                    if (!b.IsDead && b.Action(out float xdelta, out float ydelta, out float zdelta))
+                    if (b.Action(out float xdelta, out float ydelta, out float zdelta))
                     {
                         if (Map.WhatWouldPlayerTouch(b, ref xdelta, ref ydelta, ref zdelta, out Element touching, b.BasePace))
                         {
@@ -1102,8 +1119,8 @@ namespace engine.Common
                         }
                     }
 
-                    // advance and remove when it hits the end
-                    if (++b.CurrentDuration >= b.Duration) toremove.Add(b);
+                    // remove dead ephemerals immediately; otherwise age them out normally
+                    if (b.IsDead || ++b.CurrentDuration >= b.Duration) toremove.Add(b);
                 }
             }
             finally
@@ -1126,7 +1143,20 @@ namespace engine.Common
             }
 
             // apply any necessary damage to the players
-            Map.UpdateBackground(applydamage: string.IsNullOrWhiteSpace(Config.ServerUrl));
+            if (applyDamage) Map.UpdateBackground(applydamage: string.IsNullOrWhiteSpace(Config.ServerUrl));
+        }
+
+        private bool HasEphemerial()
+        {
+            try
+            {
+                EphemerialLock.EnterReadLock();
+                return Ephemerial.Count > 0;
+            }
+            finally
+            {
+                EphemerialLock.ExitReadLock();
+            }
         }
 
         // support

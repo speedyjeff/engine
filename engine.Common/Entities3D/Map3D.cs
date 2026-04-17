@@ -87,29 +87,49 @@ namespace engine.Common.Entities3D
 
             // provide a trajectory that takes into account the players yaw and pitch
             var x1 = 0f;
-            var y1 = 0f;
-            var z1 = -1 * player.Depth;
+            var y1 = -1 * Math.Max(player.Height * 0.22f, 8f);
+            var z1 = -1 * Math.Max(player.Depth * 0.8f, 8f);
             Utilities3D.Yaw(360f - player.Angle, ref x1, ref y1, ref z1);
-            // todo - apply pitch
-            //Utilities3D.Pitch(player.PitchAngle, ref x1, ref y1, ref z1);
 
             var x2 = 0f;
-            var y2 = 0f;
+            var y2 = y1;
             var z2 = -1 * player.Depth * 4;
             Utilities3D.Yaw(360f - player.Angle, ref x2, ref y2, ref z2);
-            // todo - apply pitch
             //Utilities3D.Pitch(player.PitchAngle, ref x2, ref y2, ref z2);
 
-            // add projectile
-            trajectories.Add(new ShotTrajectory3D(x: player.X + x1, y: player.Y + y1, z: player.Z + z1)
+            var projectileColor = new RGBA() { R = 255, A = 255 };
+            var projectileSize = 10f;
+            if (weapon is RangeWeapon3D weapon3D)
             {
+                projectileColor = weapon3D.ProjectileColor;
+                projectileSize = weapon3D.ProjectileSize;
+            }
+
+            // add projectile
+            var trajectory = new ShotTrajectory3D(x: player.X + x1, y: player.Y + y1, z: player.Z + z1)
+            {
+                SourcePlayerId = player.Id,
                 X1 = player.X + x1,
                 Y1 = player.Y + y1,
                 Z1 = player.Z + z1,
                 X2 = player.X + x2,
                 Y2 = player.Y + y2,
                 Z2 = player.Z + z2,
-            });
+                Damage = weapon.Damage,
+                Width = projectileSize,
+                Height = projectileSize,
+                Depth = projectileSize,
+            };
+
+            if (trajectory.Body != null)
+            {
+                trajectory.Body.Width = projectileSize;
+                trajectory.Body.Height = projectileSize;
+                trajectory.Body.Depth = projectileSize;
+                trajectory.Body.UniformColor = projectileColor;
+            }
+
+            trajectories.Add(trajectory);
 
             return true;
         }

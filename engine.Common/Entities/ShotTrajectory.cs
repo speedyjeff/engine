@@ -6,6 +6,7 @@ namespace engine.Common.Entities
 {
     public class ShotTrajectory : EphemerialElement
     {
+        public int SourcePlayerId { get; set; }
         public float X1 { get; set; }
         public float Y1 { get; set; }
         public float Z1 { get; set; }

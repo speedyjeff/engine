@@ -9,6 +9,8 @@ namespace engine.Common.Entities3D
     public class RangeWeapon3D : RangeWeapon
     {
         public Element3D Body { get; set; }
+        public RGBA ProjectileColor { get; set; } = new RGBA() { R = 255, A = 255 };
+        public float ProjectileSize { get; set; } = 10f;
 
         public override void Draw(IGraphics g)
         {

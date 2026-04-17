@@ -663,6 +663,7 @@ namespace engine.Common
                 // add bullet effect
                 trajectories.Add(new ShotTrajectory()
                 {
+                    SourcePlayerId = player.Id,
                     X1 = x1,
                     Y1 = y1,
                     X2 = x2,
@@ -715,6 +716,7 @@ namespace engine.Common
             {
                 // check if we should consider this object
                 if (elem.Id == primaryElem.Id) continue;
+                if (primaryElem is ShotTrajectory shot && shot.SourcePlayerId == elem.Id) continue;
                 if (elem.IsDead) continue;
                 if (!considerAquireable)
                 {
