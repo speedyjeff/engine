@@ -1304,13 +1304,40 @@ namespace engine.Common
             // validate
             if (points == null || elem == null) throw new Exception("Invalid input to shader");
 
-            // todo - shade appropriately
-            var avgY = points.Average(p => p.Y);
-            var ratio = 1 - ((elem.Y - (elem.Height / 2)) - (avgY * elem.Height)) / elem.Height;
+            // Shade by polygon orientation rather than vertical position. This keeps
+            // walls and roofs looking coherent on low-poly shapes.
+            if (points.Length >= 3)
+            {
+                var edge1 = Point.Subtract(points[1], points[0]);
+                var edge2 = Point.Subtract(points[2], points[0]);
+                var normal = Point.Product(edge1, edge2);
+                var length = (float)Math.Sqrt((normal.X * normal.X) + (normal.Y * normal.Y) + (normal.Z * normal.Z));
 
-            color.R = (byte)(color.R * ratio);
-            color.G = (byte)(color.G * ratio);
-            color.B = (byte)(color.B * ratio);
+                if (length > 0.0001f)
+                {
+                    normal.X /= length;
+                    normal.Y /= length;
+                    normal.Z /= length;
+
+                    // Negative Y is "up" in this engine.
+                    var light = new Point(0.30f, -0.90f, -0.22f);
+                    var lightLength = (float)Math.Sqrt((light.X * light.X) + (light.Y * light.Y) + (light.Z * light.Z));
+                    light.X /= lightLength;
+                    light.Y /= lightLength;
+                    light.Z /= lightLength;
+
+                    var diffuse = Math.Abs(Point.Dot(normal, light));
+                    var ratio = 0.76f + (diffuse * 0.24f);
+
+                    var r = (int)(color.R * ratio);
+                    var g = (int)(color.G * ratio);
+                    var b = (int)(color.B * ratio);
+
+                    color.R = (byte)(r < 0 ? 0 : (r > 255 ? 255 : r));
+                    color.G = (byte)(g < 0 ? 0 : (g > 255 ? 255 : g));
+                    color.B = (byte)(b < 0 ? 0 : (b > 255 ? 255 : b));
+                }
+            }
 
             return color;
         }

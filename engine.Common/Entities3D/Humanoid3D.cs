@@ -19,9 +19,9 @@ namespace engine.Common.Entities3D
             RightArm = new Cylinder() { Wireframe = false, DisableShading = true };
             LeftLeg = new Cylinder() { Wireframe = false, DisableShading = true };
             RightLeg = new Cylinder() { Wireframe = false, DisableShading = true };
-            LeftBoot = new Cube() { Wireframe = false, DisableShading = true };
-            RightBoot = new Cube() { Wireframe = false, DisableShading = true };
-            Backpack = new Cube() { Wireframe = false, DisableShading = true };
+            LeftBoot = new Cube() { Wireframe = false, DisableShading = false };
+            RightBoot = new Cube() { Wireframe = false, DisableShading = false };
+            Backpack = new Cube() { Wireframe = false, DisableShading = false };
 
             AddInner(Head);
             AddInner(Torso);
