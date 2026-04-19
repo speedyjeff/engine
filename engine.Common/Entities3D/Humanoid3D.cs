@@ -148,6 +148,16 @@ namespace engine.Common.Entities3D
             HandItem.Z = Z - (Depth * 0.10f);
         }
 
+        public override void Move(float xDelta, float yDelta, float zDelta)
+        {
+            base.Move(xDelta, yDelta, zDelta);
+
+            var movement = Math.Abs(xDelta) + Math.Abs(yDelta) + Math.Abs(zDelta);
+            if (movement > 0.001f) WalkPhase += Math.Min(0.45f, movement * 0.18f);
+
+            UpdatePose();
+        }
+
         #region private
         private readonly Sphere Head;
         private readonly Cylinder Torso;

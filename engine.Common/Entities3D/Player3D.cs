@@ -6,7 +6,26 @@ namespace engine.Common.Entities3D
     public class Player3D : Player
     {
         public bool ShowTarget { get; set; }
-        public Element3D Body { get; set; }
+        public Element3D Body
+        {
+            get
+            {
+                return _body;
+            }
+            set
+            {
+                _body = value;
+                if (_body != null)
+                {
+                    _body.Width = Width;
+                    _body.Height = Height;
+                    _body.Depth = Depth;
+                    _body.X = X;
+                    _body.Y = Y;
+                    _body.Z = Z;
+                }
+            }
+        }
         public bool LockBodyToCamera { get; set; } = true;
 
         public Player3D()
@@ -17,7 +36,6 @@ namespace engine.Common.Entities3D
         public override void Draw(IGraphics g)
         {
             if (ShowDefaultDrawing && Body == null) Body = CreateDefaultBody();
-            if (Body is Humanoid3D humanoid) UpdateHumanoidPose(humanoid);
 
             if (ShowTarget)
             {
@@ -43,19 +61,11 @@ namespace engine.Common.Entities3D
         public override void Move(float xDelta, float yDelta, float zDelta)
         {
             base.Move(xDelta, yDelta, zDelta);
-
-            if (Body != null)
-            {
-                var movement = Math.Abs(xDelta) + Math.Abs(yDelta) + Math.Abs(zDelta);
-                if (movement > 0.001f) WalkPhase += Math.Min(0.45f, movement * 0.18f);
-                Body.Move(xDelta, yDelta, zDelta);
-
-                if (Body is Humanoid3D humanoid) UpdateHumanoidPose(humanoid);
-            }
+            Body?.Move(xDelta, yDelta, zDelta);
         }
 
         #region private
-        private float WalkPhase;
+        private Element3D _body;
 
         private static Humanoid3D CreateDefaultBody()
         {
@@ -69,18 +79,6 @@ namespace engine.Common.Entities3D
             };
 
             return body;
-        }
-
-        private void UpdateHumanoidPose(Humanoid3D humanoid)
-        {
-            humanoid.X = X;
-            humanoid.Y = Y;
-            humanoid.Z = Z;
-            humanoid.Width = Width;
-            humanoid.Height = Height;
-            humanoid.Depth = Depth;
-            humanoid.WalkPhase = WalkPhase;
-            humanoid.UpdatePose();
         }
         #endregion
     }
