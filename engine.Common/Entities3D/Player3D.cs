@@ -6,6 +6,8 @@ namespace engine.Common.Entities3D
     public class Player3D : Player
     {
         public bool ShowTarget { get; set; }
+        internal object SyncRoot => _syncRoot;
+
         public Element3D Body
         {
             get
@@ -14,15 +16,18 @@ namespace engine.Common.Entities3D
             }
             set
             {
-                _body = value;
-                if (_body != null)
+                lock (_syncRoot)
                 {
-                    _body.Width = Width;
-                    _body.Height = Height;
-                    _body.Depth = Depth;
-                    _body.X = X;
-                    _body.Y = Y;
-                    _body.Z = Z;
+                    _body = value;
+                    if (_body != null)
+                    {
+                        _body.Width = Width;
+                        _body.Height = Height;
+                        _body.Depth = Depth;
+                        _body.X = X;
+                        _body.Y = Y;
+                        _body.Z = Z;
+                    }
                 }
             }
         }
@@ -35,36 +40,50 @@ namespace engine.Common.Entities3D
 
         public override void Draw(IGraphics g)
         {
-            if (ShowDefaultDrawing && Body == null) Body = CreateDefaultBody();
+            lock (_syncRoot)
+            {
+                if (ShowDefaultDrawing && _body == null) Body = CreateDefaultBody();
 
-            if (ShowTarget)
-            {
-                g.DisableTranslation();
+                if (ShowTarget)
                 {
-                    g.Line(RGBA.Black, g.Width / 2, (g.Height / 2) - 10, g.Width / 2, (g.Height / 2) + 10, 1);
-                    g.Line(RGBA.Black, (g.Width / 2) - 10, g.Height / 2, (g.Width / 2) + 10, g.Height / 2, 1);
+                    g.DisableTranslation();
+                    {
+                        g.Line(RGBA.Black, g.Width / 2, (g.Height / 2) - 10, g.Width / 2, (g.Height / 2) + 10, 1);
+                        g.Line(RGBA.Black, (g.Width / 2) - 10, g.Height / 2, (g.Width / 2) + 10, g.Height / 2, 1);
+                    }
+                    g.EnableTranslation();
                 }
-                g.EnableTranslation();
-            }
-            if (Body != null)
-            {
-                // The local player body can be camera-locked, but other 3D players/NPCs
-                // should render in world space with normal perspective.
-                if (LockBodyToCamera) g.DisableTranslation(TranslationOptions.Translation | TranslationOptions.Scaling);
+                if (_body != null)
                 {
-                    Body.Draw(g);
+                    // The local player body can be camera-locked, but other 3D players/NPCs
+                    // should render in world space with normal perspective.
+                    if (LockBodyToCamera) g.DisableTranslation(TranslationOptions.Translation | TranslationOptions.Scaling);
+                    {
+                        _body.Draw(g);
+                    }
+                    if (LockBodyToCamera) g.EnableTranslation();
                 }
-                if (LockBodyToCamera) g.EnableTranslation();
             }
         }
 
         public override void Move(float xDelta, float yDelta, float zDelta)
         {
-            base.Move(xDelta, yDelta, zDelta);
-            Body?.Move(xDelta, yDelta, zDelta);
+            lock (_syncRoot)
+            {
+                base.Move(xDelta, yDelta, zDelta);
+
+                if (_body != null)
+                {
+                    _body.Width = Width;
+                    _body.Height = Height;
+                    _body.Depth = Depth;
+                    _body.Move(xDelta, yDelta, zDelta);
+                }
+            }
         }
 
         #region private
+        private readonly object _syncRoot = new object();
         private Element3D _body;
 
         private static Humanoid3D CreateDefaultBody()

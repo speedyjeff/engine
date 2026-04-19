@@ -133,130 +133,147 @@ namespace engine.Common
             // exit early if there is no Surface to draw too
             if (Surface == null) return;
 
-            // set graphics the perspective
-            Surface.SetPerspective(is3D: Config.Is3D,
-                centerX: Human.X, centerY: Human.Y, centerZ: Human.Z,
-                yaw: Human.Angle, pitch: Human.PitchAngle, roll: Human.RollAngle,
-                cameraX: Config.CameraX, cameraY: Config.CameraY, cameraZ: Config.CameraZ,
-                horizon: Config.HorizonZ * 2,
-                lod: (Human.Z+Config.CameraZ) / Constants.Sky);
-
-            // draw the map
-            Map.Background.Draw(Surface);
-
-            // if 3d, defer the rendering of the polygons to ensure proper ordering
-            if (Config.Is3D) Surface.CapturePolygons();
-
-            // draw all elements
-            var hidden = new HashSet<int>();
-            var visiblePlayers = new List<Player>();
-
-            var ratio = (Human.Z + Config.CameraZ);
-            if (Config.Is3D || ratio < 1f) ratio = 1f;
-            foreach (var elem in Map.WithinWindow(Human.X, Human.Y, Human.Z,
-                Surface.Width * ratio + Config.HorizonX, Surface.Height * ratio + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
-            {
-                if (elem.IsDead) continue;
-                else if (elem is Player)
-                {
-                    visiblePlayers.Add(elem as Player);
-                    continue;
-                }
-                else if (elem.IsTransparent)
-                {
-                    // if the player is intersecting with this item, then do not display it
-                    if (Map.IsTouching(Human, elem)) continue;
-                    // get players that are touching
-                    var players = Map.WhatPlayersAreTouching(elem);
-                    foreach (var player in players) hidden.Add(player.Id);
-                }
-
-                // draw
-                elem.Draw(Surface);
-            }
-
-            // draw the players (todo - if not on the same plane, they may be draw in wrong order)
-            foreach (var player in visiblePlayers)
-            {
-                if (hidden.Contains(player.Id)) continue;
-                player.Draw(Surface);
-            }
-
-            // get ephemerals
+            var renderGuard = (Human is Player3D player3d) ? player3d.SyncRoot : null;
             try
             {
-                EphemerialLock.EnterReadLock();
+                if (renderGuard != null) Monitor.Enter(renderGuard);
 
-                // add any ephemeral elements (non-text)
-                foreach (var b in Ephemerial)
+                var humanX = Human.X;
+                var humanY = Human.Y;
+                var humanZ = Human.Z;
+                var humanAngle = Human.Angle;
+                var humanPitch = Human.PitchAngle;
+                var humanRoll = Human.RollAngle;
+
+                // set graphics the perspective
+                Surface.SetPerspective(is3D: Config.Is3D,
+                    centerX: humanX, centerY: humanY, centerZ: humanZ,
+                    yaw: humanAngle, pitch: humanPitch, roll: humanRoll,
+                    cameraX: Config.CameraX, cameraY: Config.CameraY, cameraZ: Config.CameraZ,
+                    horizon: Config.HorizonZ * 2,
+                    lod: (humanZ + Config.CameraZ) / Constants.Sky);
+
+                // draw the map
+                Map.Background.Draw(Surface);
+
+                // if 3d, defer the rendering of the polygons to ensure proper ordering
+                if (Config.Is3D) Surface.CapturePolygons();
+
+                // draw all elements
+                var hidden = new HashSet<int>();
+                var visiblePlayers = new List<Player>();
+
+                var ratio = (humanZ + Config.CameraZ);
+                if (Config.Is3D || ratio < 1f) ratio = 1f;
+                foreach (var elem in Map.WithinWindow(humanX, humanY, humanZ,
+                    Surface.Width * ratio + Config.HorizonX, Surface.Height * ratio + Config.HorizonY, depth: Constants.ProximityViewDepth + Config.HorizonZ))
                 {
-                    // skip all the messages
-                    if (b is OnScreenText) continue;
-                    // draw
-                    b.Draw(Surface);
-                }
-            }
-            finally
-            {
-                EphemerialLock.ExitReadLock();
-            }
-
-            // if 3d, then render all the polygons (in order)
-            if (Config.Is3D) Surface.RenderPolygons();
-
-            try
-            {
-                EphemerialLock.EnterReadLock();
-
-                // add any ephemeral elements (text only)
-                foreach (var b in Ephemerial)
-                {
-                    // show only 1 message at a time
-                    if (b is OnScreenText)
+                    if (elem.IsDead) continue;
+                    else if (elem is Player)
                     {
+                        visiblePlayers.Add(elem as Player);
+                        continue;
+                    }
+                    else if (elem.IsTransparent)
+                    {
+                        // if the player is intersecting with this item, then do not display it
+                        if (Map.IsTouching(Human, elem)) continue;
+                        // get players that are touching
+                        var players = Map.WhatPlayersAreTouching(elem);
+                        foreach (var player in players) hidden.Add(player.Id);
+                    }
+
+                    // draw
+                    elem.Draw(Surface);
+                }
+
+                // draw the players (todo - if not on the same plane, they may be draw in wrong order)
+                foreach (var player in visiblePlayers)
+                {
+                    if (hidden.Contains(player.Id)) continue;
+                    player.Draw(Surface);
+                }
+
+                // get ephemerals
+                try
+                {
+                    EphemerialLock.EnterReadLock();
+
+                    // add any ephemeral elements (non-text)
+                    foreach (var b in Ephemerial)
+                    {
+                        // skip all the messages
+                        if (b is OnScreenText) continue;
                         // draw
                         b.Draw(Surface);
-                        break;
                     }
+                }
+                finally
+                {
+                    EphemerialLock.ExitReadLock();
+                }
+
+                // if 3d, then render all the polygons (in order)
+                if (Config.Is3D) Surface.RenderPolygons();
+
+                try
+                {
+                    EphemerialLock.EnterReadLock();
+
+                    // add any ephemeral elements (text only)
+                    foreach (var b in Ephemerial)
+                    {
+                        // show only 1 message at a time
+                        if (b is OnScreenText)
+                        {
+                            // draw
+                            b.Draw(Surface);
+                            break;
+                        }
+                    }
+                }
+                finally
+                {
+                    EphemerialLock.ExitReadLock();
+                }
+
+                // display the player counts
+                if (Config.HUD != null)
+                {
+                    Surface.DisableTranslation();
+                    {
+                        Config.HUD.Draw(Surface);
+                    }
+                    Surface.EnableTranslation();
+                }
+
+                if (Config.ShowCoordinates)
+                {
+                    Surface.DisableTranslation();
+                    {
+                        Surface.Text(RGBA.Black, 20, 5, $"X {humanX}");
+                        Surface.Text(RGBA.Black, 20, 45, $"Y {humanY}");
+                        Surface.Text(RGBA.Black, 20, 85, $"Z {humanZ}");
+                        Surface.Text(RGBA.Black, 20, 125, $"A {humanAngle}");
+                        Surface.Text(RGBA.Black, 20, 165, $"P {humanPitch}");
+                        Surface.Text(RGBA.Black, 20, 205, $"R {humanRoll}");
+                    }
+                    Surface.EnableTranslation();
+                }
+
+                // show a menu if present
+                if (Map.IsPaused && Menu != null)
+                {
+                    Surface.DisableTranslation();
+                    {
+                        Menu.Draw(Surface);
+                    }
+                    Surface.EnableTranslation();
                 }
             }
             finally
             {
-                EphemerialLock.ExitReadLock();
-            }
-
-            // display the player counts
-            if (Config.HUD != null)
-            {
-                Surface.DisableTranslation();
-                {
-                    Config.HUD.Draw(Surface);
-                }
-                Surface.EnableTranslation();
-            }
-
-            if (Config.ShowCoordinates)
-            {
-                Surface.DisableTranslation();
-                {
-                    Surface.Text(RGBA.Black, 20, 5, $"X {Human.X}");
-                    Surface.Text(RGBA.Black, 20, 45, $"Y {Human.Y}");
-                    Surface.Text(RGBA.Black, 20, 85, $"Z {Human.Z}");
-                    Surface.Text(RGBA.Black, 20, 125, $"A {Human.Angle}");
-                    Surface.Text(RGBA.Black, 20, 165, $"P {Human.PitchAngle}");
-                    Surface.Text(RGBA.Black, 20, 205, $"R {Human.RollAngle}");
-                }
-                Surface.EnableTranslation();
-            }
-
-            // show a menu if present
-            if (Map.IsPaused && Menu != null)
-            {
-                Surface.DisableTranslation();
-                {
-                    Menu.Draw(Surface);
-                }
-                Surface.EnableTranslation();
+                if (renderGuard != null) Monitor.Exit(renderGuard);
             }
         }
 
