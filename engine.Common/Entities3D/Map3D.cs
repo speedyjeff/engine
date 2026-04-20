@@ -18,13 +18,23 @@ namespace engine.Common.Entities3D
             // bounding box test first
             if (base.IsTouching(elem1, elem2, x1delta, y1delta, z1delta))
             {
+                // Projectiles already use a swept-path collision check before they reach
+                // this point. When the target is a player, a simple bounding-box hit is
+                // enough and avoids the very expensive humanoid triangle-vs-triangle path.
+                if ((elem1 is ShotTrajectory || elem2 is ShotTrajectory) && (elem1 is Player || elem2 is Player))
+                {
+                    return true;
+                }
+
+                // if not using detailed collision, assume touching if bounding boxes are touching (or close enough with delta)
+                if (!elem1.UseDetailedCollision || !elem2.UseDetailedCollision)
+                {
+                    return true;
+                }
+
                 // get the 3D object's polygons
-                var e1_3D = (elem1 is Element3D) ? elem1 as Element3D :
-                    ((elem1 is Player3D) ? (elem1 as Player3D).Body :
-                    ((elem1 is ShotTrajectory3D) ? (elem1 as ShotTrajectory3D).Body : null));
-                var e2_3D = (elem2 is Element3D) ? elem2 as Element3D :
-                    ((elem2 is Player3D) ? (elem2 as Player3D).Body :
-                    ((elem2 is ShotTrajectory3D) ? (elem2 as ShotTrajectory3D).Body : null));
+                var e1_3D = GetCollisionBody(elem1);
+                var e2_3D = GetCollisionBody(elem2);
 
                 // test if both have polygons
                 if (e1_3D != null && e2_3D != null)
@@ -77,6 +87,14 @@ namespace engine.Common.Entities3D
         }
 
         #region private
+        private static Element3D GetCollisionBody(Element elem)
+        {
+            if (elem is Element3D element3D) return element3D;
+            if (elem is Player3D player3D) return player3D.Body;
+            if (elem is ShotTrajectory3D shot3D) return shot3D.Body;
+            return null;
+        }
+
         protected override bool SupportsTerrainStepUp => true;
 
         protected override bool TrackAttackTrajectory(Player player, Tool weapon, out List<Element> hit, out List<ShotTrajectory> trajectories)
@@ -85,18 +103,6 @@ namespace engine.Common.Entities3D
             hit = new List<Element>();
             trajectories = new List<ShotTrajectory>();
 
-            // provide a trajectory that takes into account the players yaw and pitch
-            var x1 = 0f;
-            var y1 = -1 * Math.Max(player.Height * 0.22f, 8f);
-            var z1 = -1 * Math.Max(player.Depth * 0.8f, 8f);
-            Utilities3D.Yaw(360f - player.Angle, ref x1, ref y1, ref z1);
-
-            var x2 = 0f;
-            var y2 = y1;
-            var z2 = -1 * player.Depth * 4;
-            Utilities3D.Yaw(360f - player.Angle, ref x2, ref y2, ref z2);
-            //Utilities3D.Pitch(player.PitchAngle, ref x2, ref y2, ref z2);
-
             var projectileColor = new RGBA() { R = 255, A = 255 };
             var projectileSize = 10f;
             if (weapon is RangeWeapon3D weapon3D)
@@ -104,6 +110,19 @@ namespace engine.Common.Entities3D
                 projectileColor = weapon3D.ProjectileColor;
                 projectileSize = weapon3D.ProjectileSize;
             }
+
+            // provide a trajectory that takes into account the players yaw and pitch
+            var x1 = Math.Max(player.Width * 0.16f, projectileSize * 0.5f);
+            var y1 = -1 * Math.Max(player.Height * 0.30f, projectileSize + 8f);
+            var z1 = -1 * Math.Max(player.Depth * 1.1f, (player.Depth / 2f) + projectileSize + 12f);
+
+            var x2 = x1;
+            var y2 = y1;
+            var z2 = z1 - Math.Max(player.Depth * 4f, 200f);
+
+            Utilities3D.Yaw(360f - player.Angle, ref x1, ref y1, ref z1);
+            Utilities3D.Yaw(360f - player.Angle, ref x2, ref y2, ref z2);
+            //Utilities3D.Pitch(player.PitchAngle, ref x2, ref y2, ref z2);
 
             // add projectile
             var trajectory = new ShotTrajectory3D(x: player.X + x1, y: player.Y + y1, z: player.Z + z1)

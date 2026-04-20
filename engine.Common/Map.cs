@@ -41,30 +41,48 @@ namespace engine.Common
             var z1 = z - depth / 2;
             var z2 = z + depth / 2;
 
-            // iterate through all objects (obstacles + items)
-            foreach (var region in new RegionCollection[] {Items, Obstacles })
+            // iterate through all objects (items + obstacles)
+            foreach (var elem in Items.Values(x1, y1, z1, x2, y2, z2))
             {
-                foreach (var elem in region.Values(x1, y1, z1, x2, y2, z2))
+                if (elem.IsDead) continue;
+
+                // check that they within the bounds of z
+                if (((depth / 2) + (elem.Depth / 2)) < Math.Abs(z - elem.Z)) continue;
+
+                // check they are within the bounds of x,y
+                // NOTE: there is a race here, elements may be moving while comparing
+                var ex = elem.X;
+                var ey = elem.Y;
+                var x3 = ex - elem.Width / 2;
+                var y3 = ey - elem.Height / 2;
+                var x4 = ex + elem.Width / 2;
+                var y4 = ey + elem.Height / 2;
+
+                if (Collision.IntersectingRectangles(x1, y1, x2, y2, x3, y3, x4, y4))
                 {
-                    if (elem.IsDead) continue;
+                    yield return elem;
+                }
+            }
 
-                    // check that they within the bounds of z
-                    if (((depth / 2) + (elem.Depth / 2)) < Math.Abs(z - elem.Z)) continue;
+            foreach (var elem in Obstacles.Values(x1, y1, z1, x2, y2, z2))
+            {
+                if (elem.IsDead) continue;
 
-                    // check they are within the bounds of x,y
-                    // NOTE: there is a race here, elements may be moving while comparing
-                    var ex = elem.X;
-                    var ey = elem.Y;
-                    var x3 = ex - elem.Width / 2;
-                    var y3 = ey - elem.Height / 2;
-                    var x4 = ex + elem.Width / 2;
-                    var y4 = ey + elem.Height / 2;
+                // check that they within the bounds of z
+                if (((depth / 2) + (elem.Depth / 2)) < Math.Abs(z - elem.Z)) continue;
 
-                    if (Collision.IntersectingRectangles(x1, y1, x2, y2,
-                        x3, y3, x4, y4))
-                    {
-                        yield return elem;
-                    }
+                // check they are within the bounds of x,y
+                // NOTE: there is a race here, elements may be moving while comparing
+                var ex = elem.X;
+                var ey = elem.Y;
+                var x3 = ex - elem.Width / 2;
+                var y3 = ey - elem.Height / 2;
+                var x4 = ex + elem.Width / 2;
+                var y4 = ey + elem.Height / 2;
+
+                if (Collision.IntersectingRectangles(x1, y1, x2, y2, x3, y3, x4, y4))
+                {
+                    yield return elem;
                 }
             }
         }
@@ -555,8 +573,11 @@ namespace engine.Common
 
         public virtual bool IsTouching(Element elem1, Element elem2, float x1delta = 0, float y1delta = 0, float z1delta = 0)
         {
+            var elem1Depth = elem1.EffectiveCollisionDepth;
+            var elem2Depth = elem2.EffectiveCollisionDepth;
+
             // check that they intersect on the depth plane
-            if (((elem1.Depth / 2) + (elem2.Depth / 2)) < Math.Abs((elem1.Z + z1delta) - elem2.Z)) return false;
+            if (((elem1Depth / 2) + (elem2Depth / 2)) < Math.Abs((elem1.Z + z1delta) - elem2.Z)) return false;
 
             // cache x,y (as there is a race)
             var e1x = elem1.X;
@@ -564,16 +585,21 @@ namespace engine.Common
             var e2x = elem2.X;
             var e2y = elem2.Y;
 
-            // calculate edges
-            float x1 = (e1x + x1delta) - (elem1.Width / 2);
-            float y1 = (e1y + y1delta) - (elem1.Height / 2);
-            float x2 = (e1x + x1delta) + (elem1.Width / 2);
-            float y2 = (e1y + y1delta) + (elem1.Height / 2);
+            var elem1Width = elem1.EffectiveCollisionWidth;
+            var elem1Height = elem1.EffectiveCollisionHeight;
+            var elem2Width = elem2.EffectiveCollisionWidth;
+            var elem2Height = elem2.EffectiveCollisionHeight;
 
-            float x3 = (e2x) - (elem2.Width / 2);
-            float y3 = (e2y) - (elem2.Height / 2);
-            float x4 = (e2x) + (elem2.Width / 2);
-            float y4 = (e2y) + (elem2.Height / 2);
+            // calculate edges
+            float x1 = (e1x + x1delta) - (elem1Width / 2);
+            float y1 = (e1y + y1delta) - (elem1Height / 2);
+            float x2 = (e1x + x1delta) + (elem1Width / 2);
+            float y2 = (e1y + y1delta) + (elem1Height / 2);
+
+            float x3 = (e2x) - (elem2Width / 2);
+            float y3 = (e2y) - (elem2Height / 2);
+            float x4 = (e2x) + (elem2Width / 2);
+            float y4 = (e2y) + (elem2Height / 2);
 
             return Collision.IntersectingRectangles(x1, y1, x2, y2, x3, y3, x4, y4);
         }
@@ -678,7 +704,7 @@ namespace engine.Common
         // use this entry point as it goes beyond just the bounds and checks the journey
         private Element RetrieveWhatPlayerIsTouchingAlongPath(Element primaryElem, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
         {
-            var referenceSize = Math.Max(primaryElem.Width, Math.Max(primaryElem.Height, Math.Max(primaryElem.Depth, 1f)));
+            var referenceSize = Math.Max(primaryElem.EffectiveCollisionWidth, Math.Max(primaryElem.EffectiveCollisionHeight, Math.Max(primaryElem.EffectiveCollisionDepth, 1f)));
             var sweepStepDistance = Math.Max(Constants.IsTouchingDistance, Math.Min(referenceSize / 4f, 8f));
             var maxDelta = Math.Max(Math.Abs(xdelta), Math.Max(Math.Abs(ydelta), Math.Abs(zdelta)));
             var steps = Math.Max(1, (int)Math.Ceiling(maxDelta / sweepStepDistance));
@@ -700,12 +726,16 @@ namespace engine.Common
 
         private Element RetrieveWhatPlayerIsTouching(Element primaryElem, bool considerAquireable = false, float xdelta = 0, float ydelta = 0, float zdelta = 0)
         {
-            float x1 = (primaryElem.X + xdelta) - (primaryElem.Width / 2);
-            float y1 = (primaryElem.Y + ydelta) - (primaryElem.Height / 2);
-            float z1 = (primaryElem.Z + zdelta) - (primaryElem.Depth / 2);
-            float x2 = (primaryElem.X + xdelta) + (primaryElem.Width / 2);
-            float y2 = (primaryElem.Y + ydelta) + (primaryElem.Height / 2);
-            float z2 = (primaryElem.Z + zdelta) + (primaryElem.Depth / 2);
+            var primaryWidth = primaryElem.EffectiveCollisionWidth;
+            var primaryHeight = primaryElem.EffectiveCollisionHeight;
+            var primaryDepth = primaryElem.EffectiveCollisionDepth;
+
+            float x1 = (primaryElem.X + xdelta) - (primaryWidth / 2);
+            float y1 = (primaryElem.Y + ydelta) - (primaryHeight / 2);
+            float z1 = (primaryElem.Z + zdelta) - (primaryDepth / 2);
+            float x2 = (primaryElem.X + xdelta) + (primaryWidth / 2);
+            float y2 = (primaryElem.Y + ydelta) + (primaryHeight / 2);
+            float z2 = (primaryElem.Z + zdelta) + (primaryDepth / 2);
 
             // either choose to iterate through solid objects (obstacles) or items
             RegionCollection objects = Obstacles;

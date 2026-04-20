@@ -289,6 +289,18 @@ public virtual float Damage(float x, float y)
 }
 ```
 
+#### Elements
+All objects in the world inherit from `Element`, which provides the base transform, size, and collision properties.
+
+Common attributes:
+
+- `X`, `Y`, `Z`: the center position of the element in world space
+- `Width`, `Height`, `Depth`: the rendered size of the object and the default collision box
+- `CollisionWidth`, `CollisionHeight`, `CollisionDepth`: optional collision-only overrides; when left unset, collision falls back to `Width`, `Height`, and `Depth`
+- `UseDetailedCollision`: when `true`, 3D elements may continue from the broad bounding-box check into more detailed polygon/triangle collision; set it to `false` for large decorative objects when a simple box footprint is sufficient
+
+This allows a large visual mesh to keep a smaller gameplay footprint, such as a tree canopy rendering wide while only the trunk blocks movement.
+
 #### Players
 Players can either accept user input (eg. they are the human) or they can implement `AI` can be controled by overriden methods.
 

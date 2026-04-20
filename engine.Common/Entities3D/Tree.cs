@@ -9,6 +9,9 @@ namespace engine.Common.Entities3D
             Width = 94;
             Height = 100;
             Depth = 118;
+            CollisionWidth = 28f;
+            CollisionDepth = 28f;
+            UseDetailedCollision = false;
             UniformColor = new RGBA() { R = 33, G = 186, B = 75, A = 255 };
             Polygons = new Point[][]
             {

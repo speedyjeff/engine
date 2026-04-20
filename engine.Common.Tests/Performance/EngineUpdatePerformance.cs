@@ -45,6 +45,24 @@ namespace engine.Common.Tests.Performance
                 $"Projectile updates became too slow. Worst average tick time: {worstAverageMs:0.000} ms.");
         }
 
+        [TestMethod]
+        [TestCategory("Performance")]
+        public void ProjectileCollisionChecksAgainst3DPlayersStayResponsive()
+        {
+            var counts = new[] { 100, 250, 500 };
+            var worstAverageMs = 0d;
+
+            foreach (var count in counts)
+            {
+                var metrics = MeasureProjectileCollisionPerformance(count, ticks: 20);
+                TestContext?.WriteLine($"{count} projectile collision checks => {metrics.AverageMs:0.000} ms/tick, {metrics.OperationsPerSecond:0} ticks/s, {metrics.BytesPerOperation} B/op");
+                worstAverageMs = Math.Max(worstAverageMs, metrics.AverageMs);
+            }
+
+            Assert.IsTrue(worstAverageMs < 40,
+                $"Projectile collision checks became too slow. Worst average tick time: {worstAverageMs:0.000} ms.");
+        }
+
         private static PerfMetrics MeasureMovePerformance(int obstacleCount, int iterations)
         {
             var player = new Player3D()
@@ -133,6 +151,85 @@ namespace engine.Common.Tests.Performance
                     if (projectile.Action(out var xdelta, out var ydelta, out var zdelta))
                     {
                         projectile.Move(xdelta, ydelta, zdelta);
+                    }
+                }
+            }
+            timer.Stop();
+            var allocatedAfter = GC.GetTotalAllocatedBytes(true);
+
+            return PerfMetrics.FromElapsed(timer.Elapsed, ticks, allocatedAfter - allocatedBefore);
+        }
+
+        private static PerfMetrics MeasureProjectileCollisionPerformance(int projectileCount, int ticks)
+        {
+            var shooter = new Player3D()
+            {
+                X = 0f,
+                Y = 0f,
+                Z = 100f,
+                Width = 48f,
+                Height = 60f,
+                Depth = 48f,
+                ShowDefaultDrawing = false,
+                Body = new Humanoid3D(),
+            };
+
+            var target = new Player3D()
+            {
+                X = 0f,
+                Y = 0f,
+                Z = 420f,
+                Width = 48f,
+                Height = 60f,
+                Depth = 48f,
+                ShowDefaultDrawing = false,
+                Body = new Humanoid3D(),
+            };
+
+            var map = new Map3D(
+                width: 12000,
+                height: 12000,
+                depth: 3000,
+                players: new Player[] { shooter, target },
+                objects: Array.Empty<Element>(),
+                background: new Background(12000, 12000) { GroundColor = new RGBA() { A = 255 }, BasePace = 1f });
+            map.IsPaused = false;
+
+            var projectiles = new List<ShotTrajectory3D>(projectileCount);
+            for (var i = 0; i < projectileCount; i++)
+            {
+                var x = ((i % 20) - 10) * 6f;
+                var z = 20f + (i / 20) * 8f;
+                projectiles.Add(new ShotTrajectory3D(x, 0f, z)
+                {
+                    SourcePlayerId = shooter.Id,
+                    X1 = x,
+                    Y1 = 0f,
+                    Z1 = z,
+                    X2 = x,
+                    Y2 = 0f,
+                    Z2 = z + 400f,
+                    Damage = 6f,
+                    BasePace = 1f,
+                });
+            }
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            var allocatedBefore = GC.GetTotalAllocatedBytes(true);
+            var timer = Stopwatch.StartNew();
+            for (var tick = 0; tick < ticks; tick++)
+            {
+                foreach (var projectile in projectiles)
+                {
+                    if (!projectile.Action(out var xdelta, out var ydelta, out var zdelta)) continue;
+
+                    if (map.WhatWouldPlayerTouch(projectile, ref xdelta, ref ydelta, ref zdelta, out var touching, projectile.BasePace))
+                    {
+                        if (touching == null) projectile.Move(xdelta, ydelta, zdelta);
+                        else projectile.Feedback(result: false);
                     }
                 }
             }

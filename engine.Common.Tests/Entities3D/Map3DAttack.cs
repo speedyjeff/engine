@@ -63,6 +63,62 @@ namespace engine.Common.Tests.Entities3D
             Assert.AreEqual(180, createdTrajectory.Body.UniformColor.G);
             Assert.AreEqual(240, createdTrajectory.Body.UniformColor.B);
             Assert.AreEqual(255, createdTrajectory.Body.UniformColor.A);
+            Assert.IsFalse(map.IsTouching(createdTrajectory, player), "3D projectiles should spawn outside the shooter hit box.");
+        }
+
+        [TestMethod]
+        public void ProjectileCanHitHumanoidPlayerUsingSweptBoundingBox()
+        {
+            var shooter = new TestPlayer3D()
+            {
+                X = 0f,
+                Y = 0f,
+                Z = 0f,
+                Width = 50f,
+                Height = 60f,
+                Depth = 50f,
+                ShowDefaultDrawing = false,
+                Body = new Humanoid3D(),
+            };
+
+            var target = new TestPlayer3D()
+            {
+                X = 0f,
+                Y = 0f,
+                Z = 90f,
+                Width = 50f,
+                Height = 60f,
+                Depth = 50f,
+                ShowDefaultDrawing = false,
+                Body = new Humanoid3D(),
+            };
+
+            var map = new Map3D(
+                width: 1000,
+                height: 1000,
+                depth: 1000,
+                players: new Player[] { shooter, target },
+                objects: Array.Empty<Element>(),
+                background: new Background(1000, 1000) { GroundColor = new RGBA() { A = 255 } });
+            map.IsPaused = false;
+
+            var projectile = new ShotTrajectory3D(x: 0f, y: 0f, z: 20f)
+            {
+                SourcePlayerId = shooter.Id,
+                Width = 10f,
+                Height = 10f,
+                Depth = 10f,
+                BasePace = 10f,
+            };
+
+            var xdelta = 0f;
+            var ydelta = 0f;
+            var zdelta = 1f;
+
+            var checkedMove = map.WhatWouldPlayerTouch(projectile, ref xdelta, ref ydelta, ref zdelta, out var touching, projectile.BasePace);
+
+            Assert.IsTrue(checkedMove);
+            Assert.AreSame(target, touching);
         }
 
         private sealed class TestPlayer3D : Player3D

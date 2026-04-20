@@ -24,6 +24,7 @@ namespace engine.Winforms
             SolidBrushCache = new Dictionary<int, SolidBrush>();
             PenCache = new Dictionary<long, Pen>();
             FontCache = new Dictionary<string, Dictionary<float, Font>>();
+            PointCache = new Dictionary<int, PointF[]>();
             // 3 pointf's is the most common type, so use one as a cache (to avoid the allocation)
             TriPoints = new PointF[3];
 
@@ -142,10 +143,11 @@ namespace engine.Winforms
             }
             else
             {
-                edges = new System.Drawing.PointF[points.Length];
+                edges = GetCachedPointArray(points.Length);
                 for (int i = 0; i < points.Length; i++)
                 {
-                    edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
+                    edges[i].X = points[i].X;
+                    edges[i].Y = points[i].Y;
                 }
             }
 
@@ -176,10 +178,11 @@ namespace engine.Winforms
             }
             else
             {
-                edges = new System.Drawing.PointF[points.Length];
+                edges = GetCachedPointArray(points.Length);
                 for (int i = 0; i < points.Length; i++)
                 {
-                    edges[i] = new System.Drawing.PointF(points[i].X, points[i].Y);
+                    edges[i].X = points[i].X;
+                    edges[i].Y = points[i].Y;
                 }
             }
 
@@ -243,6 +246,7 @@ namespace engine.Winforms
         private Dictionary<int, SolidBrush> SolidBrushCache;
         private Dictionary<long, Pen> PenCache;
         private Dictionary<string, Dictionary<float, Font>> FontCache;
+        private Dictionary<int, PointF[]> PointCache;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void ExpandTriangle(Common.Point[] points, PointF[] destination, float amount)
@@ -284,6 +288,20 @@ namespace engine.Winforms
             var attributes = new ImageAttributes();
             attributes.SetWrapMode(WrapMode.TileFlipXY);
             return attributes;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private PointF[] GetCachedPointArray(int length)
+        {
+            if (length == TriPoints.Length) return TriPoints;
+
+            if (!PointCache.TryGetValue(length, out var points))
+            {
+                points = new PointF[length];
+                PointCache.Add(length, points);
+            }
+
+            return points;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

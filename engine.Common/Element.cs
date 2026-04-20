@@ -30,6 +30,17 @@ namespace engine.Common
         public bool IsTransparent { get; protected set; } = false;
         public string Name { get; set; } = "";
 
+        // Optional collision-only dimensions. These differ from Width/Height/Depth
+        // when an element should render large but block like a smaller footprint.
+        public float CollisionHeight { get; set; }
+        public float CollisionWidth { get; set; }
+        public float CollisionDepth { get; set; }
+        public bool UseDetailedCollision { get; set; } = true;
+
+        public float EffectiveCollisionHeight => CollisionHeight > 0 ? CollisionHeight : Height;
+        public float EffectiveCollisionWidth => CollisionWidth > 0 ? CollisionWidth : Width;
+        public float EffectiveCollisionDepth => CollisionDepth > 0 ? CollisionDepth : Depth;
+
         public bool ShowDefaultDrawing { get; set; }
 
         public bool IsDead { get; protected set; } = false;
@@ -46,7 +57,7 @@ namespace engine.Common
 
         public virtual void Draw(IGraphics g)
         {
-            if (Constants.Debug_ShowHitBoxes) g.Rectangle(RGBA.Black, X-(Width/2), Y-(Height/2), Width, Height, false);
+            if (Constants.Debug_ShowHitBoxes) g.Rectangle(RGBA.Black, X-(EffectiveCollisionWidth/2), Y-(EffectiveCollisionHeight/2), EffectiveCollisionWidth, EffectiveCollisionHeight, false);
             if (CanAcquire)
             {
                 if (!string.Equals(Name, PreviousName))

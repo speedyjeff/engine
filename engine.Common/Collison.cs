@@ -29,50 +29,37 @@ namespace engine.Common
                 || x3 > x4
                 || y3 > y4) throw new Exception("Invalid input to compare rectangles");
 
-            if (x3 > x1 && x3 < x2)
-            {
-                if (y3 >= y1 && y3 < y2) return true;
-                if (y3 <= y1 && y4 >= y2) return true;
-                if (y4 >= y1 && y4 < y2) return true;
-            }
-            else if (x4 > x1 && x4 < x2)
-            {
-                if (y4 >= y1 && y4 < y2) return true;
-                if (y3 <= y1 && y4 >= y2) return true;
-                if (y3 >= y1 && y3 < y2) return true;
-            }
-            else if ((y3 > y1 && y3 < y2) || (y4 > y1 && y4 < y2))
-            {
-                if (x3 <= x1 && x4 >= x2) return true;
-            }
-            else if (y3 <= y1 && x3 <= x1 && y4 >= y2 && x4 >= x2) return true;
-
-            return false;
+            // Standard AABB overlap test: two rectangles intersect unless they are
+            // separated on the X or Y axis. Use strict comparisons so edge-only
+            // contact does not count as overlap, which helps avoid sticky movement.
+            return x1 < x4
+                && x3 < x2
+                && y1 < y4
+                && y3 < y2;
         }
 
         public static float DistanceToObject(
             float x1, float y1, float width1, float height1,
             float x2, float y2, float width2, float height2)
         {
-            // this is an approximation, consider the shortest distance between any two points in these objects
-            var e1 = new Tuple<float, float>[]
-            {
-                new Tuple<float,float>(x1, y1),
-                new Tuple<float,float>(x1 - (width1 / 2), y1 - (height1 / 2)),
-                new Tuple<float,float>(x1 + (width1 / 2), y1 + (height1 / 2))
-            };
-
-            var e2 = new Tuple<float, float>[]
-            {
-                new Tuple<float,float>(x2, y2),
-                new Tuple<float,float>(x2 - (width2 / 2), y2 - (height2 / 2)),
-                new Tuple<float,float>(x2 + (width2 / 2), y2 + (height2 / 2))
-            };
+            var halfWidth1 = width1 / 2f;
+            var halfHeight1 = height1 / 2f;
+            var halfWidth2 = width2 / 2f;
+            var halfHeight2 = height2 / 2f;
 
             var minDistance = float.MaxValue;
-            for (int i = 0; i < e1.Length; i++)
-                for (int j = 0; j < e2.Length; j++)
-                    minDistance = Math.Min(Collision.DistanceBetweenPoints(e1[i].Item1, e1[i].Item2, e2[j].Item1, e2[j].Item2), minDistance);
+            AccumulateDistance(x1, y1, x2, y2, ref minDistance);
+            AccumulateDistance(x1, y1, x2 - halfWidth2, y2 - halfHeight2, ref minDistance);
+            AccumulateDistance(x1, y1, x2 + halfWidth2, y2 + halfHeight2, ref minDistance);
+
+            AccumulateDistance(x1 - halfWidth1, y1 - halfHeight1, x2, y2, ref minDistance);
+            AccumulateDistance(x1 - halfWidth1, y1 - halfHeight1, x2 - halfWidth2, y2 - halfHeight2, ref minDistance);
+            AccumulateDistance(x1 - halfWidth1, y1 - halfHeight1, x2 + halfWidth2, y2 + halfHeight2, ref minDistance);
+
+            AccumulateDistance(x1 + halfWidth1, y1 + halfHeight1, x2, y2, ref minDistance);
+            AccumulateDistance(x1 + halfWidth1, y1 + halfHeight1, x2 - halfWidth2, y2 - halfHeight2, ref minDistance);
+            AccumulateDistance(x1 + halfWidth1, y1 + halfHeight1, x2 + halfWidth2, y2 + halfHeight2, ref minDistance);
+
             return minDistance;
         }
 
@@ -107,13 +94,9 @@ namespace engine.Common
 
         public static float DistanceBetweenPoints(float x1, float y1, float x2, float y2)
         {
-            // a^2 + b^2 = c^2
-            //  a = |x1 - x2|
-            //  b = |y1 - y2|
-            //  c = result
-            return (float)Math.Sqrt(
-                Math.Pow(Math.Abs(x1-x2), 2) + Math.Pow(Math.Abs(y1-y2), 2)
-                );
+            var dx = x1 - x2;
+            var dy = y1 - y2;
+            return (float)Math.Sqrt((dx * dx) + (dy * dy));
         }
 
         public static float LineIntersectingRectangle(
@@ -199,6 +182,13 @@ namespace engine.Common
         #region private
 
         #region lines
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void AccumulateDistance(float x1, float y1, float x2, float y2, ref float minDistance)
+        {
+            var distance = DistanceBetweenPoints(x1, y1, x2, y2);
+            if (distance < minDistance) minDistance = distance;
+        }
+
         // https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool CalcCcw(float x1, float y1, float x2, float y2, float x3, float y3)

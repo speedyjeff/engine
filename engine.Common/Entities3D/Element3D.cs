@@ -33,7 +33,7 @@ namespace engine.Common.Entities3D
         public override void Draw(IGraphics g)
         {
             // check if we should skip drawing
-            if (DisableDrawing)
+            if (DisableDrawing || Polygons == null || Polygons.Length == 0)
             {
                 base.Draw(g);
                 return;
@@ -60,24 +60,18 @@ namespace engine.Common.Entities3D
             {
                 // transform
                 var color = IndexToColor(i);
-                Point[] points = null;
-                if (Polygons[i].Length == 3)
+                var polygon = Polygons[i];
+                var points = GetRenderPoints(i, polygon.Length);
+                for (int j = 0; j < polygon.Length; j++)
                 {
-                    TriPoints[0].X = (Polygons[i][0].X * Width) + X; TriPoints[0].Y = (Polygons[i][0].Y * Height) + Y; TriPoints[0].Z = (Polygons[i][0].Z * Depth) + Z;
-                    TriPoints[1].X = (Polygons[i][1].X * Width) + X; TriPoints[1].Y = (Polygons[i][1].Y * Height) + Y; TriPoints[1].Z = (Polygons[i][1].Z * Depth) + Z;
-                    TriPoints[2].X = (Polygons[i][2].X * Width) + X; TriPoints[2].Y = (Polygons[i][2].Y * Height) + Y; TriPoints[2].Z = (Polygons[i][2].Z * Depth) + Z;
-
-                    points = TriPoints;
-                }
-                else
-                {
-                    points = new Point[Polygons[i].Length];
-                    for (int j = 0; j < Polygons[i].Length; j++) points[j] = new Point() { X = (Polygons[i][j].X * Width) + X, Y = (Polygons[i][j].Y * Height) + Y, Z = (Polygons[i][j].Z * Depth) + Z };
+                    points[j].X = (polygon[j].X * Width) + X;
+                    points[j].Y = (polygon[j].Y * Height) + Y;
+                    points[j].Z = (polygon[j].Z * Depth) + Z;
                 }
 
                 // For textured faces, draw only the image. Rendering the fallback face
                 // underneath makes the masked triangle appear vertically offset.
-                if (ImageSources != null && ImageSources[i] != null && !Wireframe)
+                if (ImageSources != null && i < ImageSources.Length && ImageSources[i] != null && !Wireframe)
                     g.Image(ImageSources[i].Image, points);
                 else g.Polygon(color, points, fill: !Wireframe, border: false, thickness: 1f);
             }
@@ -115,11 +109,29 @@ namespace engine.Common.Entities3D
         // global shader support
         private static Func<Element3D, Point[], RGBA, RGBA> OnShader;
         private static volatile int GlobalShaderLevel = 1;
-        private static Point[] TriPoints = new Point[3];
 
         // per Element3D shading
         private volatile int ShaderLevel = 0;
         private RGBA[] ShadedColors;
+        private Point[][] RenderPointsCache;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Point[] GetRenderPoints(int polygonIndex, int pointCount)
+        {
+            if (RenderPointsCache == null || RenderPointsCache.Length != Polygons.Length)
+            {
+                RenderPointsCache = new Point[Polygons.Length][];
+            }
+
+            var points = RenderPointsCache[polygonIndex];
+            if (points == null || points.Length != pointCount)
+            {
+                points = new Point[pointCount];
+                RenderPointsCache[polygonIndex] = points;
+            }
+
+            return points;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private RGBA IndexToColor(int index, bool applyShaders = true)

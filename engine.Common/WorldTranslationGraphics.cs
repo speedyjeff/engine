@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 using engine.Common;
 using engine.Common.Entities3D;
@@ -96,6 +97,8 @@ namespace engine.Common
             CameraZ = cameraZ;
             Horizon = horizon;
             LevelOfDetail = lod;
+            WindowHalfWidth = Graphics.Width / 2.0f;
+            WindowHalfHeight = Graphics.Height / 2.0f;
         }
 
         public void EnableTranslation()
@@ -119,7 +122,12 @@ namespace engine.Common
             // translate the points
             float minz = Single.MaxValue;
             float miny = Single.MaxValue;
+            float minx = Single.MaxValue;
+            float maxx = Single.MinValue;
+            float maxy = Single.MinValue;
             float translatedThickness = 0f;
+            var hasPointInFrontOfCamera = !Is3D;
+            var visibleDepthLimit = GetVisibleDepthLimit();
             if (DoTranslation)
             {
                 float o1 = 0f, o2 = 0f;
@@ -133,8 +141,14 @@ namespace engine.Common
                     // track the furthestZ for sorting
                     if (points[i].Z < minz) minz = points[i].Z;
                     if (points[i].Y < miny) miny = points[i].Y;
+                    if (points[i].X < minx) minx = points[i].X;
+                    if (points[i].X > maxx) maxx = points[i].X;
+                    if (points[i].Y > maxy) maxy = points[i].Y;
+                    if (points[i].Z <= visibleDepthLimit) hasPointInFrontOfCamera = true;
                 }
             }
+
+            if (DoTranslation && ShouldCullPolygon(minx, maxx, miny, maxy, hasPointInFrontOfCamera)) return;
 
             // defer rending for later
             if (_CapturePolygons) AddPolygonDetail(color, points, fill, border, translatedThickness, minz, miny, img: null);
@@ -149,7 +163,12 @@ namespace engine.Common
             // translate the points
             float minz = Single.MaxValue;
             float miny = Single.MaxValue;
+            float minx = Single.MaxValue;
+            float maxx = Single.MinValue;
+            float maxy = Single.MinValue;
             float other = 0f;
+            var hasPointInFrontOfCamera = !Is3D;
+            var visibleDepthLimit = GetVisibleDepthLimit();
             if (DoTranslation)
             {
                 float o1 = 0f, o2 = 0f;
@@ -160,8 +179,14 @@ namespace engine.Common
                     // track the furthestZ for sorting
                     if (points[i].Z < minz) minz = points[i].Z;
                     if (points[i].Y < miny) miny = points[i].Y;
+                    if (points[i].X < minx) minx = points[i].X;
+                    if (points[i].X > maxx) maxx = points[i].X;
+                    if (points[i].Y > maxy) maxy = points[i].Y;
+                    if (points[i].Z <= visibleDepthLimit) hasPointInFrontOfCamera = true;
                 }
             }
+
+            if (DoTranslation && ShouldCullPolygon(minx, maxx, miny, maxy, hasPointInFrontOfCamera)) return;
 
             // defer rending for later
             if (_CapturePolygons) AddPolygonDetail(RGBA.Black, points, fill: false, border: false, thickness: 0f, minz, miny, img);
@@ -184,7 +209,7 @@ namespace engine.Common
             _CapturePolygons = false;
 
             // sort the Z's from back to front
-            Polygons.Sort(0, index, SortPolygonsByZ);
+            if (index > 1) Polygons.Sort(0, index, SortPolygonsByZ);
 
             // draw them directly
             for(int i=0; i<index; i++)
@@ -241,6 +266,8 @@ namespace engine.Common
         private float Pitch;
         private float Roll;
         private float Horizon;
+        private float WindowHalfWidth;
+        private float WindowHalfHeight;
 
         // 3D support
         class PolygonDetails
@@ -337,13 +364,9 @@ namespace engine.Common
                 height *= zoom;
                 other *= zoom;
 
-                // Surface.Width & Surface.Height are the current windows width & height
-                float windowHWidth = Graphics.Width / 2.0f;
-                float windowHHeight = Graphics.Height / 2.0f;
-
                 // now translate to the window
-                x = ((x - CenterX) * zoom) + windowHWidth;
-                y = ((y - CenterY) * zoom) + windowHHeight;
+                x = ((x - CenterX) * zoom) + WindowHalfWidth;
+                y = ((y - CenterY) * zoom) + WindowHalfHeight;
             }
 
             // if (Is3D)
@@ -374,15 +397,38 @@ namespace engine.Common
                 height -= (height * zoom);
                 other -= (other * zoom);
 
-                // Surface.Width & Surface.Height are the current windows width & height
-                float windowHWidth = Graphics.Width / 2.0f;
-                float windowHHeight = Graphics.Height / 2.0f;
-
                 // now translate to the window
-                x += windowHWidth;
-                y += windowHHeight;
+                x += WindowHalfWidth;
+                y += WindowHalfHeight;
             }
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private float GetVisibleDepthLimit()
+        {
+            if (!Is3D) return 0f;
+
+            // Keep a buffer of world geometry behind the player so the third-person
+            // camera doesn't look hollow right at the avatar's back.
+            var rearBuffer = Math.Max(ThirdPersonRearDepthPadding, Horizon * ThirdPersonRearDepthRatio);
+            if (CameraZ > 0f) rearBuffer = Math.Max(rearBuffer, CameraZ + ThirdPersonRearDepthPadding);
+            return rearBuffer;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ShouldCullPolygon(float minx, float maxx, float miny, float maxy, bool hasPointInFrontOfCamera)
+        {
+            if (!hasPointInFrontOfCamera) return true;
+
+            return maxx < -CullPadding
+                || minx > Graphics.Width + CullPadding
+                || maxy < -CullPadding
+                || miny > Graphics.Height + CullPadding;
+        }
+
+        private const float CullPadding = 32f;
+        private const float ThirdPersonRearDepthPadding = 800f;
+        private const float ThirdPersonRearDepthRatio = 0.5f;
         #endregion
     }
 }

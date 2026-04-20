@@ -160,8 +160,10 @@ namespace engine.Common
                 if (Config.Is3D) Surface.CapturePolygons();
 
                 // draw all elements
-                var hidden = new HashSet<int>();
-                var visiblePlayers = new List<Player>();
+                HiddenPlayersScratch.Clear();
+                VisiblePlayersScratch.Clear();
+                var hidden = HiddenPlayersScratch;
+                var visiblePlayers = VisiblePlayersScratch;
 
                 var ratio = (humanZ + Config.CameraZ);
                 if (Config.Is3D || ratio < 1f) ratio = 1f;
@@ -767,6 +769,10 @@ namespace engine.Common
         private ReaderWriterLockSlim DetailsLock;
         private Element MouseSelectRegion;
         private bool EnableFastPlayerUpdate;
+        private readonly List<Player> VisiblePlayersScratch = new List<Player>(256);
+        private readonly HashSet<int> HiddenPlayersScratch = new HashSet<int>();
+        private readonly List<EphemerialElement> EphemerialSnapshotScratch = new List<EphemerialElement>(128);
+        private readonly List<EphemerialElement> EphemerialRemoveScratch = new List<EphemerialElement>(128);
 
         private List<EphemerialElement> Ephemerial;
         private ReaderWriterLockSlim EphemerialLock;
@@ -1098,51 +1104,56 @@ namespace engine.Common
         private void BackgroundUpdate(bool applyDamage = true)
         {
             // update the ephemeral items
-            var toremove = new List<EphemerialElement>();
+            EphemerialSnapshotScratch.Clear();
+            EphemerialRemoveScratch.Clear();
+            var snapshot = EphemerialSnapshotScratch;
+            var toremove = EphemerialRemoveScratch;
             try
             {
                 EphemerialLock.EnterReadLock();
-                foreach (var b in Ephemerial)
-                {
-                    if (b.IsDead)
-                    {
-                        toremove.Add(b);
-                        continue;
-                    }
-
-                    // advance
-                    if (b.Action(out float xdelta, out float ydelta, out float zdelta))
-                    {
-                        if (Map.WhatWouldPlayerTouch(b, ref xdelta, ref ydelta, ref zdelta, out Element touching, b.BasePace))
-                        {
-                            if (touching == null)
-                            {
-                                // would not hit anything, ok to move
-                                b.Move(xdelta, ydelta, zdelta);
-                                b.Feedback(result: true);
-                            }
-                            else
-                            {
-                                // would hit something, notify that an attack occurred
-                                if (string.IsNullOrWhiteSpace(Config.ServerUrl))
-                                {
-                                    // this happens in the local (non-remote server) case AND the server of the client-SERVER configuration
-
-                                    // only notify if not within a server context
-                                    HitByAttack(b, touching);
-                                }
-                                b.Feedback(result: false);
-                            }
-                        }
-                    }
-
-                    // remove dead ephemerals immediately; otherwise age them out normally
-                    if (b.IsDead || ++b.CurrentDuration >= b.Duration) toremove.Add(b);
-                }
+                snapshot.AddRange(Ephemerial);
             }
             finally
             {
                 EphemerialLock.ExitReadLock();
+            }
+
+            foreach (var b in snapshot)
+            {
+                if (b.IsDead)
+                {
+                    toremove.Add(b);
+                    continue;
+                }
+
+                // advance
+                if (b.Action(out float xdelta, out float ydelta, out float zdelta))
+                {
+                    if (Map.WhatWouldPlayerTouch(b, ref xdelta, ref ydelta, ref zdelta, out Element touching, b.BasePace))
+                    {
+                        if (touching == null)
+                        {
+                            // would not hit anything, ok to move
+                            b.Move(xdelta, ydelta, zdelta);
+                            b.Feedback(result: true);
+                        }
+                        else
+                        {
+                            // would hit something, notify that an attack occurred
+                            if (string.IsNullOrWhiteSpace(Config.ServerUrl))
+                            {
+                                // this happens in the local (non-remote server) case AND the server of the client-SERVER configuration
+
+                                // only notify if not within a server context
+                                HitByAttack(b, touching);
+                            }
+                            b.Feedback(result: false);
+                        }
+                    }
+                }
+
+                // remove dead ephemerals immediately; otherwise age them out normally
+                if (b.IsDead || ++b.CurrentDuration >= b.Duration) toremove.Add(b);
             }
 
             try

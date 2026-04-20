@@ -30,8 +30,8 @@ namespace engine.Common.Entities3D
             var ratio = (-1 * z) / maxZ;
 
             // delta for aspect ratio
-            var dx = Math.Abs(x) * ratio;
-            var dy = Math.Abs(y) * ratio;
+            var dx = (x < 0 ? -x : x) * ratio;
+            var dy = (y < 0 ? -y : y) * ratio;
 
             if (x < 0) x += dx;
             else x -= dx;

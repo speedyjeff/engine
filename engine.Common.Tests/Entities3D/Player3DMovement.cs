@@ -1,3 +1,5 @@
+﻿using engine.Common;
+using engine.Common.Entities;
 using engine.Common.Entities3D;
 
 namespace engine.Common.Tests.Entities3D
@@ -60,6 +62,47 @@ namespace engine.Common.Tests.Entities3D
             Assert.AreEqual(player.Height, body.Height, 0.001f);
             Assert.AreEqual(player.Depth, body.Depth, 0.001f);
             Assert.IsTrue(body.WalkPhase > 0f, "Humanoid walk animation should advance when moving.");
+        }
+
+        [TestMethod]
+        public void TreeCollisionUsesTrunkSizedFootprint()
+        {
+            var player = new Player3D()
+            {
+                X = 40f,
+                Y = 0f,
+                Z = 100f,
+                Width = 48f,
+                Height = 60f,
+                Depth = 48f,
+                ShowDefaultDrawing = false,
+                Body = new Humanoid3D(),
+            };
+
+            var tree = new Tree()
+            {
+                X = 0f,
+                Y = 0f,
+                Z = 100f,
+                Width = 120f,
+                Height = 135f,
+                Depth = 120f,
+                Wireframe = false,
+            };
+
+            var map = new Map3D(
+                width: 1000,
+                height: 1000,
+                depth: 1000,
+                players: new Player[] { player },
+                objects: new Element[] { tree },
+                background: new Background(1000, 1000) { GroundColor = new RGBA() { A = 255 } });
+            map.IsPaused = false;
+
+            Assert.IsFalse(map.IsTouching(player, tree), "The canopy should not block movement when the player is only grazing the tree.");
+
+            player.X = 10f;
+            Assert.IsTrue(map.IsTouching(player, tree), "The trunk should remain solid.");
         }
     }
 }
