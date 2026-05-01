@@ -225,9 +225,12 @@ public struct BoardConfiguration
   public int Rows;
   public int Columns;
   public int EdgeAngle; // 0 = rectangle, 1..89 = hexagon
+  public BoardCell[][] Cells; // optional unique cell shapes
+  public BoardClickRegion[] ClickRegions; // optional click-only regions
 }
 
 public delegate void CellClickedDelegate(int row, int col, float x, float y);
+public delegate void BoardClickRegionDelegate(BoardClickRegion region, MouseButton button, float x, float y);
 public delegate void UpdateImageDelegate(IImage img);
 public delegate bool CellPaintDelegate(IGraphics g, int row, int col);
 public delegate bool OverlayPaintDelegate(IGraphics g);
@@ -239,6 +242,7 @@ public int Rows { get; }
 public int Columns { get; }
 
 public event CellClickedDelegate OnCellClicked;
+public event BoardClickRegionDelegate OnRegionClicked;
 // These are 'push' updates to the UI, updates only occur when called
 public void UpdateCell(int row, int col, UpdateImageDelegate update);
 public void UpdateOverlay(UpdateImageDelegate update);

@@ -18,6 +18,7 @@ namespace engine.Common
         public int Columns;
         public int EdgeAngle; // 0 = rectangle, 1..89 = hexagon
         public BoardCell[][] Cells; // all cells are unique shapes (EdgeAngle does not apply)
+        public BoardClickRegion[] ClickRegions; // optional hit-test regions independent from cells
     }
 
     public delegate void CellDelegate(int row, int col, float x, float y);
@@ -46,7 +47,15 @@ namespace engine.Common
             Width = config.Width;
             OverlayLock = new object();
             Config = config;
+            ClickRegions = config.ClickRegions ?? new BoardClickRegion[0];
             Overlay = new CellDetails() { IsDirty = false, Image = null };
+
+            for (int i = 0; i < ClickRegions.Length; i++)
+            {
+                if (ClickRegions[i] == null) throw new Exception("Invalid click region");
+                if (ClickRegions[i].Shape == null) throw new Exception("Invalid click region shape");
+                if (ClickRegions[i].Shape.Points == null || ClickRegions[i].Shape.Points.Length < 3) throw new Exception("Click region shape must have at least 3 points");
+            }
 
             // create cells
 
@@ -113,6 +122,7 @@ namespace engine.Common
         public ImageSource BackgroundImage { get; private set; }
 
         public event CellDelegate OnCellClicked;
+        public event BoardClickRegionDelegate OnRegionClicked;
         public event CellDelegate OnCellOver;
         public event Action<char> OnKeyPressed;
         public event Action OnTick;
@@ -178,6 +188,12 @@ namespace engine.Common
 
         public void Mousedown(MouseButton btn, float x, float y)
         {
+            if (TranslateClickRegion(x, y, out BoardClickRegion clickRegion, out float rx, out float ry))
+            {
+                if (OnRegionClicked != null) OnRegionClicked(clickRegion, btn, rx, ry);
+                clickRegion.Click(btn, rx, ry);
+            }
+
             // provide details of what and were was clicked
             if (OnCellClicked != null)
             {
@@ -325,6 +341,7 @@ namespace engine.Common
         private IGraphics Surface;
         private ISounds Sounds;
         private BoardConfiguration Config;
+        private BoardClickRegion[] ClickRegions;
         private CellDetails Overlay;
         private object OverlayLock;
         private BoardTranslationGraphics SubsetOfBoardGraphics;
@@ -579,6 +596,29 @@ namespace engine.Common
             ly = y - Cells[row][col].Top;
 
             return true;
+        }
+
+        // screen x,y into the first matching click region
+        private bool TranslateClickRegion(float x, float y, out BoardClickRegion clickRegion, out float lx, out float ly)
+        {
+            clickRegion = null;
+            lx = ly = 0f;
+
+            for (int i = 0; i < ClickRegions.Length; i++)
+            {
+                var region = ClickRegions[i];
+                var shape = region.Shape;
+
+                if (x < shape.Left || x > shape.Right || y < shape.Top || y > shape.Bottom) continue;
+                if (!Collision.PointWithinPolygon(x, y, shape.Points)) continue;
+
+                clickRegion = region;
+                lx = x - shape.Left;
+                ly = y - shape.Top;
+                return true;
+            }
+
+            return false;
         }
 
         private void TickUpdate(object state)
