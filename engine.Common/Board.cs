@@ -24,6 +24,7 @@ namespace engine.Common
     public delegate void CellDelegate(int row, int col, float x, float y);
     public delegate void UpdateImageDelegate(IImage img);
     public delegate bool CellPaintDelegate(IGraphics g, int row, int col);
+    public delegate void BackgroundPaintDelegate(IGraphics g);
     public delegate bool OverlayPaintDelegate(IGraphics g);
 
     public class Board : IUserInteraction
@@ -50,50 +51,14 @@ namespace engine.Common
             ClickRegions = config.ClickRegions ?? new BoardClickRegion[0];
             Overlay = new CellDetails() { IsDirty = false, Image = null };
 
-            for (int i = 0; i < ClickRegions.Length; i++)
-            {
-                if (ClickRegions[i] == null) throw new Exception("Invalid click region");
-                if (ClickRegions[i].Shape == null) throw new Exception("Invalid click region shape");
-                if (ClickRegions[i].Shape.Points == null || ClickRegions[i].Shape.Points.Length < 3) throw new Exception("Click region shape must have at least 3 points");
-            }
+            ValidateClickRegions();
 
             // create cells
 
             // unique cell shapes
             if (Config.Cells != null && Config.Cells.Length > 0)
             {
-                // init
-                CellWidth = CellHeight = 0;
-
-                // calculate the rows and columns
-                Config.Rows = Config.Cells.Length;
-                Config.Columns = 0;
-                for(int row=0; row<Config.Cells.Length; row++)
-                {
-                    if (Config.Cells[row].Length > Config.Columns) Config.Columns = Config.Cells[row].Length;
-                }
-
-                // add all the points
-                Cells = new CellDetails[Config.Rows][];
-                for (int row = 0; row < Config.Cells.Length; row++)
-                {
-                    Cells[row] = new CellDetails[Config.Cells[row].Length];
-
-                    for (int col = 0; col < Config.Cells[row].Length; col++)
-                    {
-                        // create cell
-                        Cells[row][col] = new CellDetails()
-                        {
-                            IsDirty = false,
-                            Image = null,
-                            Width = (int)Math.Ceiling(Config.Cells[row][col].Width),
-                            Height = (int)Math.Ceiling(Config.Cells[row][col].Height),
-                            Cells = Config.Cells[row][col].Points,
-                            Top = Config.Cells[row][col].Top,
-                            Left = Config.Cells[row][col].Left
-                        };
-                    }
-                }
+                InitializeUniqueCellBoundaries();
             }
 
             // regular shaped
@@ -128,6 +93,7 @@ namespace engine.Common
         public event Action OnTick;
         public event Action OnResize;
         public event CellPaintDelegate OnCellPaint;
+        public event BackgroundPaintDelegate OnBackgroundPaint;
         public event OverlayPaintDelegate OnOverlayPaint;
 
         public void InitializeGraphics(IGraphics surface, ISounds sounds)
@@ -337,6 +303,26 @@ namespace engine.Common
             }
         }
 
+        public void UpdateCells(BoardCell[][] cells, BoardClickRegion[] clickRegions = null)
+        {
+            if (cells == null || cells.Length == 0) throw new Exception("Must provide valid board cells");
+
+            lock (Cells)
+            {
+                Config.Cells = cells;
+                ClickRegions = clickRegions ?? new BoardClickRegion[0];
+                ValidateClickRegions();
+                InitializeUniqueCellBoundaries();
+                Clear();
+            }
+        }
+
+        public void UpdateClickRegions(BoardClickRegion[] clickRegions)
+        {
+            ClickRegions = clickRegions ?? new BoardClickRegion[0];
+            ValidateClickRegions();
+        }
+
         #region private
         private IGraphics Surface;
         private ISounds Sounds;
@@ -443,6 +429,53 @@ namespace engine.Common
             if (BackgroundImage != null)
             {
                 Surface.Image(BackgroundImage.Image, 0, 0, Surface.Width, Surface.Height);
+            }
+            if (OnBackgroundPaint != null) OnBackgroundPaint(Surface);
+        }
+
+        private void InitializeUniqueCellBoundaries()
+        {
+            // init
+            CellWidth = CellHeight = 0;
+
+            // calculate the rows and columns
+            Config.Rows = Config.Cells.Length;
+            Config.Columns = 0;
+            for (int row = 0; row < Config.Cells.Length; row++)
+            {
+                if (Config.Cells[row].Length > Config.Columns) Config.Columns = Config.Cells[row].Length;
+            }
+
+            // add all the points
+            Cells = new CellDetails[Config.Rows][];
+            for (int row = 0; row < Config.Cells.Length; row++)
+            {
+                Cells[row] = new CellDetails[Config.Cells[row].Length];
+
+                for (int col = 0; col < Config.Cells[row].Length; col++)
+                {
+                    // create cell
+                    Cells[row][col] = new CellDetails()
+                    {
+                        IsDirty = false,
+                        Image = null,
+                        Width = (int)Math.Ceiling(Config.Cells[row][col].Width),
+                        Height = (int)Math.Ceiling(Config.Cells[row][col].Height),
+                        Cells = Config.Cells[row][col].Points,
+                        Top = Config.Cells[row][col].Top,
+                        Left = Config.Cells[row][col].Left
+                    };
+                }
+            }
+        }
+
+        private void ValidateClickRegions()
+        {
+            for (int i = 0; i < ClickRegions.Length; i++)
+            {
+                if (ClickRegions[i] == null) throw new Exception("Invalid click region");
+                if (ClickRegions[i].Shape == null) throw new Exception("Invalid click region shape");
+                if (ClickRegions[i].Shape.Points == null || ClickRegions[i].Shape.Points.Length < 3) throw new Exception("Click region shape must have at least 3 points");
             }
         }
 
