@@ -323,6 +323,22 @@ namespace engine.Common
             ValidateClickRegions();
         }
 
+        public void InvalidateSurface()
+        {
+            lock (Cells)
+            {
+                Clear();
+                for (var row = 0; row < Cells.Length; row++)
+                {
+                    if (Cells[row] == null) continue;
+                    for (var col = 0; col < Cells[row].Length; col++)
+                    {
+                        Cells[row][col].IsDirty = true;
+                    }
+                }
+            }
+        }
+
         #region private
         private IGraphics Surface;
         private ISounds Sounds;
